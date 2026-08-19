@@ -88,7 +88,7 @@
                     <div class="field">
                         <label for="person1">Nome da primeira pessoa</label><input id="person1" required="required" placeholder="Ex.: Ana Silva"></div>
                     <div class="field">
-                        <label for="person2">Nome da segunda pessoa</label><input id="person2" required="required" placeholder="Ex.: João Souza"></div>
+                        <label for="person2">Nome da segunda pessoa (opcional)</label><input id="person2" placeholder="Ex.: João Souza"></div>
                     <div class="field wide">
                         <label for="coupleClass">Turma do casal</label>
                         <select id="coupleClass">
@@ -96,15 +96,31 @@
                         </select>
                     </div>
                     <div class="wide">
-                        <label>Pagamentos</label>
+                        <label>Inscrição</label>
                         <div class="checks">
                             <label class="check"><input type="checkbox" id="entry">
                                 Inscrição paga</label>
-                            <label class="check"><input type="checkbox" id="m1">
+                        </div>
+                    </div>
+                    <div class="wide">
+                        <label>Mensalidades da primeira pessoa</label>
+                        <div class="checks">
+                            <label class="check"><input type="checkbox" id="p1m1">
                                 1ª mensalidade</label>
-                            <label class="check"><input type="checkbox" id="m2">
+                            <label class="check"><input type="checkbox" id="p1m2">
                                 2ª mensalidade</label>
-                            <label class="check"><input type="checkbox" id="m3">
+                            <label class="check"><input type="checkbox" id="p1m3">
+                                3ª mensalidade</label>
+                        </div>
+                    </div>
+                    <div class="wide" id="person2Payments">
+                        <label>Mensalidades da segunda pessoa</label>
+                        <div class="checks">
+                            <label class="check"><input type="checkbox" id="p2m1">
+                                1ª mensalidade</label>
+                            <label class="check"><input type="checkbox" id="p2m2">
+                                2ª mensalidade</label>
+                            <label class="check"><input type="checkbox" id="p2m3">
                                 3ª mensalidade</label>
                         </div>
                     </div>

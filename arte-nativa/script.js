@@ -11,6 +11,15 @@ const makeId = () => typeof crypto !== 'undefined' && crypto.randomUUID
         .random()
         .toString(36)
         .slice(2);
+couples = couples.map(c => ({
+    ...c,
+    payments: c.payments || {
+        person1: [...(c.months || [false, false, false])],
+        person2: c.person2
+            ? [...(c.months || [false, false, false])]
+            : [false, false, false]
+    }
+}));
 const save = () => {
     localStorage.setItem(KEY, JSON.stringify(couples));
     localStorage.setItem(CLASSES_KEY, JSON.stringify(classes));
@@ -32,7 +41,14 @@ function stats() {
         entries = couples
             .filter(c => c.entry)
             .length,
-        paid = couples.reduce((n, c) => n + c.months.filter(Boolean).length, 0);
+        paid = couples.reduce(
+            (n, c) => n + c.payments.person1.filter(Boolean).length + (
+                c.person2
+                    ? c.payments.person2.filter(Boolean).length
+                    : 0
+            ),
+            0
+        );
     $('statTotal').textContent = total;
     $('statEntries').textContent = entries;
     $('statPayments').textContent = paid;
@@ -84,7 +100,9 @@ function render() {
         .trim();
     const classFilter = $('classFilter').value;
     const filtered = couples.filter(c => {
-        const matchesName = (c.person1 + ' ' + c.person2)
+        const matchesName = (c.person1 + ' ' + (
+            c.person2 || ''
+        ))
             .toLowerCase()
             .includes(q);
         const matchesClass = classFilter === 'all' || (
@@ -97,35 +115,64 @@ function render() {
     $('list').innerHTML = filtered.length
         ? filtered
             .map(c => {
-                const paid = c
-                    .months
+                const paid1 = c
+                    .payments
+                    .person1
                     .filter(Boolean)
                     .length;
+                const paid2 = c.person2
+                    ? c
+                        .payments
+                        .person2
+                        .filter(Boolean)
+                        .length
+                    : 0;
+                const possible = c.person2
+                    ? 6
+                    : 3;
                 const classItem = classById(c.classId);
-                return `<tr><td class="couple"><strong>${escapeHtml(c.person1)} &amp; ${escapeHtml(
-                    c.person2
-                )}</strong><small>Cadastrado em ${c.createdAt}</small></td>
+                return `<tr><td class="couple"><strong>${escapeHtml(c.person1)}${c.person2
+                    ? ` &amp; ${escapeHtml(c.person2)}`
+                    : ''}</strong><small>${c.person2
+                        ? 'Casal'
+                        : 'Aluno individual'} • Cadastrado em ${c.createdAt}</small></td>
           <td><span class="class-name">${classItem
-                    ? escapeHtml(classItem.name)
-                    : 'Sem turma'}</span></td>
+                            ? escapeHtml(classItem.name)
+                            : 'Sem turma'}</span></td>
           <td><button class="pill ${c.entry
-                        ? 'paid'
-                        : 'pending'}" onclick="toggleEntry('${c.id}')">${c.entry
-                            ? 'Paga'
-                            : 'Pendente'}</button></td>
-          <td><div class="payments">${c
-                                .months
-                                .map(
-                                    (on, i) => `<button class="month ${on
-                                        ? 'on'
-                                        : ''}" title="${i + 1}ª mensalidade" onclick="toggleMonth('${c.id}',${i})">${on
-                                            ? '✓'
-                                            : i + 1}</button>`
-                                )
-                                .join('')}</div></td>
-          <td class="count"><b>${paid} de 3</b> pagas</td><td><div class="actions"><button class="icon-btn" type="button" title="Editar" onclick="editCouple('${c
-                                .id}')">✎</button><button class="icon-btn delete-btn" type="button" title="Excluir" aria-label="Excluir casal" data-delete-id="${c
-                                .id}">⌫</button></div></td></tr>`;
+                                ? 'paid'
+                                : 'pending'}" onclick="toggleEntry('${c.id}')">${c.entry
+                                    ? 'Paga'
+                                    : 'Pendente'}</button></td>
+          <td><div class="person-payment"><span class="person-payment-name">${escapeHtml(
+                                        c.person1
+                                    )}</span><div class="payments">${c
+                                        .payments
+                                        .person1
+                                        .map(
+                                            (on, i) => `<button class="month ${on
+                                                ? 'on'
+                                                : ''}" title="${i + 1}ª mensalidade de ${escapeHtml(c.person1)}" onclick="toggleMonth('${c.id}','person1',${i})">${on
+                                                    ? '✓'
+                                                    : i + 1}</button>`
+                                        )
+                                        .join('')}</div></div>${c
+                                        .person2
+                                            ? `<div class="person-payment"><span class="person-payment-name">${escapeHtml(
+                                                c.person2
+                                            )}</span><div class="payments">${c
+                                                .payments
+                                                .person2
+                                                .map(
+                                                    (on, i) => `<button class="month ${on
+                                                        ? 'on'
+                                                        : ''}" title="${i + 1}ª mensalidade de ${escapeHtml(c.person2)}" onclick="toggleMonth('${c.id}','person2',${i})">${on
+                                                            ? '✓'
+                                                            : i + 1}</button>`
+                                                )
+                                                .join('')}</div></div>`
+                                            : ''}</td>
+          <td class="count"><b>${paid1 + paid2} de ${possible}</b> pagas</td><td><div class="actions"><button class="icon-btn" type="button" title="Editar" onclick="editCouple('${c.id}')">✎</button><button class="icon-btn delete-btn" type="button" title="Excluir" aria-label="Excluir cadastro" onclick="removeCouple('${c.id}')">⌫</button></div></td></tr>`;
             })
             .join('')
         : `<tr><td colspan="6" class="empty"><b>Nenhum casal encontrado</b>${couples.length
@@ -133,11 +180,19 @@ function render() {
             : 'Clique em “Cadastrar casal” para começar.'}</td></tr>`;
     stats();
 }
+function updatePerson2Payments() {
+    $('person2Payments').style.display = $('person2')
+        .value
+        .trim()
+            ? 'block'
+            : 'none';
+}
 function openNew() {
     $('form').reset();
     $('editingId').value = '';
-    $('modalTitle').textContent = 'Cadastrar casal';
+    $('modalTitle').textContent = 'Cadastrar aluno ou casal';
     renderClassOptions();
+    updatePerson2Payments();
     $('modal').showModal();
     $('person1').focus();
 }
@@ -147,15 +202,23 @@ function editCouple(id) {
         return;
     $('editingId').value = id;
     $('person1').value = c.person1;
-    $('person2').value = c.person2;
+    $('person2').value = c.person2 || '';
     $('coupleClass').value = c.classId || '';
     $('entry').checked = c.entry;
     c
-        .months
-        .forEach((v, i) => $('m' + (
+        .payments
+        .person1
+        .forEach((v, i) => $('p1m' + (
             i + 1
         )).checked = v);
-    $('modalTitle').textContent = 'Editar casal';
+    c
+        .payments
+        .person2
+        .forEach((v, i) => $('p2m' + (
+            i + 1
+        )).checked = v);
+    updatePerson2Payments();
+    $('modalTitle').textContent = 'Editar cadastro';
     $('modal').showModal();
 }
 function toggleEntry(id) {
@@ -164,9 +227,9 @@ function toggleEntry(id) {
     save();
     toast('Inscrição atualizada.');
 }
-function toggleMonth(id, index) {
+function toggleMonth(id, person, index) {
     const c = couples.find(x => x.id === id);
-    c.months[index] = !c.months[index];
+    c.payments[person][index] = !c.payments[person][index];
     save();
     toast('Mensalidade atualizada.');
 }
@@ -176,7 +239,9 @@ function removeCouple(id) {
         return;
     
     const confirmed = window.confirm(
-        `Excluir o cadastro de ${c.person1} e ${c.person2}?`
+        `Excluir o cadastro de ${c.person1}${c.person2
+            ? ` e ${c.person2}`
+            : ''}?`
     );
     if (!confirmed) 
         return;
@@ -211,16 +276,22 @@ function removeClass(id) {
 $('form').addEventListener('submit', e => {
     e.preventDefault();
     const id = $('editingId').value;
+    const person2 = $('person2')
+        .value
+        .trim();
     const data = {
         person1: $('person1')
             .value
             .trim(),
-        person2: $('person2')
-            .value
-            .trim(),
+        person2,
         classId: $('coupleClass').value,
         entry: $('entry').checked,
-        months: [1, 2, 3].map(i => $('m' + i).checked)
+        payments: {
+            person1: [1, 2, 3].map(i => $('p1m' + i).checked),
+            person2: person2
+                ? [1, 2, 3].map(i => $('p2m' + i).checked)
+                : [false, false, false]
+        }
     };
     if (id) {
         const old = couples.find(c => c.id === id);
@@ -232,7 +303,11 @@ $('form').addEventListener('submit', e => {
             createdAt: new Date().toLocaleDateString('pt-BR'),
             ...data
         });
-        toast('Casal cadastrado!');
+        toast(
+            person2
+                ? 'Casal cadastrado!'
+                : 'Aluno cadastrado!'
+        );
     }
     save();
     $('modal').close();
@@ -270,14 +345,6 @@ $('closeClassBtn').onclick = () => $('classModal').close();
 $('cancelClassBtn').onclick = () => $('classModal').close();
 $('search').oninput = render;
 $('classFilter').onchange = render;
-$('list').addEventListener('click', event => {
-    const deleteButton = event
-        .target
-        .closest('[data-delete-id]');
-    if (!deleteButton) 
-        return;
-    removeCouple(deleteButton.dataset.deleteId);
-});
 $('classList').addEventListener('click', event => {
     const button = event
         .target
@@ -286,6 +353,7 @@ $('classList').addEventListener('click', event => {
         removeClass(button.dataset.deleteClass);
     }
 );
+$('person2').addEventListener('input', updatePerson2Payments);
 $('modal').addEventListener('click', e => {
     if (e.target === $('modal')) 
         $('modal').close();

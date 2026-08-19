@@ -270,6 +270,22 @@ td {
   display: flex;
   gap: 7px;
 }
+.person-payment {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 5px 0;
+}
+.person-payment-name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--muted);
+}
 .month {
   width: 36px;
   height: 36px;
@@ -479,4 +495,216 @@ label {
   .stat strong {
     font-size: 25px;
   }
+}
+/* Adaptação para celulares */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .topbar {
+    min-height: 160px;
+    padding: 24px 18px 55px;
+  }
+
+  .brand-mark {
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+  }
+
+  .brand strong {
+    font-size: 20px;
+  }
+
+  .top-copy {
+    margin-top: 22px;
+  }
+
+  .top-copy h1 {
+    font-size: 29px;
+  }
+
+  .top-copy p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .app {
+    width: calc(100% - 24px);
+    margin-top: -35px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat {
+    padding: 15px;
+    border-radius: 15px;
+  }
+
+  .stat span {
+    font-size: 10px;
+  }
+
+  .stat strong {
+    font-size: 25px;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 15px;
+  }
+
+  .search {
+    width: 100%;
+    max-width: none;
+  }
+
+  .toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .class-filter,
+  .toolbar-actions .btn {
+    width: 100%;
+  }
+
+  /* Permite movimentar a tabela para os lados */
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 850px;
+  }
+
+  th,
+  td {
+    padding: 13px 12px;
+  }
+
+  .person-payment {
+    grid-template-columns: 110px auto;
+  }
+
+  .month {
+    width: 40px;
+    height: 40px;
+  }
+
+  dialog {
+    width: calc(100% - 20px);
+    max-height: 92vh;
+    overflow-y: auto;
+    border-radius: 17px;
+  }
+
+  .modal-head {
+    padding: 20px 18px 15px;
+  }
+
+  .modal-head h2 {
+    font-size: 23px;
+  }
+
+  form {
+    padding: 20px 18px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wide {
+    grid-column: auto;
+  }
+
+  .checks {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .check {
+    width: 100%;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+  }
+
+  .toast {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    text-align: center;
+  }
+}
+
+/* Celulares muito pequenos */
+@media (max-width: 380px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .top-copy h1 {
+    font-size: 25px;
+  }
+}
+
+/* Rolagem dentro das janelas de cadastro */
+dialog[open] {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow: hidden;
+}
+
+dialog .modal-head {
+  flex-shrink: 0;
+}
+
+dialog form {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ajuste para celulares */
+@media (max-width: 768px) {
+  dialog {
+    width: calc(100% - 20px);
+    max-height: 92vh;
+    max-height: 92dvh;
+    margin: auto;
+  }
+
+  dialog form {
+    padding-bottom: 30px;
+  }
+
+  .modal-actions {
+    position: sticky;
+    bottom: -30px;
+    padding: 15px 0;
+    background: var(--paper);
+    border-top: 1px solid var(--line);
+  }
+}
+
+#person2Payments {
+  display: block !important;
 }

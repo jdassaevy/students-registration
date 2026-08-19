@@ -8,159 +8,207 @@
         <link rel="stylesheet" href="./style.css">
     </head>
     <body>
-        <header class="topbar">
-            <div class="brand">
-                <div class="brand-mark">AN</div>
-                <div>
-                    <small>Família</small>
-                    <strong>Arte Nativa</strong>
-                </div>
-            </div>
-            <div class="top-copy">
-                <h1>Gestão de alunos</h1>
-                <p>Inscrições e mensalidades dos casais em um só lugar.</p>
-            </div>
-        </header>
-        <main class="app">
-            <section class="stats" aria-label="Resumo">
-                <article class="stat">
-                    <span>Casais inscritos</span>
-                    <strong id="statTotal">0</strong>
-                </article>
-                <article class="stat">
-                    <span>Inscrições pagas</span>
-                    <strong id="statEntries">0</strong>
-                </article>
-                <article class="stat">
-                    <span>Mensalidades pagas</span>
-                    <strong id="statPayments">0</strong>
-                </article>
-                <article class="stat">
-                    <span>Turmas ativas</span>
-                    <strong id="statClasses">0</strong>
-                </article>
-            </section>
-            <section class="panel">
-                <div class="toolbar">
-                    <div class="search"><input
-                        id="search"
-                        type="search"
-                        placeholder="Buscar pelo nome do casal..."
-                        aria-label="Buscar casais"></div>
-                    <div class="toolbar-actions">
-                        <select id="classFilter" class="class-filter" aria-label="Filtrar por turma">
-                            <option value="all">Todas as turmas</option>
-                            <option value="none">Sem turma</option>
-                        </select>
-                        <button class="btn btn-light" id="newClassBtn">＋ Nova turma</button>
-                        <button class="btn btn-primary" id="newBtn">＋ Cadastrar casal</button>
+        <section class="auth-view" id="authView">
+            <div class="auth-card">
+                <div class="auth-brand">
+                    <div class="brand-mark">AN</div>
+                    <div>
+                        <small>Sistema de gestão</small>
+                        <strong>Arte Nativa</strong>
                     </div>
                 </div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Casal</th>
-                                <th>Turma</th>
-                                <th>Inscrição</th>
-                                <th>Mensalidades</th>
-                                <th>Progresso</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="list"></tbody>
-                    </table>
+                <div class="auth-copy">
+                    <h1 id="authTitle">Entrar na sua conta</h1>
+                    <p id="authSubtitle">Acesse suas turmas e alunos em qualquer dispositivo.</p>
                 </div>
-            </section>
-        </main>
-
-        <dialog id="modal">
-            <div class="modal-head">
-                <div>
-                    <h2 id="modalTitle">Cadastrar casal</h2>
-                    <p>Preencha os nomes e a situação dos pagamentos.</p>
-                </div>
-                <button class="close" type="button" id="closeBtn" aria-label="Fechar">×</button>
-            </div>
-            <form id="form">
-                <input type="hidden" id="editingId">
-                <div class="grid">
+                <form id="authForm" class="auth-form">
                     <div class="field">
-                        <label for="person1">Nome da primeira pessoa</label><input id="person1" required="required" placeholder="Ex.: Ana Silva"></div>
-                    <div class="field">
-                        <label for="person2">Nome da segunda pessoa (opcional)</label><input id="person2" placeholder="Ex.: João Souza"></div>
-                    <div class="field wide">
-                        <label for="coupleClass">Turma do casal</label>
-                        <select id="coupleClass">
-                            <option value="">Sem turma</option>
-                        </select>
-                    </div>
-                    <div class="wide">
-                        <label>Inscrição</label>
-                        <div class="checks">
-                            <label class="check"><input type="checkbox" id="entry">
-                                Inscrição paga</label>
-                        </div>
-                    </div>
-                    <div class="wide">
-                        <label>Mensalidades da primeira pessoa</label>
-                        <div class="checks">
-                            <label class="check"><input type="checkbox" id="p1m1">
-                                1ª mensalidade</label>
-                            <label class="check"><input type="checkbox" id="p1m2">
-                                2ª mensalidade</label>
-                            <label class="check"><input type="checkbox" id="p1m3">
-                                3ª mensalidade</label>
-                        </div>
-                    </div>
-                    <div class="wide" id="person2Payments">
-                        <label>Mensalidades da segunda pessoa</label>
-                        <div class="checks">
-                            <label class="check"><input type="checkbox" id="p2m1">
-                                1ª mensalidade</label>
-                            <label class="check"><input type="checkbox" id="p2m2">
-                                2ª mensalidade</label>
-                            <label class="check"><input type="checkbox" id="p2m3">
-                                3ª mensalidade</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-light" id="cancelBtn">Cancelar</button>
-                    <button class="btn btn-primary" type="submit">Salvar casal</button>
-                </div>
-            </form>
-        </dialog>
-
-        <dialog id="classModal">
-            <div class="modal-head">
-                <div>
-                    <h2>Criar nova turma</h2>
-                    <p>Cadastre uma turma para organizar os casais.</p>
-                </div>
-                <button class="close" type="button" id="closeClassBtn" aria-label="Fechar">×</button>
-            </div>
-            <form id="classForm">
-                <div class="grid">
-                    <div class="field wide">
-                        <label for="className">Nome da turma</label><input
-                            id="className"
+                        <label for="authEmail">E-mail</label><input
+                            type="email"
+                            id="authEmail"
+                            autocomplete="email"
                             required="required"
-                            placeholder="Ex.: Básico de segunda-feira"></div>
-                    <div class="field">
-                        <label for="classPlace">Local</label><input id="classPlace" placeholder="Ex.: ASMUB"></div>
-                    <div class="field">
-                        <label for="classSchedule">Dia e horário</label><input id="classSchedule" placeholder="Ex.: Segunda, 20h"></div>
+                            placeholder="academia@email.com"></div>
+                    <div class="field" id="passwordField">
+                        <label for="authPassword">Senha</label><input
+                            type="password"
+                            id="authPassword"
+                            autocomplete="current-password"
+                            minlength="6"
+                            required="required"
+                            placeholder="Mínimo de 6 caracteres"></div>
+                    <button type="submit" class="btn btn-primary" id="authSubmit">Entrar</button>
+                    <p class="auth-message" id="authMessage" role="status"></p>
+                </form>
+                <div class="auth-links">
+                    <button type="button" id="toggleAuthMode">Criar uma conta</button>
+                    <button type="button" id="forgotPassword">Esqueci minha senha</button>
                 </div>
-                <div id="classList" class="class-list"></div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-light" id="cancelClassBtn">Fechar</button>
-                    <button class="btn btn-primary" type="submit">Criar turma</button>
-                </div>
-            </form>
-        </dialog>
-        <div class="toast" id="toast"></div>
+            </div>
+        </section>
 
+        <div id="appView" hidden="hidden">
+            <header class="topbar">
+                <div class="brand">
+                    <div class="brand-mark">AN</div>
+                    <div>
+                        <small>Família</small>
+                        <strong>Arte Nativa</strong>
+                    </div>
+                </div>
+                <div class="top-copy">
+                    <h1>Gestão de alunos</h1>
+                    <p>Inscrições e mensalidades dos casais em um só lugar.</p>
+                </div>
+                <div class="account-bar">
+                    <span id="userEmail"></span>
+                    <button type="button" class="btn btn-account" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+            <main class="app">
+                <section class="stats" aria-label="Resumo">
+                    <article class="stat">
+                        <span>Casais inscritos</span>
+                        <strong id="statTotal">0</strong>
+                    </article>
+                    <article class="stat">
+                        <span>Inscrições pagas</span>
+                        <strong id="statEntries">0</strong>
+                    </article>
+                    <article class="stat">
+                        <span>Mensalidades pagas</span>
+                        <strong id="statPayments">0</strong>
+                    </article>
+                    <article class="stat">
+                        <span>Turmas ativas</span>
+                        <strong id="statClasses">0</strong>
+                    </article>
+                </section>
+                <section class="panel">
+                    <div class="toolbar">
+                        <div class="search"><input
+                            id="search"
+                            type="search"
+                            placeholder="Buscar pelo nome do casal..."
+                            aria-label="Buscar casais"></div>
+                        <div class="toolbar-actions">
+                            <select id="classFilter" class="class-filter" aria-label="Filtrar por turma">
+                                <option value="all">Todas as turmas</option>
+                                <option value="none">Sem turma</option>
+                            </select>
+                            <button class="btn btn-light" id="newClassBtn">＋ Nova turma</button>
+                            <button class="btn btn-primary" id="newBtn">＋ Cadastrar casal</button>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Casal</th>
+                                    <th>Turma</th>
+                                    <th>Inscrição</th>
+                                    <th>Mensalidades</th>
+                                    <th>Progresso</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="list"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+
+            <dialog id="modal">
+                <div class="modal-head">
+                    <div>
+                        <h2 id="modalTitle">Cadastrar casal</h2>
+                        <p>Preencha os nomes e a situação dos pagamentos.</p>
+                    </div>
+                    <button class="close" type="button" id="closeBtn" aria-label="Fechar">×</button>
+                </div>
+                <form id="form">
+                    <input type="hidden" id="editingId">
+                    <div class="grid">
+                        <div class="field">
+                            <label for="person1">Nome da primeira pessoa</label><input id="person1" required="required" placeholder="Ex.: Ana Silva"></div>
+                        <div class="field">
+                            <label for="person2">Nome da segunda pessoa (opcional)</label><input id="person2" placeholder="Ex.: João Souza"></div>
+                        <div class="field wide">
+                            <label for="coupleClass">Turma do casal</label>
+                            <select id="coupleClass">
+                                <option value="">Sem turma</option>
+                            </select>
+                        </div>
+                        <div class="wide">
+                            <label>Inscrição</label>
+                            <div class="checks">
+                                <label class="check"><input type="checkbox" id="entry">
+                                    Inscrição paga</label>
+                            </div>
+                        </div>
+                        <div class="wide">
+                            <label>Mensalidades da primeira pessoa</label>
+                            <div class="checks">
+                                <label class="check"><input type="checkbox" id="p1m1">
+                                    1ª mensalidade</label>
+                                <label class="check"><input type="checkbox" id="p1m2">
+                                    2ª mensalidade</label>
+                                <label class="check"><input type="checkbox" id="p1m3">
+                                    3ª mensalidade</label>
+                            </div>
+                        </div>
+                        <div class="wide" id="person2Payments">
+                            <label>Mensalidades da segunda pessoa</label>
+                            <div class="checks">
+                                <label class="check"><input type="checkbox" id="p2m1">
+                                    1ª mensalidade</label>
+                                <label class="check"><input type="checkbox" id="p2m2">
+                                    2ª mensalidade</label>
+                                <label class="check"><input type="checkbox" id="p2m3">
+                                    3ª mensalidade</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-light" id="cancelBtn">Cancelar</button>
+                        <button class="btn btn-primary" type="submit">Salvar casal</button>
+                    </div>
+                </form>
+            </dialog>
+
+            <dialog id="classModal">
+                <div class="modal-head">
+                    <div>
+                        <h2>Criar nova turma</h2>
+                        <p>Cadastre uma turma para organizar os casais.</p>
+                    </div>
+                    <button class="close" type="button" id="closeClassBtn" aria-label="Fechar">×</button>
+                </div>
+                <form id="classForm">
+                    <div class="grid">
+                        <div class="field wide">
+                            <label for="className">Nome da turma</label><input
+                                id="className"
+                                required="required"
+                                placeholder="Ex.: Básico de segunda-feira"></div>
+                        <div class="field">
+                            <label for="classPlace">Local</label><input id="classPlace" placeholder="Ex.: ASMUB"></div>
+                        <div class="field">
+                            <label for="classSchedule">Dia e horário</label><input id="classSchedule" placeholder="Ex.: Segunda, 20h"></div>
+                    </div>
+                    <div id="classList" class="class-list"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-light" id="cancelClassBtn">Fechar</button>
+                        <button class="btn btn-primary" type="submit">Criar turma</button>
+                    </div>
+                </form>
+            </dialog>
+            <div class="toast" id="toast"></div>
+
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="./supabase-config.js"></script>
         <script src="./script.js"></script>
     </body>
 </html>

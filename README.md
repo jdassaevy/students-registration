@@ -26,7 +26,9 @@ O sistema permite organizar alunos individuais ou casais por turmas, acompanhar 
 - HTML5
 - CSS3
 - JavaScript
-- LocalStorage
+- Supabase Auth
+- PostgreSQL (Supabase)
+- Row Level Security
 
 ## Estrutura do projeto
 
@@ -35,6 +37,8 @@ arte-nativa/
 ├── index.html
 ├── style.css
 ├── script.js
+├── supabase-config.js
+├── supabase-schema.sql
 └── README.md
 ```
 
@@ -60,7 +64,7 @@ git clone URL_DO_REPOSITORIO
 
 4. Caso utilize o Live Server, clique com o botão direito no `index.html` e escolha **Open with Live Server**.
 
-Não é necessário instalar dependências ou executar comandos adicionais.
+Antes do primeiro uso, abra o **SQL Editor** do Supabase, cole o conteúdo de `supabase-schema.sql` e execute. Depois abra a aplicação normalmente. Não é necessário instalar dependências.
 
 ## Como utilizar
 
@@ -88,11 +92,11 @@ Isso permite registrar situações em que somente uma das pessoas do casal reali
 
 ## Armazenamento dos dados
 
-Os dados são armazenados no `LocalStorage` do navegador. Dessa forma, os registros continuam disponíveis depois que a página é fechada ou atualizada.
+Os dados são armazenados no banco PostgreSQL do Supabase e vinculados ao usuário autenticado. Eles ficam disponíveis em qualquer dispositivo após o login.
 
-> **Atenção:** os dados ficam salvos somente no navegador e no dispositivo utilizados. Limpar os dados de navegação, utilizar outro computador ou abrir outro navegador não carregará automaticamente os mesmos registros.
+Os registros antigos encontrados no `LocalStorage` podem ser enviados para a conta online no primeiro acesso.
 
-Para uso em vários dispositivos, o projeto precisará futuramente de um banco de dados e um sistema de autenticação.
+As políticas de Row Level Security garantem que cada conta acesse somente as próprias turmas e alunos.
 
 ## Responsividade
 

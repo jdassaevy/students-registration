@@ -26,6 +26,124 @@ body {
   color: var(--ink);
   background: var(--cream);
 }
+[hidden] {
+  display: none !important;
+}
+.auth-view {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(
+      circle at 80% 0%,
+      rgba(255, 255, 255, 0.13),
+      transparent 30%
+    ),
+    linear-gradient(135deg, var(--wine-dark), var(--wine));
+}
+.auth-card {
+  width: min(440px, 100%);
+  padding: 32px;
+  border-radius: 24px;
+  background: var(--paper);
+  box-shadow: 0 30px 90px rgba(30, 12, 8, 0.32);
+}
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: var(--wine-dark);
+}
+.auth-brand .brand-mark {
+  color: white;
+  background: var(--wine);
+}
+.auth-brand small,
+.auth-brand strong {
+  display: block;
+}
+.auth-brand small {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.auth-brand strong {
+  font:
+    700 22px Georgia,
+    serif;
+}
+.auth-copy {
+  margin: 28px 0 20px;
+}
+.auth-copy h1 {
+  margin: 0 0 7px;
+  color: var(--wine-dark);
+  font:
+    700 30px Georgia,
+    serif;
+}
+.auth-copy p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.auth-form {
+  padding: 0;
+  display: grid;
+  gap: 15px;
+  overflow: visible;
+}
+.auth-form .btn {
+  width: 100%;
+  margin-top: 3px;
+}
+.auth-message {
+  min-height: 20px;
+  margin: 0;
+  text-align: center;
+  color: var(--red);
+  font-size: 13px;
+}
+.auth-message.success {
+  color: var(--green);
+}
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.auth-links button {
+  border: 0;
+  padding: 6px 0;
+  color: var(--wine);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+}
+.account-bar {
+  position: absolute;
+  top: 30px;
+  right: clamp(20px, 5vw, 72px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+}
+.btn-account {
+  min-height: 38px;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+}
+.loading-state {
+  text-align: center;
+  padding: 18px;
+  color: var(--muted);
+}
 button,
 input,
 select {
@@ -498,6 +616,17 @@ label {
 }
 /* Adaptação para celulares */
 @media (max-width: 768px) {
+  .auth-card {
+    padding: 24px 20px;
+  }
+  .auth-copy h1 {
+    font-size: 26px;
+  }
+  .account-bar {
+    position: static;
+    margin-top: 18px;
+    justify-content: space-between;
+  }
   body {
     overflow-x: hidden;
   }
@@ -587,8 +716,8 @@ label {
     min-width: 850px;
   }
 
-  th,
-  td {
+  td,
+  th {
     padding: 13px 12px;
   }
 

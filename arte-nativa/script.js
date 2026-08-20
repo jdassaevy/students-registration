@@ -9,6 +9,7 @@ let recoverySession = null;
 let couples = [];
 let classes = [];
 let authMode = 'login';
+let activeView = 'students';
 
 const escapeHtml = value => String(value ?? '').replace(
     /[&<>'"]/g,
@@ -36,12 +37,32 @@ const normalizePayments = value => ({
             .map(Boolean)
         : [false, false, false]
 });
+const normalizeEntryPayments = (value, legacyEntry = false, hasPerson2 = false) => ({
+    person1: typeof value?.person1 === 'boolean' ? value.person1 : Boolean(legacyEntry),
+    person2: typeof value?.person2 === 'boolean' ? value.person2 : Boolean(legacyEntry && hasPerson2)
+});
+const normalizeFees = value => ({
+    person1: {
+        entry: Math.max(0, Number(value?.person1?.entry) || 0),
+        monthly: Math.max(0, Number(value?.person1?.monthly) || 0)
+    },
+    person2: {
+        entry: Math.max(0, Number(value?.person2?.entry) || 0),
+        monthly: Math.max(0, Number(value?.person2?.monthly) || 0)
+    }
+});
+const money = value => Number(value || 0).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+});
+const inputMoney = id => Math.max(0, Number($(id).value) || 0);
 const fromStudent = row => ({
     id: row.id,
     person1: row.person1,
     person2: row.person2 || '',
     classId: row.class_id || '',
-    entry: row.entry_paid,
+    entryPayments: normalizeEntryPayments(row.entry_payments, row.entry_paid, Boolean(row.person2)),
+    fees: normalizeFees(row.fees),
     payments: normalizePayments(row.payments),
     createdAt: new Date(row.created_at).toLocaleDateString('pt-BR')
 });
@@ -330,15 +351,55 @@ function stats(items = couples) {
         0
     );
     $('statTotal').textContent = items.length;
-    $('statEntries').textContent = items
-        .filter(c => c.entry)
-        .length;
+    $('statEntries').textContent = items.reduce((total, c) => total + Number(c.entryPayments.person1) + Number(Boolean(c.person2) && c.entryPayments.person2), 0);
     $('statPayments').textContent = paid;
     $('statClasses').textContent = classes.length;
+}
+function financialValues(c) {
+    let entries = c.entryPayments.person1 ? c.fees.person1.entry : 0;
+    let monthly = c.payments.person1.filter(Boolean).length * c.fees.person1.monthly;
+    let count = Number(c.entryPayments.person1) + c.payments.person1.filter(Boolean).length;
+    if (c.person2) {
+        entries += c.entryPayments.person2 ? c.fees.person2.entry : 0;
+        monthly += c.payments.person2.filter(Boolean).length * c.fees.person2.monthly;
+        count += Number(c.entryPayments.person2) + c.payments.person2.filter(Boolean).length;
+    }
+    return {entries, monthly, total: entries + monthly, count};
+}
+function renderFinancial() {
+    const filter = $('financialClassFilter').value;
+    const items = couples.filter(c => filter === 'all' || (filter === 'none' ? !c.classId : c.classId === filter));
+    const summary = items.reduce((acc, c) => {
+        const values = financialValues(c);
+        acc.entries += values.entries;
+        acc.monthly += values.monthly;
+        acc.count += values.count;
+        return acc;
+    }, {entries: 0, monthly: 0, count: 0});
+    $('financialTotal').textContent = money(summary.entries + summary.monthly);
+    $('financialEntries').textContent = money(summary.entries);
+    $('financialMonthly').textContent = money(summary.monthly);
+    $('financialPayments').textContent = summary.count;
+
+    const groups = new Map();
+    items.forEach(c => {
+        const key = c.classId || 'none';
+        const current = groups.get(key) || {students: 0, entries: 0, monthly: 0};
+        const values = financialValues(c);
+        current.students += c.person2 ? 2 : 1;
+        current.entries += values.entries;
+        current.monthly += values.monthly;
+        groups.set(key, current);
+    });
+    $('financialList').innerHTML = groups.size ? [...groups.entries()].map(([id, values]) => {
+        const classItem = classById(id);
+        return `<tr><td><span class="class-name">${classItem ? escapeHtml(classItem.name) : 'Sem turma'}</span></td><td>${values.students}</td><td>${money(values.entries)}</td><td>${money(values.monthly)}</td><td class="financial-total-cell">${money(values.entries + values.monthly)}</td></tr>`;
+    }).join('') : '<tr><td colspan="5" class="empty"><b>Nenhum valor recebido</b>Marque pagamentos como recebidos para exibi-los aqui.</td></tr>';
 }
 const classById = id => classes.find(item => item.id === id);
 function renderClassOptions() {
     const filter = $('classFilter').value,
+        financialFilter = $('financialClassFilter').value,
         selected = $('coupleClass').value;
     const options = classes
         .map(
@@ -346,9 +407,12 @@ function renderClassOptions() {
         )
         .join('');
     $('classFilter').innerHTML = `<option value="all">Todas as turmas</option><option value="none">Sem turma</option>${options}`;
+    $('financialClassFilter').innerHTML = `<option value="all">Todas as turmas</option><option value="none">Sem turma</option>${options}`;
     $('coupleClass').innerHTML = `<option value="">Sem turma</option>${options}`;
     if ([...$('classFilter').options].some(o => o.value === filter)) 
         $('classFilter').value = filter;
+    if ([...$('financialClassFilter').options].some(o => o.value === financialFilter))
+        $('financialClassFilter').value = financialFilter;
     if ([...$('coupleClass').options].some(o => o.value === selected)) 
         $('coupleClass').value = selected;
     }
@@ -413,17 +477,14 @@ function render() {
                                 : i + 1}</button>`
                     )
                     .join('')}</div></div>`;
+                const entryButtons = `<div class="person-payment"><span class="person-payment-name">${escapeHtml(c.person1)}</span><button class="pill ${c.entryPayments.person1 ? 'paid' : 'pending'}" onclick="toggleEntry('${c.id}','person1')">${c.entryPayments.person1 ? 'Paga' : 'Pendente'}</button></div>${c.person2 ? `<div class="person-payment"><span class="person-payment-name">${escapeHtml(c.person2)}</span><button class="pill ${c.entryPayments.person2 ? 'paid' : 'pending'}" onclick="toggleEntry('${c.id}','person2')">${c.entryPayments.person2 ? 'Paga' : 'Pendente'}</button></div>` : ''}`;
                 return `<tr><td class="couple"><strong>${escapeHtml(c.person1)}${c.person2
                     ? ` &amp; ${escapeHtml(c.person2)}`
                     : ''}</strong><small>${c.person2
                         ? 'Casal'
                         : 'Aluno individual'} • ${c.createdAt}</small></td><td><span class="class-name">${classItem
                             ? escapeHtml(classItem.name)
-                            : 'Sem turma'}</span></td><td><button class="pill ${c.entry
-                                ? 'paid'
-                                : 'pending'}" onclick="toggleEntry('${c.id}')">${c.entry
-                                    ? 'Paga'
-                                    : 'Pendente'}</button></td><td>${personButtons('person1', c.person1)}${c.person2
+                            : 'Sem turma'}</span></td><td>${entryButtons}</td><td>${personButtons('person1', c.person1)}${c.person2
                                         ? personButtons('person2', c.person2)
                                         : ''}</td><td class="count"><b>${paid1 + paid2} de ${c.person2
                                             ? 6
@@ -433,6 +494,7 @@ function render() {
         : '<tr><td colspan="6" class="empty"><b>Nenhum cadastro encontrado</b>Cadastre um' +
                 ' aluno ou altere os filtros.</td></tr>';
     stats(classFiltered);
+    renderFinancial();
 }
 
 function openNew() {
@@ -440,6 +502,7 @@ function openNew() {
     $('editingId').value = '';
     $('modalTitle').textContent = 'Cadastrar aluno ou casal';
     renderClassOptions();
+    updatePerson2Fields();
     $('modal').showModal();
     $('person1').focus();
 }
@@ -451,7 +514,12 @@ function editCouple(id) {
     $('person1').value = c.person1;
     $('person2').value = c.person2 || '';
     $('coupleClass').value = c.classId || '';
-    $('entry').checked = c.entry;
+    $('p1Entry').checked = c.entryPayments.person1;
+    $('p2Entry').checked = c.entryPayments.person2;
+    $('p1EntryValue').value = c.fees.person1.entry || '';
+    $('p1MonthlyValue').value = c.fees.person1.monthly || '';
+    $('p2EntryValue').value = c.fees.person2.entry || '';
+    $('p2MonthlyValue').value = c.fees.person2.monthly || '';
     c
         .payments
         .person1
@@ -465,19 +533,31 @@ function editCouple(id) {
             i + 1
         )).checked = v);
     $('modalTitle').textContent = 'Editar cadastro';
+    updatePerson2Fields();
     $('modal').showModal();
 }
-async function toggleEntry(id) {
+async function toggleEntry(id, person) {
     const c = couples.find(x => x.id === id),
-        value = !c.entry;
+        entryPayments = {...c.entryPayments, [person]: !c.entryPayments[person]};
     const {error} = await db
         .from('students')
-        .update({entry_paid: value})
+        .update({entry_payments: entryPayments, entry_paid: entryPayments.person1 || entryPayments.person2})
         .eq('id', id);
     if (error) 
         return toast('Erro ao atualizar.');
-    c.entry = value;
+    c.entryPayments = entryPayments;
     render();
+}
+function updatePerson2Fields() {
+    $('person2Payments').hidden = !$('person2').value.trim();
+}
+function setView(view) {
+    activeView = view;
+    $('studentsView').hidden = view !== 'students';
+    $('financialView').hidden = view !== 'financial';
+    $('studentsTab').classList.toggle('active', view === 'students');
+    $('financialTab').classList.toggle('active', view === 'financial');
+    if (view === 'financial') renderFinancial();
 }
 async function toggleMonth(id, person, index) {
     const c = couples.find(x => x.id === id),
@@ -552,7 +632,15 @@ $('form').addEventListener('submit', async event => {
             .trim(),
         person2: person2 || null,
         class_id: $('coupleClass').value || null,
-        entry_paid: $('entry').checked,
+        entry_paid: $('p1Entry').checked || (person2 && $('p2Entry').checked),
+        entry_payments: {
+            person1: $('p1Entry').checked,
+            person2: person2 ? $('p2Entry').checked : false
+        },
+        fees: {
+            person1: {entry: inputMoney('p1EntryValue'), monthly: inputMoney('p1MonthlyValue')},
+            person2: person2 ? {entry: inputMoney('p2EntryValue'), monthly: inputMoney('p2MonthlyValue')} : {entry: 0, monthly: 0}
+        },
         payments: {
             person1: [1, 2, 3].map(i => $('p1m' + i).checked),
             person2: person2
@@ -625,6 +713,10 @@ $('closeClassBtn').onclick = () => $('classModal').close();
 $('cancelClassBtn').onclick = () => $('classModal').close();
 $('search').oninput = render;
 $('classFilter').onchange = render;
+$('financialClassFilter').onchange = renderFinancial;
+$('studentsTab').onclick = () => setView('students');
+$('financialTab').onclick = () => setView('financial');
+$('person2').oninput = updatePerson2Fields;
 $('classList').addEventListener('click', event => {
     const button = event
         .target
@@ -634,10 +726,7 @@ $('classList').addEventListener('click', event => {
     }
 );
 
-db
-    .auth
-    db
-    .auth
+db.auth
     .onAuthStateChange(async (event, session) => {
         currentUser = session
             ?.user || null;

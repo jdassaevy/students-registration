@@ -5,6 +5,7 @@ const LOCAL_COUPLES_KEY = 'arteNativaCasais_v1';
 const LOCAL_CLASSES_KEY = 'arteNativaTurmas_v1';
 const $ = id => document.getElementById(id);
 let currentUser = null;
+let recoverySession = null;
 let couples = [];
 let classes = [];
 let authMode = 'login';
@@ -165,9 +166,27 @@ async function handleAuth(event) {
             setAuthMode('login');
             authMessage('Senha alterada com sucesso! Entre com sua nova senha.', true);
         } else if (authMode === 'register') {
+            if (
+                !recoverySession
+                    ?.access_token || !recoverySession
+                        ?.refresh_token
+            ) {
+                throw new Error('Recovery session missing');
+            }
+
+            const {error: sessionError} = await db
+                .auth
+                .setSession(
+                    {access_token: recoverySession.access_token, refresh_token: recoverySession.refresh_token}
+                );
+
+            if (sessionError) {
+                throw sessionError;
+            }
+
             const {error} = await db
                 .auth
-                .signUp({email, password});
+                .updateUser({password});
             if (error) 
                 throw error;
             setAuthMode('login');
@@ -622,6 +641,10 @@ db
             ?.user || null;
 
         if (event === 'PASSWORD_RECOVERY') {
+            recoverySession = session;
+            currentUser = session
+                ?.user || null;
+
             showAuth();
             setAuthMode('update-password');
             return;

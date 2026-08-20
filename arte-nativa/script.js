@@ -379,6 +379,93 @@ function renderFinancial() {
     }).join('') : '<tr><td colspan="5" class="empty"><b>Nenhum valor recebido</b>Marque pagamentos como recebidos para exibi-los aqui.</td></tr>';
 }
 const classById = id => classes.find(item => item.id === id);
+const safeFileName = value => String(value || 'turma')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9-_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'turma';
+
+async function exportSelectedClass() {
+    const classId = $('classFilter').value;
+    const classItem = classById(classId);
+
+    if (!classItem) {
+        toast('Selecione uma turma para gerar a lista.');
+        return;
+    }
+
+    const classCouples = couples
+        .filter(c => c.classId === classId)
+        .sort((a, b) => a.person1.localeCompare(b.person1, 'pt-BR'));
+
+    if (!classCouples.length) {
+        toast('Esta turma ainda não possui alunos.');
+        return;
+    }
+
+    if (!window.docx) {
+        toast('Não foi possível carregar o gerador de Word.');
+        return;
+    }
+
+    const button = $('exportClassBtn');
+    setLoading(button, true, 'Gerando...');
+
+    try {
+        const {Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel} = window.docx;
+        const details = [];
+        if (classItem.place) details.push(`Local: ${classItem.place}`);
+        if (classItem.schedule) details.push(`Dia e horário: ${classItem.schedule}`);
+
+        const children = [
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                heading: HeadingLevel.TITLE,
+                spacing: {after: 120},
+                children: [new TextRun({text: classItem.name, bold: true})]
+            }),
+            ...details.map(detail => new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: {after: 80},
+                children: [new TextRun({text: detail, bold: true, size: 24})]
+            })),
+            new Paragraph({spacing: {after: 260}}),
+            ...classCouples.map((couple, index) => new Paragraph({
+                spacing: {after: 220, line: 360},
+                children: [
+                    new TextRun({text: `${index + 1}. ${couple.person1} e `, size: 24}),
+                    new TextRun({
+                        text: couple.person2 || '__________________________________',
+                        size: 24
+                    })
+                ]
+            }))
+        ];
+
+        const documentFile = new Document({
+            sections: [{
+                properties: {},
+                children
+            }]
+        });
+        const blob = await Packer.toBlob(documentFile);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `lista-${safeFileName(classItem.name)}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast('Lista da turma gerada!');
+    } catch (error) {
+        console.error(error);
+        toast('Não foi possível gerar a lista.');
+    } finally {
+        setLoading(button, false, '');
+    }
+}
 function renderClassOptions() {
     const filter = $('classFilter').value,
         financialFilter = $('financialClassFilter').value,
@@ -695,6 +782,7 @@ $('closeClassBtn').onclick = () => $('classModal').close();
 $('cancelClassBtn').onclick = () => $('classModal').close();
 $('search').oninput = render;
 $('classFilter').onchange = render;
+$('exportClassBtn').onclick = exportSelectedClass;
 $('financialClassFilter').onchange = renderFinancial;
 $('studentsTab').onclick = () => setView('students');
 $('financialTab').onclick = () => setView('financial');

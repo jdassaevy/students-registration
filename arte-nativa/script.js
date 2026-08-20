@@ -320,8 +320,8 @@ async function migrateLocalData() {
         .map(fromStudent);
 }
 
-function stats() {
-    const paid = couples.reduce(
+function stats(items = couples) {
+    const paid = items.reduce(
         (n, c) => n + c.payments.person1.filter(Boolean).length + (
             c.person2
                 ? c.payments.person2.filter(Boolean).length
@@ -329,8 +329,8 @@ function stats() {
         ),
         0
     );
-    $('statTotal').textContent = couples.length;
-    $('statEntries').textContent = couples
+    $('statTotal').textContent = items.length;
+    $('statEntries').textContent = items
         .filter(c => c.entry)
         .length;
     $('statPayments').textContent = paid;
@@ -376,12 +376,14 @@ function render() {
             .toLowerCase()
             .trim(),
         filter = $('classFilter').value;
-    const filtered = couples.filter(
-        c => (`${c.person1} ${c.person2 || ''}`).toLowerCase().includes(q) && (filter === 'all' || (
-            filter === 'none'
-                ? !c.classId
-                : c.classId === filter
-        ))
+    const classFiltered = couples.filter(c => filter === 'all' || (
+        filter === 'none'
+            ? !c.classId
+            : c.classId === filter
+    ));
+
+    const filtered = classFiltered.filter(
+        c => `${c.person1} ${c.person2 || ''}`.toLowerCase().includes(q)
     );
     $('list').innerHTML = filtered.length
         ? filtered
@@ -430,7 +432,7 @@ function render() {
             .join('')
         : '<tr><td colspan="6" class="empty"><b>Nenhum cadastro encontrado</b>Cadastre um' +
                 ' aluno ou altere os filtros.</td></tr>';
-    stats();
+    stats(classFiltered);
 }
 
 function openNew() {

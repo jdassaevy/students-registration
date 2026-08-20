@@ -431,10 +431,10 @@ async function exportSelectedClass() {
                 children: [new TextRun({text: detail, bold: true, size: 24})]
             })),
             new Paragraph({spacing: {after: 260}}),
-            ...classCouples.map((couple, index) => new Paragraph({
+            ...classCouples.map(couple => new Paragraph({
                 spacing: {after: 220, line: 360},
                 children: [
-                    new TextRun({text: `${index + 1}. ${couple.person1} e `, size: 24}),
+                    new TextRun({text: `${couple.person1} e `, size: 24}),
                     new TextRun({
                         text: couple.person2 || '__________________________________',
                         size: 24

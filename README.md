@@ -15,6 +15,8 @@ O sistema permite organizar alunos individuais ou casais por turmas, acompanhar 
 - Busca pelo nome do aluno ou casal
 - Controle do pagamento da inscrição
 - Controle individual de 3 mensalidades para cada pessoa
+- Valores de inscrição e mensalidade configuráveis para cada pessoa
+- Painel financeiro com totais recebidos no geral ou por turma
 - Edição dos cadastros
 - Exclusão de alunos ou casais
 - Resumo de alunos, inscrições, mensalidades e turmas
@@ -120,9 +122,8 @@ Após alguns minutos, o GitHub disponibilizará o endereço público da aplicaç
 - Sincronização entre dispositivos
 - Exportação de relatórios em PDF ou Excel
 - Controle de presença nas aulas
-- Histórico completo de pagamentos
 - Cadastro de professores
-- Painel financeiro
+- Histórico de pagamentos com datas e formas de pagamento
 
 ## Autor
 

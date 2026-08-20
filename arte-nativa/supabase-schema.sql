@@ -1,4 +1,3 @@
--- Execute este arquivo no SQL Editor do Supabase.
 create extension if not exists pgcrypto;
 
 create table if not exists public.classes (

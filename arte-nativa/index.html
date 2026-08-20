@@ -40,6 +40,15 @@
                             minlength="6"
                             required="required"
                             placeholder="Mínimo de 6 caracteres"></div>
+                    <div class="field" id="confirmPasswordField" hidden="hidden">
+                        <label for="authPasswordConfirmation">Confirme a nova senha</label>
+                        <input
+                            type="password"
+                            id="authPasswordConfirmation"
+                            autocomplete="new-password"
+                            minlength="6"
+                            placeholder="Digite novamente a senha">
+                    </div>
                     <button type="submit" class="btn btn-primary" id="authSubmit">Entrar</button>
                     <p class="auth-message" id="authMessage" role="status"></p>
                 </form>

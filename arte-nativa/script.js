@@ -91,22 +91,43 @@ function setAuthMode(mode) {
         ? 'Entrar na sua conta'
         : mode === 'register'
             ? 'Criar conta da academia'
-            : 'Recuperar senha';
+            : mode === 'reset'
+                ? 'Recuperar senha'
+                : 'Criar nova senha';
     $('authSubtitle').textContent = mode === 'register'
         ? 'Seus alunos e turmas ficarão separados das outras contas.'
         : mode === 'reset'
             ? 'Enviaremos um link de recuperação para seu e-mail.'
-            : 'Acesse suas turmas e alunos em qualquer dispositivo.';
+            : mode === 'update-password'
+                ? 'Digite e confirme a nova senha da sua conta.'
+                : 'Acesse suas turmas e alunos em qualquer dispositivo.';
     $('authSubmit').textContent = mode === 'login'
         ? 'Entrar'
         : mode === 'register'
             ? 'Criar conta'
-            : 'Enviar link';
+            : mode === 'reset'
+                ? 'Enviar link'
+                : 'Salvar nova senha';
     $('authSubmit').dataset.label = $('authSubmit').textContent;
     $('toggleAuthMode').textContent = mode === 'register'
         ? 'Já tenho uma conta'
         : 'Criar uma conta';
-    $('forgotPassword').hidden = mode === 'reset';
+    const updatingPassword = mode === 'update-password';
+
+    $('emailField').hidden = updatingPassword;
+    $('passwordField').hidden = mode === 'reset';
+    $('confirmPasswordField').hidden = !updatingPassword;
+
+    $('authEmail').required = !updatingPassword;
+    $('authPassword').required = mode !== 'reset';
+    $('authPasswordConfirmation').required = updatingPassword;
+
+    $('authPassword').autocomplete = updatingPassword
+        ? 'new-password'
+        : 'current-password';
+
+    $('toggleAuthMode').hidden = updatingPassword;
+    $('forgotPassword').hidden = mode === 'reset' || updatingPassword;
 }
 
 async function handleAuth(event) {
@@ -119,7 +140,31 @@ async function handleAuth(event) {
     setLoading(button, true, 'Aguarde...');
     authMessage('');
     try {
-        if (authMode === 'register') {
+        if (authMode === 'update-password') {
+            const confirmation = $('authPasswordConfirmation').value;
+
+            if (password.length < 6) {
+                throw new Error('Password should be at least 6 characters');
+            }
+
+            if (password !== confirmation) {
+                throw new Error('Passwords do not match');
+            }
+
+            const {error} = await db
+                .auth
+                .updateUser({password});
+
+            if (error) {
+                throw error;
+            }
+
+            await db
+                .auth
+                .signOut();
+            setAuthMode('login');
+            authMessage('Senha alterada com sucesso! Entre com sua nova senha.', true);
+        } else if (authMode === 'register') {
             const {error} = await db
                 .auth
                 .signUp({email, password});
@@ -161,6 +206,8 @@ function translateError(message = '') {
         return 'Este e-mail já possui uma conta.';
     if (message.includes('Password should')) 
         return 'A senha precisa ter pelo menos 6 caracteres.';
+    if (message.includes('Passwords do not match')) 
+        return 'As senhas digitadas não são iguais.';
     return message || 'Não foi possível concluir a operação.';
 }
 
@@ -568,16 +615,27 @@ $('classList').addEventListener('click', event => {
 
 db
     .auth
+    db
+    .auth
     .onAuthStateChange(async (event, session) => {
         currentUser = session
             ?.user || null;
+
+        if (event === 'PASSWORD_RECOVERY') {
+            showAuth();
+            setAuthMode('update-password');
+            return;
+        }
+
         if (!currentUser) {
             showAuth();
             couples = [];
             classes = [];
             return;
         }
+
         showApp();
+
         try {
             await loadData();
         } catch (error) {
@@ -589,4 +647,5 @@ db
             );
         }
     });
+
 setAuthMode('login');

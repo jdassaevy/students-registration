@@ -16,6 +16,8 @@ create table if not exists public.students (
   person1 text not null check (char_length(person1) between 1 and 160),
   person2 text,
   entry_paid boolean not null default false,
+  entry_payments jsonb not null default '{"person1":false,"person2":false}'::jsonb,
+  fees jsonb not null default '{"person1":{"entry":0,"monthly":0},"person2":{"entry":0,"monthly":0}}'::jsonb,
   payments jsonb not null default '{"person1":[false,false,false],"person2":[false,false,false]}'::jsonb,
   created_at timestamptz not null default now()
 );
@@ -41,3 +43,21 @@ with check ((select auth.uid()) = user_id);
 
 grant select, insert, update, delete on public.classes to authenticated;
 grant select, insert, update, delete on public.students to authenticated;
+
+-- Migração segura para projetos que já possuem a tabela students.
+alter table public.students
+  add column if not exists entry_payments jsonb not null
+  default '{"person1":false,"person2":false}'::jsonb;
+
+alter table public.students
+  add column if not exists fees jsonb not null
+  default '{"person1":{"entry":0,"monthly":0},"person2":{"entry":0,"monthly":0}}'::jsonb;
+
+-- Mantém como recebidas as inscrições que já estavam marcadas como pagas.
+update public.students
+set entry_payments = jsonb_build_object(
+  'person1', entry_paid,
+  'person2', case when person2 is not null then entry_paid else false end
+)
+where entry_paid = true
+  and entry_payments = '{"person1":false,"person2":false}'::jsonb;

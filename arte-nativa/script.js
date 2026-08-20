@@ -187,27 +187,9 @@ async function handleAuth(event) {
             setAuthMode('login');
             authMessage('Senha alterada com sucesso! Entre com sua nova senha.', true);
         } else if (authMode === 'register') {
-            if (
-                !recoverySession
-                    ?.access_token || !recoverySession
-                        ?.refresh_token
-            ) {
-                throw new Error('Recovery session missing');
-            }
-
-            const {error: sessionError} = await db
-                .auth
-                .setSession(
-                    {access_token: recoverySession.access_token, refresh_token: recoverySession.refresh_token}
-                );
-
-            if (sessionError) {
-                throw sessionError;
-            }
-
             const {error} = await db
                 .auth
-                .updateUser({password});
+                .signUp({email, password});
             if (error) 
                 throw error;
             setAuthMode('login');

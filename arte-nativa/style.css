@@ -52,15 +52,16 @@ body {
 .auth-brand {
   display: flex;
   align-items: center;
-  gap: 13px;
+  justify-content: flex-start;
+  gap: 16px;
   color: var(--wine-dark);
 }
 .auth-brand-logo {
-  width: 58px;
-  height: 58px;
-  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  display: block;
   object-fit: contain;
-  border-radius: 14px;
 }
 .auth-brand small,
 .auth-brand strong {
@@ -172,6 +173,24 @@ button {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+.auth-brand > div {
+  min-width: 0;
+}
+
+.auth-brand small {
+  max-width: none;
+  white-space: nowrap;
+  font-size: 9px;
+}
+
+.auth-brand strong {
+  display: block;
+  color: var(--wine-dark);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 .brand-mark {
   width: 58px;

@@ -10,6 +10,10 @@
   --green: #2f7d58;
   --red: #b5463c;
   --shadow: 0 18px 50px rgba(70, 34, 23, 0.1);
+  --motion-fast: 160ms;
+  --motion-normal: 240ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 * {
   box-sizing: border-box;
@@ -48,6 +52,7 @@ body {
   border-radius: 24px;
   background: var(--paper);
   box-shadow: 0 30px 90px rgba(30, 12, 8, 0.32);
+  animation: auth-card-in var(--motion-slow) var(--motion-ease) both;
 }
 .auth-brand {
   display: flex;
@@ -161,6 +166,15 @@ select {
 }
 button {
   cursor: pointer;
+  transition:
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .topbar {
   min-height: 180px;
@@ -268,6 +282,10 @@ button {
 .view-tab.active {
   color: white;
   background: var(--wine);
+  box-shadow: 0 5px 14px rgba(91, 33, 24, 0.22);
+}
+.view-panel-enter {
+  animation: view-panel-in var(--motion-normal) var(--motion-ease) both;
 }
 .financial-head {
   display: flex;
@@ -550,6 +568,13 @@ dialog {
   border-radius: 22px;
   padding: 0;
   box-shadow: 0 30px 90px rgba(30, 12, 8, 0.3);
+  opacity: 0;
+  transform: translateY(18px) scale(0.97);
+  transition:
+    opacity var(--motion-normal) ease,
+    transform var(--motion-normal) var(--motion-ease),
+    overlay var(--motion-normal) allow-discrete,
+    display var(--motion-normal) allow-discrete;
 }
 .financial-person-block {
   display: grid;
@@ -572,6 +597,25 @@ dialog {
 dialog::backdrop {
   background: rgba(35, 19, 15, 0.62);
   backdrop-filter: blur(4px);
+  opacity: 0;
+  transition:
+    opacity var(--motion-normal) ease,
+    overlay var(--motion-normal) allow-discrete,
+    display var(--motion-normal) allow-discrete;
+}
+dialog[open] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+dialog[open]::backdrop {
+  opacity: 1;
+}
+dialog.is-closing {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+dialog.is-closing::backdrop {
+  opacity: 0;
 }
 .modal-head {
   padding: 24px 26px 18px;
@@ -689,7 +733,10 @@ label {
   opacity: 0;
   transform: translateY(20px);
   pointer-events: none;
-  transition: 0.25s;
+  transition:
+    opacity var(--motion-normal) ease,
+    transform var(--motion-normal) var(--motion-ease);
+  z-index: 1000;
 }
 .toast.show {
   opacity: 1;
@@ -957,4 +1004,48 @@ dialog form {
 
 #person2Payments {
   display: block !important;
+}
+
+@keyframes auth-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes view-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@starting-style {
+  dialog[open] {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

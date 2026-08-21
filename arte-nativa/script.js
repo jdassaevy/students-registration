@@ -10,6 +10,7 @@ let couples = [];
 let classes = [];
 let authMode = 'login';
 let activeView = 'students';
+let toastTimer = null;
 
 const escapeHtml = value => String(value ?? '').replace(
     /[&<>'"]/g,
@@ -74,11 +75,36 @@ const fromClass = row => ({
 });
 
 function toast(message) {
+    clearTimeout(toastTimer);
     $('toast').textContent = message;
     $('toast')
         .classList
         .add('show');
-    setTimeout(() => $('toast').classList.remove('show'), 2400);
+    toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2400);
+}
+
+function openDialog(dialog) {
+    dialog.classList.remove('is-closing');
+    dialog.showModal();
+}
+
+function closeDialog(dialog) {
+    if (!dialog.open || dialog.classList.contains('is-closing')) return;
+    dialog.classList.add('is-closing');
+    const finish = () => {
+        dialog.classList.remove('is-closing');
+        dialog.close();
+    };
+    dialog.addEventListener('transitionend', finish, {once: true});
+    setTimeout(() => {
+        if (dialog.open) finish();
+    }, 280);
+}
+
+function animateView(element) {
+    element.classList.remove('view-panel-enter');
+    void element.offsetWidth;
+    element.classList.add('view-panel-enter');
 }
 function authMessage(message, success = false) {
     $('authMessage').textContent = message;
@@ -572,7 +598,7 @@ function openNew() {
     $('modalTitle').textContent = 'Cadastrar aluno ou casal';
     renderClassOptions();
     updatePerson2Fields();
-    $('modal').showModal();
+    openDialog($('modal'));
     $('person1').focus();
 }
 function editCouple(id) {
@@ -603,7 +629,7 @@ function editCouple(id) {
         )).checked = v);
     $('modalTitle').textContent = 'Editar cadastro';
     updatePerson2Fields();
-    $('modal').showModal();
+    openDialog($('modal'));
 }
 async function toggleEntry(id, person) {
     const c = couples.find(x => x.id === id),
@@ -621,11 +647,13 @@ function updatePerson2Fields() {
     $('person2Payments').hidden = !$('person2').value.trim();
 }
 function setView(view) {
+    if (view === activeView) return;
     activeView = view;
     $('studentsView').hidden = view !== 'students';
     $('financialView').hidden = view !== 'financial';
     $('studentsTab').classList.toggle('active', view === 'students');
     $('financialTab').classList.toggle('active', view === 'financial');
+    animateView(view === 'students' ? $('studentsView') : $('financialView'));
     if (view === 'financial') renderFinancial();
 }
 async function toggleMonth(id, person, index) {
@@ -740,7 +768,7 @@ $('form').addEventListener('submit', async event => {
         );
     else 
         couples.unshift(mapped);
-    $('modal').close();
+    closeDialog($('modal'));
     render();
     toast('Cadastro salvo!');
 });
@@ -774,12 +802,18 @@ $('newBtn').onclick = openNew;
 $('newClassBtn').onclick = () => {
     $('classForm').reset();
     renderClassList();
-    $('classModal').showModal();
+    openDialog($('classModal'));
 };
-$('closeBtn').onclick = () => $('modal').close();
-$('cancelBtn').onclick = () => $('modal').close();
-$('closeClassBtn').onclick = () => $('classModal').close();
-$('cancelClassBtn').onclick = () => $('classModal').close();
+$('closeBtn').onclick = () => closeDialog($('modal'));
+$('cancelBtn').onclick = () => closeDialog($('modal'));
+$('closeClassBtn').onclick = () => closeDialog($('classModal'));
+$('cancelClassBtn').onclick = () => closeDialog($('classModal'));
+[$('modal'), $('classModal')].forEach(dialog => {
+    dialog.addEventListener('cancel', event => {
+        event.preventDefault();
+        closeDialog(dialog);
+    });
+});
 $('search').oninput = render;
 $('classFilter').onchange = render;
 $('exportClassBtn').onclick = exportSelectedClass;

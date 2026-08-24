@@ -1,19 +1,20 @@
 @import url("./style-base.css");
 
-/* Modern floating surface theme */
+/* Modern floating surface theme - stronger visual depth */
 :root {
-  --surface-glass: rgba(255, 253, 248, 0.9);
-  --surface-border: rgba(255, 255, 255, 0.76);
-  --shadow: 0 18px 50px rgba(70, 34, 23, 0.12), 0 3px 12px rgba(52, 21, 15, 0.05);
+  --surface-glass: rgba(255, 253, 248, 0.82);
+  --surface-border: rgba(255, 255, 255, 0.9);
+  --shadow: 0 24px 60px rgba(70, 34, 23, 0.16), 0 6px 18px rgba(52, 21, 15, 0.08);
 }
 
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 8% 28%, rgba(166, 75, 53, 0.12), transparent 28rem),
-    radial-gradient(circle at 92% 72%, rgba(91, 33, 24, 0.10), transparent 30rem),
-    radial-gradient(circle at 52% 105%, rgba(203, 154, 112, 0.12), transparent 34rem),
-    linear-gradient(145deg, #f8f2e9 0%, #f1e7db 48%, #f7efe5 100%);
+    radial-gradient(circle at -4% 24%, rgba(166, 75, 53, 0.28), transparent 30rem),
+    radial-gradient(circle at 104% 64%, rgba(91, 33, 24, 0.24), transparent 32rem),
+    radial-gradient(circle at 48% 112%, rgba(203, 154, 112, 0.30), transparent 38rem),
+    radial-gradient(circle at 58% 42%, rgba(255, 255, 255, 0.55), transparent 34rem),
+    linear-gradient(145deg, #f7eee2 0%, #ead9c8 48%, #f4e8da 100%);
   background-attachment: fixed;
 }
 
@@ -23,31 +24,43 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.42;
+  opacity: 0.7;
   background-image:
-    linear-gradient(rgba(91, 33, 24, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(91, 33, 24, 0.025) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, transparent, black 18%, black 85%, transparent);
+    linear-gradient(rgba(91, 33, 24, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(91, 33, 24, 0.04) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, transparent, black 14%, black 88%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 14%, black 88%, transparent);
 }
 
 .topbar {
   position: relative;
   overflow: hidden;
-  box-shadow: 0 18px 50px rgba(52, 21, 15, 0.16);
+  box-shadow: 0 24px 70px rgba(52, 21, 15, 0.24);
 }
 
+.topbar::before,
 .topbar::after {
   content: "";
   position: absolute;
-  width: 420px;
-  height: 420px;
-  right: -120px;
-  bottom: -300px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.055);
-  filter: blur(2px);
   pointer-events: none;
+}
+
+.topbar::before {
+  width: 360px;
+  height: 360px;
+  left: -120px;
+  top: -250px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.topbar::after {
+  width: 500px;
+  height: 500px;
+  right: -150px;
+  bottom: -360px;
+  background: rgba(255, 255, 255, 0.075);
 }
 
 .view-tabs,
@@ -56,17 +69,35 @@ body::before {
   background: var(--surface-glass);
   border-color: var(--surface-border);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px) saturate(115%);
-  -webkit-backdrop-filter: blur(16px) saturate(115%);
+  backdrop-filter: blur(20px) saturate(125%);
+  -webkit-backdrop-filter: blur(20px) saturate(125%);
+}
+
+.view-tabs {
+  border: 1px solid rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 42px rgba(70, 34, 23, 0.17), 0 2px 8px rgba(52, 21, 15, 0.08);
 }
 
 .stat {
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.92);
   transition:
     transform var(--motion-normal) var(--motion-ease),
     box-shadow var(--motion-normal) ease,
     border-color var(--motion-normal) ease;
+}
+
+.stat::before {
+  content: "";
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  right: -48px;
+  top: -58px;
+  border-radius: 50%;
+  background: rgba(166, 75, 53, 0.08);
+  pointer-events: none;
 }
 
 .stat::after {
@@ -74,30 +105,29 @@ body::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(255,255,255,0.38), transparent 45%);
+  background: linear-gradient(135deg, rgba(255,255,255,0.58), transparent 46%);
 }
 
 .stat:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 24px 55px rgba(70, 34, 23, 0.15), 0 6px 16px rgba(52, 21, 15, 0.06);
+  transform: translateY(-5px);
+  border-color: #fff;
+  box-shadow: 0 30px 70px rgba(70, 34, 23, 0.20), 0 10px 24px rgba(52, 21, 15, 0.10);
 }
 
 .panel {
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 24px;
-  box-shadow: 0 24px 65px rgba(70, 34, 23, 0.13), 0 4px 14px rgba(52, 21, 15, 0.05);
-}
-
-.view-tabs {
-  box-shadow: 0 12px 32px rgba(70, 34, 23, 0.12);
+  box-shadow: 0 32px 80px rgba(70, 34, 23, 0.19), 0 8px 22px rgba(52, 21, 15, 0.09);
 }
 
 .toolbar {
-  background: rgba(255, 253, 248, 0.48);
+  background: rgba(255, 253, 248, 0.54);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 th {
-  background: rgba(250, 246, 240, 0.68);
+  background: rgba(250, 246, 240, 0.74);
 }
 
 .search input,
@@ -106,31 +136,33 @@ th {
 .field select,
 .month,
 .icon-btn {
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 12px rgba(70, 34, 23, 0.04);
 }
 
 .financial-stats .stat.featured {
-  box-shadow: 0 18px 42px rgba(91, 33, 24, 0.22);
+  box-shadow: 0 24px 54px rgba(91, 33, 24, 0.30);
 }
 
 .auth-card {
-  background: rgba(255, 253, 248, 0.94);
-  border: 1px solid rgba(255,255,255,0.38);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: rgba(255, 253, 248, 0.9);
+  border: 1px solid rgba(255,255,255,0.5);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
 }
 
 @media (max-width: 768px) {
   body {
     background-attachment: scroll;
     background:
-      radial-gradient(circle at 0% 35%, rgba(166, 75, 53, 0.10), transparent 20rem),
-      linear-gradient(145deg, #f8f2e9, #f1e7db 55%, #f7efe5);
+      radial-gradient(circle at -10% 28%, rgba(166, 75, 53, 0.24), transparent 22rem),
+      radial-gradient(circle at 110% 72%, rgba(91, 33, 24, 0.19), transparent 24rem),
+      linear-gradient(145deg, #f7eee2, #ead9c8 55%, #f4e8da);
   }
 
   body::before {
     background-size: 34px 34px;
-    opacity: 0.28;
+    opacity: 0.5;
   }
 
   .stat:hover {
@@ -139,6 +171,7 @@ th {
 
   .panel {
     border-radius: 20px;
+    box-shadow: 0 24px 58px rgba(70, 34, 23, 0.17), 0 6px 16px rgba(52, 21, 15, 0.08);
   }
 }
 

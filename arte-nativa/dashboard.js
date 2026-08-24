@@ -200,4 +200,8 @@
     document.getElementById('dashboardStudentsLink').onclick = () => setView('students');
 
     setView('dashboard');
+
+    const financialV2 = document.createElement('script');
+    financialV2.src = './financial-v2.js?v=1';
+    document.body.appendChild(financialV2);
 })();

@@ -73,10 +73,13 @@ export function buildDocumentPayload({ to, link, filename, caption = "" }: Docum
 }
 
 export function sanitizeMetaError(error: any) {
-  const message = String(error?.message || "Meta API error")
-    .replace(/access token[^\s,]*/gi, "access token [redacted]")
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
-    .replace(/[A-Za-z0-9_-]{20,}/g, "[redacted]");
+  const raw = String(error?.message || "Meta API error");
+  const authRelated = /oauth|access token|bearer/i.test(raw) || Number(error?.code) === 190;
+  const message = authRelated
+    ? "Meta API authentication error"
+    : raw
+        .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
+        .replace(/[A-Za-z0-9_-]{20,}/g, "[redacted]");
   return {
     message,
     type: error?.type ? String(error.type) : null,

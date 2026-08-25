@@ -2,11 +2,17 @@
     const SELECTORS = 'select.class-filter, #coupleClass';
     const registry = new Map();
 
+    function setOpenState(entry, open) {
+        const {root, trigger, host} = entry;
+        root.classList.toggle('is-open', open);
+        trigger.setAttribute('aria-expanded', String(open));
+        host?.classList.toggle('custom-select-host-open', open);
+    }
+
     function closeAll(except = null) {
-        registry.forEach(({root, trigger}) => {
-            if (root === except) return;
-            root.classList.remove('is-open');
-            trigger.setAttribute('aria-expanded', 'false');
+        registry.forEach(entry => {
+            if (entry.root === except) return;
+            setOpenState(entry, false);
         });
     }
 
@@ -15,6 +21,7 @@
         select.dataset.customSelect = 'true';
         select.classList.add('custom-select-native');
 
+        const host = select.closest('.financial-head, .reports-head, .toolbar, .field');
         const root = document.createElement('div');
         root.className = 'custom-select';
         select.parentNode.insertBefore(root, select);
@@ -31,6 +38,8 @@
         menu.className = 'custom-select-menu';
         menu.setAttribute('role', 'listbox');
         root.append(trigger, menu);
+
+        const entry = {root, trigger, host, renderOptions: null};
 
         function renderOptions() {
             const selected = select.options[select.selectedIndex];
@@ -53,32 +62,30 @@
                         select.dispatchEvent(new Event('change', {bubbles: true}));
                     }
                     renderOptions();
-                    root.classList.remove('is-open');
-                    trigger.setAttribute('aria-expanded', 'false');
+                    setOpenState(entry, false);
                     trigger.focus({preventScroll: true});
                 });
                 menu.appendChild(item);
             });
         }
 
+        entry.renderOptions = renderOptions;
+
         trigger.addEventListener('click', () => {
             const opening = !root.classList.contains('is-open');
             closeAll(root);
-            root.classList.toggle('is-open', opening);
-            trigger.setAttribute('aria-expanded', String(opening));
+            setOpenState(entry, opening);
         });
 
         trigger.addEventListener('keydown', event => {
-            if (event.key === 'Escape') {
-                root.classList.remove('is-open');
-                trigger.setAttribute('aria-expanded', 'false');
-            }
+            if (event.key === 'Escape') setOpenState(entry, false);
         });
 
         select.addEventListener('change', renderOptions);
         const observer = new MutationObserver(renderOptions);
         observer.observe(select, {childList: true, subtree: true, attributes: true});
-        registry.set(select, {root, trigger, observer, renderOptions});
+        entry.observer = observer;
+        registry.set(select, entry);
         renderOptions();
     }
 

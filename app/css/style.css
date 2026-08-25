@@ -73,9 +73,119 @@ body::before {
   -webkit-backdrop-filter: blur(20px) saturate(125%);
 }
 
+/* Animated icon tab bar */
 .view-tabs {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px;
+  overflow: visible;
   border: 1px solid rgba(255, 255, 255, 0.94);
+  border-radius: 18px;
   box-shadow: 0 16px 42px rgba(70, 34, 23, 0.17), 0 2px 8px rgba(52, 21, 15, 0.08);
+}
+
+.view-tabs .tab-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  border-radius: 13px;
+  background: linear-gradient(145deg, var(--wine), var(--wine-dark));
+  box-shadow: 0 9px 22px rgba(91, 33, 24, 0.27);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 360ms var(--motion-ease),
+    width 300ms var(--motion-ease),
+    height 300ms var(--motion-ease),
+    opacity var(--motion-fast) ease;
+}
+
+.view-tabs .tab-indicator.no-transition {
+  transition: none !important;
+}
+
+.view-tabs .view-tab {
+  position: relative;
+  z-index: 1;
+  width: 52px;
+  min-width: 52px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  color: var(--muted);
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 13px;
+}
+
+.view-tabs .view-tab-icon {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  transition:
+    transform 300ms var(--motion-ease),
+    color var(--motion-fast) ease;
+}
+
+.view-tabs .view-tab-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: currentColor;
+}
+
+.view-tabs .view-tab.active {
+  color: #fff;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.view-tabs .view-tab.active .view-tab-icon {
+  transform: translateY(-2px) scale(1.08);
+}
+
+.view-tabs .view-tab-label {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 9px);
+  z-index: 30;
+  padding: 6px 9px;
+  border: 1px solid rgba(255,255,255,.92);
+  border-radius: 9px;
+  color: var(--wine-dark);
+  background: rgba(255,253,248,.96);
+  box-shadow: 0 10px 25px rgba(52,21,15,.14);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -5px) scale(.96);
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-normal) var(--motion-ease);
+}
+
+.view-tabs .view-tab-label::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 7px;
+  height: 7px;
+  background: rgba(255,253,248,.96);
+  border-left: 1px solid rgba(255,255,255,.92);
+  border-top: 1px solid rgba(255,255,255,.92);
+  transform: translate(-50%, 4px) rotate(45deg);
 }
 
 .stat {
@@ -154,6 +264,7 @@ th {
 /* Finance + automation microinteractions */
 .financial-head,
 .financial-panel,
+.financial-stats .stat,
 .automation-hero,
 .automation-stat,
 .automation-card,
@@ -205,8 +316,32 @@ th {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .view-tabs .view-tab:hover {
+    color: var(--wine);
+  }
+
+  .view-tabs .view-tab.active:hover {
+    color: #fff;
+  }
+
+  .view-tabs .view-tab:hover .view-tab-icon {
+    transform: translateY(-3px) scale(1.08);
+  }
+
+  .view-tabs .view-tab:hover .view-tab-label,
+  .view-tabs .view-tab:focus-visible .view-tab-label {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
   .financial-head:hover {
     transform: translateY(-2px);
+  }
+
+  .financial-stats .stat:hover {
+    transform: translateY(-5px);
+    border-color: #fff;
+    box-shadow: 0 30px 70px rgba(70, 34, 23, 0.20), 0 10px 24px rgba(52, 21, 15, 0.10);
   }
 
   .financial-panel:hover {
@@ -289,6 +424,22 @@ th {
     opacity: 0.5;
   }
 
+  .view-tabs {
+    width: 100%;
+    justify-content: space-between;
+    gap: 3px;
+  }
+
+  .view-tabs .view-tab {
+    width: 46px;
+    min-width: 46px;
+  }
+
+  .view-tabs .view-tab.active .view-tab-label {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
   .stat:hover {
     transform: none;
   }
@@ -300,9 +451,13 @@ th {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .view-tabs .tab-indicator,
+  .view-tabs .view-tab-icon,
+  .view-tabs .view-tab-label,
   .stat:hover,
   .financial-head,
   .financial-panel,
+  .financial-stats .stat,
   .financial-panel tbody tr,
   .automation-hero,
   .automation-stat,
@@ -314,6 +469,20 @@ th {
   #automationRefresh {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+
+  .financial-head,
+  .financial-panel,
+  .financial-stats .stat,
+  .financial-panel tbody tr,
+  .automation-hero,
+  .automation-stat,
+  .automation-card,
+  .automation-setting,
+  .automation-row,
+  .automation-integration,
+  .automation-retry,
+  #automationRefresh {
     transform: none !important;
   }
 }

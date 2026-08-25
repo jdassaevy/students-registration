@@ -6,6 +6,8 @@ export type ReceiptDocumentInput = {
   displayName?: string | null;
   responsibleName?: string | null;
   supportPhone?: string | null;
+  logoBytes?: Uint8Array | null;
+  logoMimeType?: string | null;
   studentName: string;
   className?: string | null;
   paymentLabel: string;
@@ -74,8 +76,33 @@ export async function generateReceiptPdf(input: ReceiptDocumentInput): Promise<U
   const line = rgb(0.88, 0.84, 0.80);
 
   page.drawRectangle({ x: 0, y: 745, width: 595.28, height: 96, color: wine });
-  page.drawText(model.academyName, { x: 44, y: 794, size: 20, font: bold, color: rgb(1, 1, 1) });
-  page.drawText(model.title, { x: 44, y: 765, size: 11, font: regular, color: rgb(0.92, 0.88, 0.86) });
+
+  let headerTextX = 44;
+  if (input.logoBytes?.length && (input.logoMimeType === "image/png" || input.logoMimeType === "image/jpeg")) {
+    try {
+      const image = input.logoMimeType === "image/png"
+        ? await pdf.embedPng(input.logoBytes)
+        : await pdf.embedJpg(input.logoBytes);
+      const dimensions = image.scale(1);
+      const maxWidth = 72;
+      const maxHeight = 58;
+      const scale = Math.min(maxWidth / dimensions.width, maxHeight / dimensions.height, 1);
+      const width = dimensions.width * scale;
+      const height = dimensions.height * scale;
+      page.drawImage(image, {
+        x: 44,
+        y: 765 + (58 - height) / 2,
+        width,
+        height,
+      });
+      headerTextX = 44 + Math.max(width, 72) + 18;
+    } catch (error) {
+      console.warn("Could not embed academy logo in receipt", error);
+    }
+  }
+
+  page.drawText(model.academyName, { x: headerTextX, y: 794, size: 20, font: bold, color: rgb(1, 1, 1) });
+  page.drawText(model.title, { x: headerTextX, y: 765, size: 11, font: regular, color: rgb(0.92, 0.88, 0.86) });
 
   page.drawText(`Recibo ${model.receiptNumber}`, { x: 44, y: 706, size: 12, font: bold, color: terracotta });
   page.drawText(`Status: ${model.statusText}`, { x: 410, y: 706, size: 11, font: bold, color: wine });

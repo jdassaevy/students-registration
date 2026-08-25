@@ -6,6 +6,7 @@ create table if not exists public.classes (
   name text not null check (char_length(name) between 1 and 120),
   place text not null default '',
   schedule text not null default '',
+  start_date date,
   created_at timestamptz not null default now()
 );
 
@@ -69,7 +70,10 @@ grant select, insert, update, delete on public.classes to authenticated;
 grant select, insert, update, delete on public.students to authenticated;
 grant select, insert, update, delete on public.payment_events to authenticated;
 
--- Migração segura para projetos que já possuem a tabela students.
+-- Migrações seguras para projetos existentes.
+alter table public.classes
+  add column if not exists start_date date;
+
 alter table public.students
   add column if not exists entry_payments jsonb not null
   default '{"person1":false,"person2":false}'::jsonb;

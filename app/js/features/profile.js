@@ -7,6 +7,7 @@
 
     let currentAcademy = null;
     let currentProfile = null;
+    let responsibleUserId = null;
 
     const tab = document.createElement('button');
     tab.type = 'button';
@@ -31,7 +32,7 @@
                 <div class="field"><label for="profileAcademyPhone">WhatsApp oficial</label><input id="profileAcademyPhone" type="tel" inputmode="tel" required></div>
                 <div class="profile-logo-block">
                     <div class="profile-logo-preview"><img id="profileAcademyLogoPreview" alt="Logo da academia" hidden><span id="profileAcademyLogoEmpty">Sem logo cadastrada</span></div>
-                    <div class="field"><label for="profileAcademyLogo">Logo personalizada</label><input id="profileAcademyLogo" type="file" accept="image/png,image/jpeg,image/webp"><small>PNG, JPG ou WebP de até 2 MB.</small></div>
+                    <div class="field"><label for="profileAcademyLogo">Logo personalizada</label><input id="profileAcademyLogo" type="file" accept="image/png,image/jpeg"><small>PNG ou JPG de até 2 MB. A logo será usada nos recibos PDF.</small></div>
                     <button type="button" class="btn btn-light" id="removeAcademyLogo">Remover logo</button>
                 </div>
                 <div class="modal-actions"><button type="submit" class="btn btn-primary">Salvar academia</button></div>
@@ -64,6 +65,10 @@
     const byId = id => document.getElementById(id);
     const normalizedPhone = value => AcademyContext.normalizePhone(value);
 
+    function supportMode() {
+        return Boolean(AcademyContext?.isSupportMode?.());
+    }
+
     async function activeAcademyId() {
         let id = AcademyContext.getActiveAcademyId();
         if (!id && typeof currentUser !== 'undefined' && currentUser) {
@@ -72,6 +77,21 @@
         }
         if (!id) throw new Error('Academia não identificada.');
         return id;
+    }
+
+    async function resolveResponsibleUserId(academyId) {
+        if (!supportMode()) return currentUser.id;
+        const {data, error} = await db.from('academy_members')
+            .select('user_id')
+            .eq('academy_id', academyId)
+            .eq('role', 'owner')
+            .eq('is_active', true)
+            .order('created_at', {ascending: true})
+            .limit(1)
+            .maybeSingle();
+        if (error) throw error;
+        if (!data?.user_id) throw new Error('Professor responsável não encontrado.');
+        return data.user_id;
     }
 
     async function renderLogoPreview(path) {
@@ -96,21 +116,25 @@
 
     async function loadProfile() {
         const academyId = await activeAcademyId();
+        responsibleUserId = await resolveResponsibleUserId(academyId);
         const [academyResult, profileResult] = await Promise.all([
             db.from('academies').select('id,name,contact_email,contact_phone,logo_path,subscription_status').eq('id', academyId).single(),
-            db.from('profiles').select('user_id,full_name,phone').eq('user_id', currentUser.id).single()
+            db.from('profiles').select('user_id,full_name,phone').eq('user_id', responsibleUserId).single()
         ]);
         if (academyResult.error) throw academyResult.error;
         if (profileResult.error) throw profileResult.error;
         currentAcademy = academyResult.data;
         currentProfile = profileResult.data;
         byId('profileAcademyName').value = currentAcademy.name || '';
-        byId('profileAcademyEmail').value = currentAcademy.contact_email || currentUser.email || '';
+        byId('profileAcademyEmail').value = currentAcademy.contact_email || '';
         byId('profileAcademyPhone').value = currentAcademy.contact_phone || '';
         byId('profileResponsibleName').value = currentProfile.full_name || '';
-        byId('profileResponsibleEmail').value = currentUser.email || '';
+        byId('profileResponsibleEmail').value = supportMode()
+            ? 'Protegido no modo suporte'
+            : (currentUser.email || '');
         byId('profileResponsiblePhone').value = currentProfile.phone || '';
         byId('removeAcademyLogo').disabled = !currentAcademy.logo_path;
+        byId('profileSecurityForm').hidden = supportMode();
         await renderLogoPreview(currentAcademy.logo_path);
     }
 
@@ -137,7 +161,8 @@
         const phone = normalizedPhone(byId('profileResponsiblePhone').value);
         const fullName = byId('profileResponsibleName').value.trim();
         if (!fullName || !phone) return toast('Preencha nome e telefone do professor.');
-        const {error} = await db.from('profiles').update({full_name: fullName, phone}).eq('user_id', currentUser.id);
+        if (!responsibleUserId) return toast('Professor responsável não identificado.');
+        const {error} = await db.from('profiles').update({full_name: fullName, phone}).eq('user_id', responsibleUserId);
         if (error) return toast('Não foi possível salvar os dados do professor.');
         currentProfile = {...currentProfile, full_name: fullName, phone};
         toast('Dados do professor atualizados.');
@@ -147,12 +172,12 @@
         const input = byId('profileAcademyLogo');
         const file = input.files?.[0];
         if (!file) return;
-        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+        if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 2 * 1024 * 1024) {
             input.value = '';
-            return toast('Use uma imagem PNG, JPG ou WebP de até 2 MB.');
+            return toast('Use uma imagem PNG ou JPG de até 2 MB.');
         }
         const academyId = await activeAcademyId();
-        const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+        const extension = file.type === 'image/png' ? 'png' : 'jpg';
         const path = `${academyId}/logo.${extension}`;
         const {error: uploadError} = await db.storage.from('academy-logos').upload(path, file, {upsert: true, contentType: file.type});
         if (uploadError) return toast('Não foi possível enviar a logo.');
@@ -183,6 +208,7 @@
 
     async function changePassword(event) {
         event.preventDefault();
+        if (supportMode()) return toast('Senhas não podem ser alteradas no modo suporte.');
         const currentPassword = byId('profileCurrentPassword').value;
         const newPassword = byId('profileNewPassword').value;
         const confirmation = byId('profileNewPasswordConfirm').value;

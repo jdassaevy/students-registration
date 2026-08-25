@@ -16,6 +16,14 @@ if (window.supabase?.createClient) {
 }
 
 window.addEventListener('load', () => {
+    const loadPaymentAutomation = () => {
+        if (document.querySelector('script[data-payment-automation]')) return;
+        const automationScript = document.createElement('script');
+        automationScript.src = './js/features/payment-automation.js?v=1';
+        automationScript.dataset.paymentAutomation = 'true';
+        document.body.appendChild(automationScript);
+    };
+
     const loadAcademySettings = () => {
         if (document.querySelector('script[data-academy-settings]')) return;
         const settingsScript = document.createElement('script');
@@ -59,6 +67,7 @@ window.addEventListener('load', () => {
         document.body.appendChild(receiptScript);
     };
 
+    loadPaymentAutomation();
     loadAcademySettings();
 
     if (document.querySelector('script[data-money-input]')) {

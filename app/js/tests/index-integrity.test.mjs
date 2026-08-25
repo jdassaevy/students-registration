@@ -19,8 +19,9 @@ assert.ok(
     html.includes('./assets/images/dassaevy-labs-mark-transparent.png'),
     'login must use the existing Dassaevy Labs logo asset'
 );
-assert.ok(
-    html.includes('./js/features/tab-bar.js?v=1'),
+assert.match(
+    html,
+    /\.\/js\/features\/tab-bar\.js\?v=\d+/,
     'animated tab bar script must be loaded without replacing auth markup'
 );
 

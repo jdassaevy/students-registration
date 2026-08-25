@@ -19,6 +19,14 @@
                     <p id="authSubtitle">Acesse suas turmas e alunos em qualquer dispositivo.</p>
                 </div>
                 <form id="authForm" class="auth-form">
+                    <div id="registerAcademyFields" class="register-academy-fields" hidden>
+                        <div class="field"><label for="signupAcademyName">Nome da academia</label><input id="signupAcademyName" maxlength="160" autocomplete="organization"></div>
+                        <div class="field"><label for="signupResponsibleName">Nome do professor responsável</label><input id="signupResponsibleName" maxlength="160" autocomplete="name"></div>
+                        <div class="field"><label for="signupPhone">Telefone / WhatsApp</label><input id="signupPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Ex.: (48) 99999-9999"></div>
+                        <div class="field"><label for="signupEmail">E-mail</label><input id="signupEmail" type="email" autocomplete="email"></div>
+                        <div class="field"><label for="signupPassword">Senha</label><input id="signupPassword" type="password" minlength="6" autocomplete="new-password"></div>
+                        <div class="field"><label for="signupPasswordConfirm">Confirmar senha</label><input id="signupPasswordConfirm" type="password" minlength="6" autocomplete="new-password"></div>
+                    </div>
                     <div class="field" id="emailField">
                         <label for="authEmail">E-mail</label><input
                             type="email"
@@ -126,6 +134,7 @@
         <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
         <script src="./js/core/supabase-config.js"></script>
         <script src="./js/core/script.js?v=6"></script>
+        <script src="./js/features/registration-ui.js?v=1"></script>
         <script src="./js/features/dashboard.js?v=1"></script>
         <script src="./js/features/reports.js?v=1"></script>
         <script src="./js/features/automation-center.js?v=2"></script>

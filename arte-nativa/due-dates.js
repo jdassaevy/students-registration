@@ -186,11 +186,6 @@
     setTimeout(decorateFinancialDetails, 0);
   }, true);
 
-  const detailContent = document.getElementById('financialDetailContent');
-  if (detailContent) {
-    new MutationObserver(() => decorateFinancialDetails()).observe(detailContent, {childList:true, subtree:false});
-  }
-
   db.auth.onAuthStateChange((event, session) => {
     if (session?.user) setTimeout(loadClassStarts, 0);
     else starts.clear();

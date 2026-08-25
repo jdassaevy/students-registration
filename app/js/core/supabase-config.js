@@ -27,11 +27,23 @@ if (
 }
 
 window.addEventListener('load', () => {
+    const loadProfile = () => {
+        if (document.querySelector('script[data-profile-feature]')) return;
+        const profileScript = document.createElement('script');
+        profileScript.src = './js/features/profile.js?v=1';
+        profileScript.dataset.profileFeature = 'true';
+        document.body.appendChild(profileScript);
+    };
+
     const loadProfileOnboarding = () => {
-        if (document.querySelector('script[data-profile-onboarding]')) return;
+        if (document.querySelector('script[data-profile-onboarding]')) {
+            loadProfile();
+            return;
+        }
         const onboardingScript = document.createElement('script');
         onboardingScript.src = './js/features/profile-onboarding.js?v=1';
         onboardingScript.dataset.profileOnboarding = 'true';
+        onboardingScript.addEventListener('load', loadProfile, {once: true});
         document.body.appendChild(onboardingScript);
     };
 

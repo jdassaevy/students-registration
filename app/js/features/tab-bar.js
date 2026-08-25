@@ -3,6 +3,15 @@
     if (!nav || nav.dataset.animatedTabBar === 'true') return;
     nav.dataset.animatedTabBar = 'true';
 
+    // The automation center creates its own tab/view dynamically. Keep the
+    // feature loader here so refactors of index.html do not silently remove it.
+    if (!document.querySelector('script[data-automation-center]') && !document.getElementById('automationView')) {
+        const automationScript = document.createElement('script');
+        automationScript.src = './js/features/automation-center.js?v=1';
+        automationScript.dataset.automationCenter = 'true';
+        document.body.appendChild(automationScript);
+    }
+
     const TAB_META = {
         dashboardTab: {
             label: 'Visão Geral',

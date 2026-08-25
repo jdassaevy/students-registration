@@ -1,6 +1,6 @@
 const SUPABASE_CONFIG = {
-    url: 'https://gswcruzlvkcoclbcrjvp.supabase.co',
-    publishableKey: 'sb_publishable_jkMQ0iiFYuOwe7VXZiby_A_f1ptfG91'
+    url: 'https://lulvvkrrysfmiqtefwnf.supabase.co',
+    publishableKey: 'sb_publishable_ePxmJIkapB3AFctwbvrs2A_fe2DwoOk'
 };
 
 if (window.supabase?.createClient) {

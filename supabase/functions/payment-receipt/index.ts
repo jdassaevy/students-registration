@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
+import { loadAcademyIdentity, requireAcademyAccess } from "../_shared/tenant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,20 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function loadLogo(admin: any, logoPath: string | null) {
+  if (!logoPath) return { bytes: null, mimeType: null };
+  const extension = logoPath.split(".").pop()?.toLowerCase();
+  if (extension !== "png" && extension !== "jpg" && extension !== "jpeg") {
+    return { bytes: null, mimeType: null };
+  }
+  const { data, error } = await admin.storage.from("academy-logos").download(logoPath);
+  if (error || !data) return { bytes: null, mimeType: null };
+  return {
+    bytes: new Uint8Array(await data.arrayBuffer()),
+    mimeType: extension === "png" ? "image/png" : "image/jpeg",
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -43,21 +58,29 @@ Deno.serve(async (req: Request) => {
       .eq("id", receiptId)
       .single();
     if (receiptError || !receipt) return json({ error: "Receipt not found" }, 404);
-    if (receipt.user_id !== user.id) return json({ error: "Forbidden" }, 403);
+    if (!receipt.academy_id) return json({ error: "Receipt is not linked to an academy" }, 409);
 
-    const [{ data: student, error: studentError }, { data: academy, error: academyError }] = await Promise.all([
-      admin.from("students").select("id, person1, person2").eq("id", receipt.student_id).single(),
-      admin.from("academy_profiles").select("academy_name, display_name, responsible_name, support_phone").eq("user_id", user.id).maybeSingle(),
+    try {
+      await requireAcademyAccess(admin, user.id, receipt.academy_id);
+    } catch (error) {
+      if (String(error?.message || error).includes("Forbidden")) return json({ error: "Forbidden" }, 403);
+      throw error;
+    }
+
+    const [{ data: student, error: studentError }, identity] = await Promise.all([
+      admin.from("students").select("id, person1, person2, academy_id").eq("id", receipt.student_id).single(),
+      loadAcademyIdentity(admin, receipt.academy_id),
     ]);
     if (studentError || !student) return json({ error: "Student not found" }, 404);
-    if (academyError) return json({ error: "Could not load academy profile" }, 500);
+    if (student.academy_id !== receipt.academy_id) return json({ error: "Receipt tenant mismatch" }, 409);
 
     let className = "Sem turma";
     if (receipt.class_id) {
-      const { data: classRow } = await admin.from("classes").select("name").eq("id", receipt.class_id).maybeSingle();
-      if (classRow?.name) className = classRow.name;
+      const { data: classRow } = await admin.from("classes").select("name,academy_id").eq("id", receipt.class_id).maybeSingle();
+      if (classRow?.academy_id === receipt.academy_id && classRow?.name) className = classRow.name;
     }
 
+    const logo = await loadLogo(admin, identity.logoPath);
     const studentName = receipt.person === "person2" ? (student.person2 || student.person1) : student.person1;
     const paymentLabel = receipt.kind === "entry"
       ? "Inscrição"
@@ -65,10 +88,11 @@ Deno.serve(async (req: Request) => {
 
     const pdfBytes = await generateReceiptPdf({
       receiptNumber: receipt.receipt_number,
-      academyName: academy?.academy_name || academy?.display_name || "Academia",
-      displayName: academy?.display_name,
-      responsibleName: academy?.responsible_name,
-      supportPhone: academy?.support_phone,
+      academyName: identity.name,
+      responsibleName: identity.responsibleName,
+      supportPhone: identity.contactPhone,
+      logoBytes: logo.bytes,
+      logoMimeType: logo.mimeType,
       studentName,
       className,
       paymentLabel,
@@ -77,7 +101,7 @@ Deno.serve(async (req: Request) => {
       status: receipt.status,
     });
 
-    const storagePath = `${user.id}/${receipt.id}.pdf`;
+    const storagePath = `${receipt.academy_id}/${receipt.id}.pdf`;
     const { error: uploadError } = await admin.storage
       .from("receipts")
       .upload(storagePath, pdfBytes, {
@@ -90,8 +114,8 @@ Deno.serve(async (req: Request) => {
       .from("receipts")
       .update({ storage_path: storagePath })
       .eq("id", receipt.id)
-      .eq("user_id", user.id)
-      .select("id, receipt_number, status, storage_path")
+      .eq("academy_id", receipt.academy_id)
+      .select("id, receipt_number, status, storage_path, academy_id")
       .single();
     if (updateError) throw updateError;
 

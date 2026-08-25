@@ -20,3 +20,13 @@ if (window.supabase?.createClient) {
         return client;
     };
 }
+
+// Carrega os detalhes financeiros somente depois dos módulos principais,
+// garantindo que a visualização agregada e o modal usem os mesmos dados.
+window.addEventListener('load', () => {
+    if (document.querySelector('script[data-financial-details]')) return;
+    const script = document.createElement('script');
+    script.src = './financial-details.js?v=1';
+    script.dataset.financialDetails = 'true';
+    document.body.appendChild(script);
+});

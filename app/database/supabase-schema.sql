@@ -20,6 +20,12 @@ create table if not exists public.students (
   entry_payments jsonb not null default '{"person1":false,"person2":false}'::jsonb,
   fees jsonb not null default '{"person1":{"entry":0,"monthly":0},"person2":{"entry":0,"monthly":0}}'::jsonb,
   payments jsonb not null default '{"person1":[false,false,false],"person2":[false,false,false]}'::jsonb,
+  person1_phone text,
+  person2_phone text,
+  person1_whatsapp_consent boolean not null default false,
+  person2_whatsapp_consent boolean not null default false,
+  person1_whatsapp_consent_at timestamptz,
+  person2_whatsapp_consent_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -37,6 +43,16 @@ create table if not exists public.payment_events (
   unique (student_id, person, kind, installment)
 );
 
+create table if not exists public.academy_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  academy_name text not null default '',
+  responsible_name text not null default '',
+  support_phone text,
+  display_name text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists classes_user_id_idx on public.classes(user_id);
 create index if not exists students_user_id_idx on public.students(user_id);
 create index if not exists students_class_id_idx on public.students(class_id);
@@ -47,6 +63,7 @@ create index if not exists payment_events_paid_at_idx on public.payment_events(p
 alter table public.classes enable row level security;
 alter table public.students enable row level security;
 alter table public.payment_events enable row level security;
+alter table public.academy_profiles enable row level security;
 
 drop policy if exists "Users manage own classes" on public.classes;
 create policy "Users manage own classes" on public.classes
@@ -66,9 +83,16 @@ for all to authenticated
 using ((select auth.uid()) = user_id)
 with check ((select auth.uid()) = user_id);
 
+drop policy if exists "Users manage own academy profile" on public.academy_profiles;
+create policy "Users manage own academy profile" on public.academy_profiles
+for all to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
 grant select, insert, update, delete on public.classes to authenticated;
 grant select, insert, update, delete on public.students to authenticated;
 grant select, insert, update, delete on public.payment_events to authenticated;
+grant select, insert, update, delete on public.academy_profiles to authenticated;
 
 -- Migrações seguras para projetos existentes.
 alter table public.classes
@@ -81,6 +105,13 @@ alter table public.students
 alter table public.students
   add column if not exists fees jsonb not null
   default '{"person1":{"entry":0,"monthly":0},"person2":{"entry":0,"monthly":0}}'::jsonb;
+
+alter table public.students add column if not exists person1_phone text;
+alter table public.students add column if not exists person2_phone text;
+alter table public.students add column if not exists person1_whatsapp_consent boolean not null default false;
+alter table public.students add column if not exists person2_whatsapp_consent boolean not null default false;
+alter table public.students add column if not exists person1_whatsapp_consent_at timestamptz;
+alter table public.students add column if not exists person2_whatsapp_consent_at timestamptz;
 
 -- Mantém como recebidas as inscrições que já estavam marcadas como pagas.
 update public.students

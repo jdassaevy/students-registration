@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const customSelect = fs.readFileSync(new URL('../features/custom-select.js', import.meta.url), 'utf8');
 const dashboard = fs.readFileSync(new URL('../features/dashboard.js', import.meta.url), 'utf8');
-const css = fs.readFileSync(new URL('../../css/style.css', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../../css/style.css', import.meta.url), 'utf8') + '\n' + fs.readFileSync(new URL('../../css/custom-select-fix.css', import.meta.url), 'utf8');
 
 for (const selector of ['select.class-filter', '#coupleClass']) {
   assert.ok(customSelect.includes(selector), `custom select must enhance ${selector}`);

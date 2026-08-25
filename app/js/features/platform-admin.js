@@ -10,8 +10,6 @@
     let currentAdminUserId = null;
     let activeSupportLogId = null;
     let activeSupportAcademyId = null;
-    let activeSupportOwnerUserId = null;
-    let restoreDbFrom = null;
 
     const tab = document.createElement('button');
     tab.type = 'button';
@@ -60,59 +58,6 @@
 
     const byId = id => document.getElementById(id);
 
-    function wrapSupportBuilder(builder, table, academyId, ownerUserId) {
-        if (!builder || (typeof builder !== 'object' && typeof builder !== 'function')) return builder;
-        return new Proxy(builder, {
-            get(target, property, receiver) {
-                if (property === 'then') {
-                    const then = Reflect.get(target, property, receiver);
-                    return typeof then === 'function' ? then.bind(target) : then;
-                }
-                const value = Reflect.get(target, property, receiver);
-                if (typeof value !== 'function') return value;
-                if (property === 'eq') {
-                    return (column, expected) => {
-                        let nextColumn = column;
-                        let nextExpected = expected;
-                        if (table === 'automation_settings' && column === 'user_id') {
-                            nextColumn = 'academy_id';
-                            nextExpected = academyId;
-                        } else if (table === 'academy_profiles' && column === 'user_id' && ownerUserId) {
-                            nextExpected = ownerUserId;
-                        }
-                        return wrapSupportBuilder(value.call(target, nextColumn, nextExpected), table, academyId, ownerUserId);
-                    };
-                }
-                if (property === 'insert' && table === 'automation_settings') {
-                    return (payload, options) => {
-                        const addAcademy = row => ({...row, academy_id: row?.academy_id || academyId});
-                        const nextPayload = Array.isArray(payload) ? payload.map(addAcademy) : addAcademy(payload);
-                        return wrapSupportBuilder(value.call(target, nextPayload, options), table, academyId, ownerUserId);
-                    };
-                }
-                return (...args) => wrapSupportBuilder(value.apply(target, args), table, academyId, ownerUserId);
-            }
-        });
-    }
-
-    function installSupportDbCompatibility(academyId, ownerUserId) {
-        if (restoreDbFrom) return;
-        const originalFrom = db.from.bind(db);
-        db.from = table => {
-            const builder = originalFrom(table);
-            if (table !== 'automation_settings' && table !== 'academy_profiles') return builder;
-            return wrapSupportBuilder(builder, table, academyId, ownerUserId);
-        };
-        restoreDbFrom = () => {
-            db.from = originalFrom;
-            restoreDbFrom = null;
-        };
-    }
-
-    function uninstallSupportDbCompatibility() {
-        if (restoreDbFrom) restoreDbFrom();
-    }
-
     async function loadAcademies() {
         if (!isPlatformAdmin) return;
         const {data, error} = await db.from('academies')
@@ -149,24 +94,9 @@
         }).select('id,academy_id').single();
         if (error) throw error;
 
-        const {data: owner, error: ownerError} = await db.from('academy_members')
-            .select('user_id')
-            .eq('academy_id', academyId)
-            .eq('role', 'owner')
-            .eq('is_active', true)
-            .order('created_at', {ascending: true})
-            .limit(1)
-            .maybeSingle();
-        if (ownerError || !owner?.user_id) {
-            await db.from('support_access_logs').update({ended_at: new Date().toISOString()}).eq('id', data.id);
-            throw ownerError || new Error('Professor responsável não encontrado.');
-        }
-
         activeSupportLogId = data.id;
         activeSupportAcademyId = data.academy_id;
-        activeSupportOwnerUserId = owner.user_id;
         AcademyContext.useSupportAcademy(activeSupportAcademyId);
-        installSupportDbCompatibility(activeSupportAcademyId, activeSupportOwnerUserId);
         byId('supportModeAcademyName').textContent = `Você está acessando: ${academyName}`;
         banner.hidden = false;
         if (typeof loadData === 'function') await loadData();
@@ -183,8 +113,6 @@
         }
         activeSupportLogId = null;
         activeSupportAcademyId = null;
-        activeSupportOwnerUserId = null;
-        uninstallSupportDbCompatibility();
         AcademyContext.clear();
         banner.hidden = true;
         if (typeof setView === 'function') setView('platformAdmin');
@@ -249,10 +177,8 @@
 
     db.auth.onAuthStateChange((event, session) => {
         if (!session?.user) {
-            uninstallSupportDbCompatibility();
             activeSupportLogId = null;
             activeSupportAcademyId = null;
-            activeSupportOwnerUserId = null;
             banner.hidden = true;
             tab.hidden = true;
             return;

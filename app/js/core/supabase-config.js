@@ -74,7 +74,7 @@ window.addEventListener('load', () => {
 
     const loadAutomationCenter = () => {
         if (document.querySelector('script[data-automation-center]')) return;
-        appendScript({src: './js/features/automation-center.js?v=4', datasetKey: 'automation-center'});
+        appendScript({src: './js/features/automation-center-v2.js?v=1', datasetKey: 'automation-center'});
     };
 
     const loadPaymentAutomation = () => {

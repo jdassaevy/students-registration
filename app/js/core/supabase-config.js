@@ -24,6 +24,14 @@ if (window.supabase?.createClient) {
 // Carrega extensões somente depois dos módulos principais,
 // garantindo que compartilhem o mesmo estado de turmas, alunos e financeiro.
 window.addEventListener('load', () => {
+    const loadAcademySettings = () => {
+        if (document.querySelector('script[data-academy-settings]')) return;
+        const settingsScript = document.createElement('script');
+        settingsScript.src = './js/features/academy-settings.js?v=1';
+        settingsScript.dataset.academySettings = 'true';
+        document.body.appendChild(settingsScript);
+    };
+
     const loadDueDates = () => {
         if (document.querySelector('script[data-due-dates]')) return;
         const dueScript = document.createElement('script');
@@ -47,6 +55,8 @@ window.addEventListener('load', () => {
         script.addEventListener('load', loadDueDates, {once: true});
         document.body.appendChild(script);
     };
+
+    loadAcademySettings();
 
     if (document.querySelector('script[data-money-input]')) {
         loadFinancialDetails();

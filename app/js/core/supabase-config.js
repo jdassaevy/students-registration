@@ -3,49 +3,49 @@ const SUPABASE_CONFIG = {
     publishableKey: 'sb_publishable_jkMQ0iiFYuOwe7VXZiby_A_f1ptfG91'
 };
 
-if (
-    window.supabase
-        ?.createClient
-) {
-    const originalCreateClient = window
-        .supabase
-        .createClient
-        .bind(window.supabase);
+if (window.supabase?.createClient) {
+    const originalCreateClient = window.supabase.createClient.bind(window.supabase);
     window.supabase.createClient = (...args) => {
         const client = originalCreateClient(...args);
-        const originalOnAuthStateChange = client
-            .auth
-            .onAuthStateChange
-            .bind(client.auth);
+        const originalOnAuthStateChange = client.auth.onAuthStateChange.bind(client.auth);
         client.auth.onAuthStateChange = callback => originalOnAuthStateChange(
-            (event, session) => {
-                setTimeout(() => callback(event, session), 0);
-            }
+            (event, session) => setTimeout(() => callback(event, session), 0)
         );
         return client;
     };
 }
 
 window.addEventListener('load', () => {
+    const appendScript = ({src, datasetKey, onload}) => {
+        const selector = `script[data-${datasetKey}]`;
+        const existing = document.querySelector(selector);
+        if (existing) {
+            if (onload) existing.addEventListener('load', onload, {once: true});
+            return existing;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.dataset[datasetKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = 'true';
+        if (onload) script.addEventListener('load', onload, {once: true});
+        document.body.appendChild(script);
+        return script;
+    };
+
     const loadPlatformAdmin = () => {
-        if (document.querySelector('script[data-platform-admin]')) return;
-        const adminScript = document.createElement('script');
-        adminScript.src = './js/features/platform-admin.js?v=1';
-        adminScript.dataset.platformAdmin = 'true';
-        document.body.appendChild(adminScript);
+        if (window.SupportContext || document.querySelector('script[data-platform-admin]')) return;
+        appendScript({src: './js/features/platform-admin.js?v=2', datasetKey: 'platform-admin'});
     };
 
     const loadProfile = () => {
-        const existingProfile = document.querySelector('script[data-profile-feature]');
-        if (existingProfile) {
+        if (document.querySelector('script[data-profile-feature]')) {
             loadPlatformAdmin();
             return;
         }
-        const profileScript = document.createElement('script');
-        profileScript.src = './js/features/profile.js?v=1';
-        profileScript.dataset.profileFeature = 'true';
-        profileScript.addEventListener('load', loadPlatformAdmin, {once: true});
-        document.body.appendChild(profileScript);
+        appendScript({
+            src: './js/features/profile.js?v=2',
+            datasetKey: 'profile-feature',
+            onload: loadPlatformAdmin
+        });
     };
 
     const loadProfileOnboarding = () => {
@@ -53,11 +53,11 @@ window.addEventListener('load', () => {
             loadProfile();
             return;
         }
-        const onboardingScript = document.createElement('script');
-        onboardingScript.src = './js/features/profile-onboarding.js?v=1';
-        onboardingScript.dataset.profileOnboarding = 'true';
-        onboardingScript.addEventListener('load', loadProfile, {once: true});
-        document.body.appendChild(onboardingScript);
+        appendScript({
+            src: './js/features/profile-onboarding.js?v=2',
+            datasetKey: 'profile-onboarding',
+            onload: loadProfile
+        });
     };
 
     const loadAcademyContext = () => {
@@ -65,80 +65,38 @@ window.addEventListener('load', () => {
             loadProfileOnboarding();
             return;
         }
-        const existingContext = document.querySelector('script[data-academy-context]');
-        if (existingContext) {
-            existingContext.addEventListener('load', loadProfileOnboarding, {once: true});
-            return;
-        }
-        const contextScript = document.createElement('script');
-        contextScript.src = './js/core/academy-context.js?v=1';
-        contextScript.dataset.academyContext = 'true';
-        contextScript.addEventListener('load', loadProfileOnboarding, {once: true});
-        document.body.appendChild(contextScript);
+        appendScript({
+            src: './js/core/academy-context.js?v=2',
+            datasetKey: 'academy-context',
+            onload: loadProfileOnboarding
+        });
     };
 
     const loadAutomationCenter = () => {
-        if (document.querySelector('script[data-automation-center]')) 
-            return;
-        const centerScript = document.createElement('script');
-        centerScript.src = './js/features/automation-center.js?v=1';
-        centerScript.dataset.automationCenter = 'true';
-        document
-            .body
-            .appendChild(centerScript);
+        if (document.querySelector('script[data-automation-center]')) return;
+        appendScript({src: './js/features/automation-center.js?v=4', datasetKey: 'automation-center'});
     };
 
     const loadPaymentAutomation = () => {
-        if (document.querySelector('script[data-payment-automation]')) 
-            return;
-        const automationScript = document.createElement('script');
-        automationScript.src = './js/features/payment-automation.js?v=1';
-        automationScript.dataset.paymentAutomation = 'true';
-        document
-            .body
-            .appendChild(automationScript);
-    };
-
-    const loadAcademySettings = () => {
-        if (document.querySelector('script[data-academy-settings]')) 
-            return;
-        const settingsScript = document.createElement('script');
-        settingsScript.src = './js/features/academy-settings.js?v=1';
-        settingsScript.dataset.academySettings = 'true';
-        document
-            .body
-            .appendChild(settingsScript);
+        if (document.querySelector('script[data-payment-automation]')) return;
+        appendScript({src: './js/features/payment-automation.js?v=2', datasetKey: 'payment-automation'});
     };
 
     const loadDueDates = () => {
-        if (document.querySelector('script[data-due-dates]')) 
-            return;
-        const dueScript = document.createElement('script');
-        dueScript.src = './js/features/due-dates.js?v=1';
-        dueScript.dataset.dueDates = 'true';
-        document
-            .body
-            .appendChild(dueScript);
+        if (document.querySelector('script[data-due-dates]')) return;
+        appendScript({src: './js/features/due-dates.js?v=2', datasetKey: 'due-dates'});
     };
 
     const loadFinancialDetails = () => {
-        const existingFinancial = document.querySelector(
-            'script[data-financial-details]'
-        );
-        if (existingFinancial) {
-            if (window.DueDates) 
-                return;
-            existingFinancial.addEventListener('load', loadDueDates, {once: true});
-            setTimeout(loadDueDates, 0);
+        if (document.querySelector('script[data-financial-details]')) {
+            loadDueDates();
             return;
         }
-        const script = document.createElement('script');
-        script.src = './js/features/financial-details.js?v=1';
-        script.dataset.financialDetails = 'true';
-        script.addEventListener('load', loadDueDates, {once: true});
-        document
-            .body
-            .appendChild(script);
+        appendScript({
+            src: './js/features/financial-details.js?v=2',
+            datasetKey: 'financial-details',
+            onload: loadDueDates
+        });
     };
 
     const loadReceipts = () => {
@@ -146,18 +104,15 @@ window.addEventListener('load', () => {
             loadFinancialDetails();
             return;
         }
-        const receiptScript = document.createElement('script');
-        receiptScript.src = './js/features/receipts.js?v=1';
-        receiptScript.dataset.receipts = 'true';
-        receiptScript.addEventListener('load', loadFinancialDetails, {once: true});
-        document
-            .body
-            .appendChild(receiptScript);
+        appendScript({
+            src: './js/features/receipts.js?v=2',
+            datasetKey: 'receipts',
+            onload: loadFinancialDetails
+        });
     };
 
     loadAcademyContext();
     loadPaymentAutomation();
-    loadAcademySettings();
     loadAutomationCenter();
 
     if (document.querySelector('script[data-money-input]')) {
@@ -165,11 +120,9 @@ window.addEventListener('load', () => {
         return;
     }
 
-    const moneyScript = document.createElement('script');
-    moneyScript.src = './js/features/money-input.js?v=1';
-    moneyScript.dataset.moneyInput = 'true';
-    moneyScript.addEventListener('load', loadReceipts, {once: true});
-    document
-        .body
-        .appendChild(moneyScript);
+    appendScript({
+        src: './js/features/money-input.js?v=2',
+        datasetKey: 'money-input',
+        onload: loadReceipts
+    });
 });

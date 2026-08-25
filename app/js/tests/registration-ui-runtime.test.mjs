@@ -17,7 +17,7 @@ test('registration runtime owns register mode and metadata signup', () => {
   assert.match(runtimeSource, /stopImmediatePropagation/);
   assert.match(runtimeSource, /academy_name\s*:/);
   assert.match(runtimeSource, /responsible_name\s*:/);
-  assert.match(runtimeSource, /phone\s*:/);
+  assert.match(runtimeSource, /phone(?:\s*:|\s*[,}])/);
   assert.match(runtimeSource, /signupPasswordConfirm/);
   assert.match(runtimeSource, /authEmail\.required\s*=\s*false/);
   assert.match(runtimeSource, /authPassword\.required\s*=\s*false/);

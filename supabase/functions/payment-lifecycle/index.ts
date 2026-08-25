@@ -4,6 +4,7 @@ import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { paymentAmount, paymentIsMarked, paymentLabel, receiptActionForState } from "../_shared/payment-lifecycle.ts";
 import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 import { buildDocumentPayload, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
+import { loadAcademyIdentity, requireAcademyAccess } from "../_shared/tenant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,20 @@ function json(body: unknown, status = 200) {
 
 function money(value: number) {
   return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+async function loadLogo(admin: any, logoPath: string | null) {
+  if (!logoPath) return { bytes: null, mimeType: null };
+  const extension = logoPath.split(".").pop()?.toLowerCase();
+  if (extension !== "png" && extension !== "jpg" && extension !== "jpeg") {
+    return { bytes: null, mimeType: null };
+  }
+  const { data, error } = await admin.storage.from("academy-logos").download(logoPath);
+  if (error || !data) return { bytes: null, mimeType: null };
+  return {
+    bytes: new Uint8Array(await data.arrayBuffer()),
+    mimeType: extension === "png" ? "image/png" : "image/jpeg",
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -45,15 +60,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: student, error: studentError } = await admin.from("students")
-      .select("id,user_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+      .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
       .eq("id", studentId).single();
     if (studentError || !student) return json({ error: "Student not found" }, 404);
-    if (student.user_id !== user.id) return json({ error: "Forbidden" }, 403);
+    if (!student.academy_id) return json({ error: "Student is not linked to an academy" }, 409);
+    try {
+      await requireAcademyAccess(admin, user.id, student.academy_id);
+    } catch (error) {
+      if (String(error?.message || error).includes("Forbidden")) return json({ error: "Forbidden" }, 403);
+      throw error;
+    }
     if (person === "person2" && !student.person2) return json({ error: "Person not found" }, 404);
 
+    const academyId = student.academy_id;
+    const identity = await loadAcademyIdentity(admin, academyId);
     const paid = paymentIsMarked(student, person, kind, installment);
     const amount = paymentAmount(student, person, kind);
     const { data: activeReceipt } = await admin.from("receipts").select("*")
+      .eq("academy_id", academyId)
       .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment)
       .eq("status", "active").maybeSingle();
     const action = receiptActionForState({ paid, hasActiveReceipt: Boolean(activeReceipt) });
@@ -61,35 +85,45 @@ Deno.serve(async (req: Request) => {
     let paymentEvent: any = null;
     if (paid) {
       const { data: existingEvent } = await admin.from("payment_events").select("*")
+        .eq("academy_id", academyId)
         .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).maybeSingle();
       if (existingEvent) paymentEvent = existingEvent;
       else {
         const { data, error } = await admin.from("payment_events").insert({
-          user_id: user.id, student_id: studentId, class_id: student.class_id, person, kind, installment, amount,
+          user_id: user.id,
+          academy_id: academyId,
+          student_id: studentId,
+          class_id: student.class_id,
+          person,
+          kind,
+          installment,
+          amount,
         }).select().single();
         if (error) throw error;
         paymentEvent = data;
       }
     } else {
       const { error } = await admin.from("payment_events").delete()
+        .eq("academy_id", academyId)
         .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment);
       if (error) throw error;
     }
 
-    const [{ data: academy }, { data: clazz }, { data: settingsRow }] = await Promise.all([
-      admin.from("academy_profiles").select("academy_name,display_name,responsible_name,support_phone").eq("user_id", user.id).maybeSingle(),
-      student.class_id ? admin.from("classes").select("name").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
-      admin.from("automation_settings").select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled").eq("user_id", user.id).maybeSingle(),
+    const [{ data: clazz }, { data: settingsRow }] = await Promise.all([
+      student.class_id ? admin.from("classes").select("name,academy_id").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
+      admin.from("automation_settings").select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled")
+        .eq("academy_id", academyId).maybeSingle(),
     ]);
     const settings = normalizeAutomationSettings(settingsRow);
     const studentName = person === "person2" ? student.person2 : student.person1;
-    const academyName = academy?.academy_name || academy?.display_name || "Academia";
+    const academyName = identity.name || "Academia";
     const label = paymentLabel(kind, installment);
 
     let receipt: any = activeReceipt || null;
     if (action === "create") {
       const { data, error } = await admin.from("receipts").insert({
         user_id: user.id,
+        academy_id: academyId,
         student_id: studentId,
         class_id: student.class_id,
         person,
@@ -101,31 +135,36 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
       receipt = data;
 
+      const logo = await loadLogo(admin, identity.logoPath);
       const pdfBytes = await generateReceiptPdf({
         receiptNumber: receipt.receipt_number,
         academyName,
-        displayName: academy?.display_name,
-        responsibleName: academy?.responsible_name,
-        supportPhone: academy?.support_phone,
+        responsibleName: identity.responsibleName,
+        supportPhone: identity.contactPhone,
+        logoBytes: logo.bytes,
+        logoMimeType: logo.mimeType,
         studentName,
-        className: clazz?.name || "Sem turma",
+        className: clazz?.academy_id === academyId ? (clazz?.name || "Sem turma") : "Sem turma",
         paymentLabel: label,
         amount,
         paidAt: receipt.paid_at,
         status: "active",
       });
-      const storagePath = `${user.id}/${receipt.id}.pdf`;
+      const storagePath = `${academyId}/${receipt.id}.pdf`;
       const { error: uploadError } = await admin.storage.from("receipts").upload(storagePath, pdfBytes, {
         contentType: "application/pdf", upsert: false,
       });
       if (uploadError) throw uploadError;
       const { data: updated, error: updateError } = await admin.from("receipts")
-        .update({ storage_path: storagePath }).eq("id", receipt.id).select().single();
+        .update({ storage_path: storagePath })
+        .eq("id", receipt.id)
+        .eq("academy_id", academyId)
+        .select().single();
       if (updateError) throw updateError;
       receipt = updated;
     } else if (action === "void" && receipt) {
       const { data, error } = await admin.from("receipts").update({ status: "voided" })
-        .eq("id", receipt.id).eq("status", "active").select().single();
+        .eq("id", receipt.id).eq("academy_id", academyId).eq("status", "active").select().single();
       if (error) throw error;
       receipt = data;
     }
@@ -145,21 +184,29 @@ Deno.serve(async (req: Request) => {
 
     async function sendLogged(automationType: string, payload: unknown, idempotencyKey: string) {
       const { data: existing } = await admin.from("automation_messages").select("id,status")
-        .eq("user_id", user.id).eq("idempotency_key", idempotencyKey).maybeSingle();
+        .eq("academy_id", academyId).eq("idempotency_key", idempotencyKey).maybeSingle();
       if (existing) return existing.status;
       const { data: log, error: logError } = await admin.from("automation_messages").insert({
-        user_id: user.id, student_id: studentId, class_id: student.class_id, receipt_id: receipt?.id || null,
-        person, automation_type: automationType, idempotency_key: idempotencyKey, planned_at: new Date().toISOString(), status: "pending",
+        user_id: user.id,
+        academy_id: academyId,
+        student_id: studentId,
+        class_id: student.class_id,
+        receipt_id: receipt?.id || null,
+        person,
+        automation_type: automationType,
+        idempotency_key: idempotencyKey,
+        planned_at: new Date().toISOString(),
+        status: "pending",
       }).select("id").single();
       if (logError) throw logError;
       try {
         const provider = await sendMetaPayload({ phoneNumberId, accessToken, graphVersion, payload });
         const providerId = provider?.messages?.[0]?.id ? String(provider.messages[0].id) : null;
-        await admin.from("automation_messages").update({ status: "sent", provider_message_id: providerId, executed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", log.id);
+        await admin.from("automation_messages").update({ status: "sent", provider_message_id: providerId, executed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", log.id).eq("academy_id", academyId);
         return "sent";
       } catch (error: any) {
         const safe = error?.meta || sanitizeMetaError(error);
-        await admin.from("automation_messages").update({ status: "failed", error_code: safe.code ? String(safe.code) : "send_failed", error_message: safe.message, executed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", log.id);
+        await admin.from("automation_messages").update({ status: "failed", error_code: safe.code ? String(safe.code) : "send_failed", error_message: safe.message, executed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", log.id).eq("academy_id", academyId);
         return "failed";
       }
     }
@@ -169,8 +216,10 @@ Deno.serve(async (req: Request) => {
 
       if (settings.payment_confirmation_enabled) {
         const confirmation = buildTemplatePayload({
-          to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR",
-          bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
+          to,
+          templateName: TEMPLATE_NAMES.paymentConfirmation,
+          languageCode: "pt_BR",
+          bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, identity.responsibleName || "responsável da academia", identity.contactPhone || "contato da academia"],
         });
         whatsapp.payment_confirmation = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
       }
@@ -185,12 +234,12 @@ Deno.serve(async (req: Request) => {
     } else if (eligible && metaReady && receipt && action === "void" && settings.void_notification_enabled) {
       const payload = buildTemplatePayload({
         to: normalizeRecipientPhone(phone)!, templateName: TEMPLATE_NAMES.paymentVoided, languageCode: "pt_BR",
-        bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
+        bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, identity.responsibleName || "responsável da academia", identity.contactPhone || "contato da academia"],
       });
       whatsapp.payment_voided = await sendLogged("payment_voided", payload, `payment:${receipt.id}:voided`);
     }
 
-    return json({ paid, action, receipt, whatsapp, settings });
+    return json({ paid, action, receipt, whatsapp, settings, academy_id: academyId });
   } catch (error) {
     console.error("payment-lifecycle error", error);
     return json({ error: "Could not process payment lifecycle" }, 500);

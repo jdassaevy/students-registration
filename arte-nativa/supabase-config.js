@@ -21,12 +21,28 @@ if (window.supabase?.createClient) {
     };
 }
 
-// Carrega os detalhes financeiros somente depois dos módulos principais,
-// garantindo que a visualização agregada e o modal usem os mesmos dados.
+// Carrega extensões somente depois dos módulos principais,
+// garantindo que compartilhem o mesmo estado de turmas, alunos e financeiro.
 window.addEventListener('load', () => {
-    if (document.querySelector('script[data-financial-details]')) return;
+    const loadDueDates = () => {
+        if (document.querySelector('script[data-due-dates]')) return;
+        const dueScript = document.createElement('script');
+        dueScript.src = './due-dates.js?v=1';
+        dueScript.dataset.dueDates = 'true';
+        document.body.appendChild(dueScript);
+    };
+
+    const existingFinancial = document.querySelector('script[data-financial-details]');
+    if (existingFinancial) {
+        if (window.DueDates) return;
+        existingFinancial.addEventListener('load', loadDueDates, {once: true});
+        setTimeout(loadDueDates, 0);
+        return;
+    }
+
     const script = document.createElement('script');
     script.src = './financial-details.js?v=1';
     script.dataset.financialDetails = 'true';
+    script.addEventListener('load', loadDueDates, {once: true});
     document.body.appendChild(script);
 });

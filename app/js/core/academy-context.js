@@ -5,6 +5,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
     let activeAcademyId = null;
     let activeMembership = null;
+    let supportMode = false;
 
     function getDb() {
         if (typeof db !== 'undefined') return db;
@@ -46,6 +47,7 @@
         if (error) throw error;
         activeMembership = data || null;
         activeAcademyId = data?.academy_id || null;
+        supportMode = false;
         return activeMembership;
     }
 
@@ -62,7 +64,17 @@
         if (!academyId) throw new Error('Não foi possível identificar a academia criada.');
         activeAcademyId = academyId;
         activeMembership = {academy_id: academyId, role: 'owner', is_active: true};
+        supportMode = false;
         return activeMembership;
+    }
+
+    function useSupportAcademy(academyId) {
+        const normalized = String(academyId || '').trim();
+        if (!normalized) throw new Error('Academia de suporte inválida.');
+        activeAcademyId = normalized;
+        activeMembership = null;
+        supportMode = true;
+        return activeAcademyId;
     }
 
     function getActiveAcademyId() {
@@ -73,9 +85,14 @@
         return activeMembership;
     }
 
+    function isSupportMode() {
+        return supportMode;
+    }
+
     function clear() {
         activeAcademyId = null;
         activeMembership = null;
+        supportMode = false;
     }
 
     return {
@@ -83,8 +100,10 @@
         validateBootstrapPayload,
         resolve,
         bootstrap,
+        useSupportAcademy,
         getActiveAcademyId,
         getActiveMembership,
+        isSupportMode,
         clear
     };
 });

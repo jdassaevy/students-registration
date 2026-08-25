@@ -38,8 +38,7 @@
     const friendlyType = type => TYPE_LABELS[type] || 'Automação';
     const canRetry = message => message
         ?.status === 'failed' && RETRYABLE_TYPES.has(
-            message
-                ?.automation_type
+            message?.automation_type
         );
 
     window.AutomationCenterTest = {
@@ -50,9 +49,8 @@
 
     const nav = document.querySelector('.view-tabs');
     const main = document.querySelector('main.app');
-    if (!nav || !main || document.getElementById('automationView')) 
-        return;
-    
+    if (!nav || !main || document.getElementById('automationView')) return;
+
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.className = 'view-tab';
@@ -120,72 +118,39 @@
         .automation-activity{display:grid;gap:8px}.automation-row{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(160px,1.25fr) 110px 130px auto;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(250,247,242,.55)}.automation-row strong{color:var(--wine-dark);font-size:11px}.automation-row span{color:var(--muted);font-size:10px}.automation-row .automation-status{font-weight:800}.automation-row .automation-status.failed{color:#a13d32}.automation-row .automation-status.read,.automation-row .automation-status.delivered{color:#477153}.automation-error{grid-column:1/-1;padding-top:7px;border-top:1px dashed var(--line);color:#9a4a40!important}.automation-retry{padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:white;color:var(--wine);font-size:9px;font-weight:800;cursor:pointer}.automation-retry:disabled{opacity:.55;cursor:wait}.automation-empty{padding:25px;text-align:center;color:var(--muted);font-size:11px}
         @media(max-width:1000px){.automation-stats{grid-template-columns:repeat(3,1fr)}.automation-grid{grid-template-columns:1fr}}@media(max-width:700px){.automation-hero{align-items:flex-start;flex-direction:column}.automation-integration{width:100%}.automation-stats{grid-template-columns:1fr 1fr}.automation-row{grid-template-columns:1fr auto}.automation-row span:nth-child(2),.automation-row span:nth-child(4){display:none}}
     `;
-    document
-        .head
-        .appendChild(style);
+    document.head.appendChild(style);
 
-    let currentSettings = {
-        ...DEFAULT_SETTINGS
-    };
+    let currentSettings = {...DEFAULT_SETTINGS};
     let currentMessages = [];
     let studentsById = new Map();
     let activeUserId = null;
 
     async function getUserId() {
-        if (activeUserId) 
-            return activeUserId;
-        const {data} = await db
-            .auth
-            .getUser();
-        activeUserId = data
-            ?.user
-                ?.id || null;
+        if (activeUserId) return activeUserId;
+        const {data} = await db.auth.getUser();
+        activeUserId = data?.user?.id || null;
         return activeUserId;
     }
 
     async function ensureSettings() {
         const userId = await getUserId();
-        if (!userId) 
-            return null;
-        const {data, error} = await db
-            .from('automation_settings')
-            .select('*')
-            .eq('user_id', userId)
-            .maybeSingle();
-        if (error) 
-            throw error;
+        if (!userId) return null;
+        const {data, error} = await db.from('automation_settings').select('*').eq('user_id', userId).maybeSingle();
+        if (error) throw error;
         if (data) {
-            currentSettings = {
-                ...DEFAULT_SETTINGS,
-                ...data
-            };
+            currentSettings = {...DEFAULT_SETTINGS, ...data};
             return data;
         }
-        const {data: created, error: createError} = await db
-            .from(
-                'automation_settings'
-            )
-            .insert({
-                user_id: userId,
-                ...DEFAULT_SETTINGS
-            })
-            .select()
-            .single();
-        if (createError) 
-            throw createError;
-        currentSettings = {
-            ...DEFAULT_SETTINGS,
-            ...created
-        };
+        const {data: created, error: createError} = await db.from('automation_settings').insert({user_id: userId, ...DEFAULT_SETTINGS}).select().single();
+        if (createError) throw createError;
+        currentSettings = {...DEFAULT_SETTINGS, ...created};
         return created;
     }
 
     function renderSettings() {
-        document
-            .querySelectorAll('[data-automation-setting]')
-            .forEach(input => {
-                input.checked = Boolean(currentSettings[input.dataset.automationSetting]);
-            });
+        document.querySelectorAll('[data-automation-setting]').forEach(input => {
+            input.checked = Boolean(currentSettings[input.dataset.automationSetting]);
+        });
     }
 
     async function updateSetting(input) {
@@ -197,12 +162,8 @@
         message.textContent = 'Salvando preferência...';
         try {
             const userId = await getUserId();
-            const {error} = await db
-                .from('automation_settings')
-                .update({[key]: input.checked})
-                .eq('user_id', userId);
-            if (error) 
-                throw error;
+            const {error} = await db.from('automation_settings').update({[key]: input.checked}).eq('user_id', userId);
+            if (error) throw error;
             message.textContent = 'Preferência salva. As regras financeiras não foram alteradas.';
         } catch (error) {
             currentSettings[key] = previous;
@@ -215,33 +176,12 @@
     }
 
     async function loadMessages() {
-        const [
-            {
-                data
-                : messages,
-                error: messageError
-            }, {
-                data
-                : students,
-                error: studentError
-            }
-        ] = await Promise.all([
-            db
-                .from('automation_messages')
-                .select(
-                    'id,student_id,person,automation_type,status,error_message,created_at,executed_' +
-                    'at,receipt_id'
-                )
-                .order('created_at', {ascending: false})
-                .limit(50),
-            db
-                .from('students')
-                .select('id,person1,person2')
+        const [{data: messages, error: messageError}, {data: students, error: studentError}] = await Promise.all([
+            db.from('automation_messages').select('id,student_id,person,automation_type,status,error_message,created_at,executed_at,receipt_id').order('created_at', {ascending: false}).limit(50),
+            db.from('students').select('id,person1,person2')
         ]);
-        if (messageError) 
-            throw messageError;
-        if (studentError) 
-            throw studentError;
+        if (messageError) throw messageError;
+        if (studentError) throw studentError;
         currentMessages = messages || [];
         studentsById = new Map((students || []).map(item => [item.id, item]));
         renderSummary();
@@ -253,166 +193,73 @@
             acc[item.status] = (acc[item.status] || 0) + 1;
             return acc;
         }, {});
-        document
-            .getElementById('automationSent')
-            .textContent = counts.sent || 0;
-        document
-            .getElementById('automationDelivered')
-            .textContent = counts.delivered || 0;
-        document
-            .getElementById('automationRead')
-            .textContent = counts.read || 0;
-        document
-            .getElementById('automationFailed')
-            .textContent = counts.failed || 0;
-        document
-            .getElementById('automationSkipped')
-            .textContent = counts.skipped || 0;
+        document.getElementById('automationSent').textContent = counts.sent || 0;
+        document.getElementById('automationDelivered').textContent = counts.delivered || 0;
+        document.getElementById('automationRead').textContent = counts.read || 0;
+        document.getElementById('automationFailed').textContent = counts.failed || 0;
+        document.getElementById('automationSkipped').textContent = counts.skipped || 0;
     }
 
     function studentNameFor(message) {
         const student = studentsById.get(message.student_id);
-        if (!student) 
-            return 'Aluno removido';
-        return message.person === 'person2'
-            ? (student.person2 || 'Segunda pessoa')
-            : (student.person1 || 'Aluno');
+        if (!student) return 'Aluno removido';
+        return message.person === 'person2' ? (student.person2 || 'Segunda pessoa') : (student.person1 || 'Aluno');
     }
 
     function renderActivity() {
         const holder = document.getElementById('automationActivity');
         if (!currentMessages.length) {
-            holder.innerHTML = '<div class="automation-empty">Nenhuma automação registrada ainda. O histórico ' +
-                    'aparecerá aqui quando os primeiros fluxos forem executados.</div>';
+            holder.innerHTML = '<div class="automation-empty">Nenhuma automação registrada ainda. O histórico aparecerá aqui quando os primeiros fluxos forem executados.</div>';
             return;
         }
-        holder.innerHTML = currentMessages
-            .map(message => {
-                const date = new Date(message.executed_at || message.created_at);
-                const dateText = Number.isNaN(date.getTime())
-                    ? '—'
-                    : date.toLocaleString('pt-BR');
-                const retry = canRetry(message)
-                    ? `<button type="button" class="automation-retry" data-retry-message="${message.id}">Reenviar</button>`
-                    : '<span></span>';
-                const error = message.error_message
-                    ? `<span class="automation-error">${safeText(message.error_message)}</span>`
-                    : '';
-                return `<div class="automation-row">
-                <strong>${safeText(
-                    studentNameFor(message)
-                )}</strong>
-                <span>${safeText(
-                    friendlyType(message.automation_type)
-                )}</span>
-                <span class="automation-status ${safeText(
-                    message.status
-                )}">${safeText(friendlyStatus(message.status))}</span>
-                <span>${safeText(
-                    dateText
-                )}</span>
+        holder.innerHTML = currentMessages.map(message => {
+            const date = new Date(message.executed_at || message.created_at);
+            const dateText = Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('pt-BR');
+            const retry = canRetry(message)
+                ? `<button type="button" class="automation-retry" data-retry-message="${message.id}">Reenviar</button>`
+                : '<span></span>';
+            const error = message.error_message ? `<span class="automation-error">${safeText(message.error_message)}</span>` : '';
+            return `<div class="automation-row">
+                <strong>${safeText(studentNameFor(message))}</strong>
+                <span>${safeText(friendlyType(message.automation_type))}</span>
+                <span class="automation-status ${safeText(message.status)}">${safeText(friendlyStatus(message.status))}</span>
+                <span>${safeText(dateText)}</span>
                 ${retry}${error}
             </div>`;
-            })
-            .join('');
+        }).join('');
     }
 
     async function loadReadiness() {
         const userId = await getUserId();
-        if (!userId) 
-            return;
-        const [profileResult, studentsResult, receiptsResult, settingsResult, duplicatesResult] = await Promise.all(
-            [
-                db
-                    .from('academy_profiles')
-                    .select('academy_name,responsible_name,support_phone')
-                    .eq('user_id', userId)
-                    .maybeSingle(),
-                db
-                    .from('students')
-                    .select('id,person1_phone,person2_phone')
-                    .limit(500),
-                db
-                    .from('receipts')
-                    .select('id,storage_path,status')
-                    .limit(1),
-                db
-                    .from('automation_settings')
-                    .select('user_id')
-                    .eq('user_id', userId)
-                    .maybeSingle(),
-                db
-                    .rpc('find_duplicate_active_receipts')
-                    .then(result => result)
-                    .catch(() => ({data: null, error: new Error('rpc unavailable')}))
-            ]
-        );
+        if (!userId) return;
+        const [profileResult, studentsResult, receiptsResult, settingsResult, duplicatesResult] = await Promise.all([
+            db.from('academy_profiles').select('academy_name,responsible_name,support_phone').eq('user_id', userId).maybeSingle(),
+            db.from('students').select('id,person1_phone,person2_phone').limit(500),
+            db.from('receipts').select('id,storage_path,status').limit(1),
+            db.from('automation_settings').select('user_id').eq('user_id', userId).maybeSingle(),
+            db.rpc('find_duplicate_active_receipts').then(result => result).catch(() => ({data: null, error: new Error('rpc unavailable')}))
+        ]);
         const profile = profileResult.data || {};
         const students = studentsResult.data || [];
-        const hasWithWhatsapp = students.some(
-            s => Boolean(s.person1_phone || s.person2_phone)
-        );
-        const hasWithoutWhatsapp = students.some(
-            s => !s.person1_phone || !s.person2_phone
-        );
-        const duplicateSafe = !duplicatesResult.error && Array.isArray(
-            duplicatesResult.data
-        )
+        const hasWithWhatsapp = students.some(s => Boolean(s.person1_phone || s.person2_phone));
+        const hasWithoutWhatsapp = students.some(s => !s.person1_phone || !s.person2_phone);
+        const duplicateSafe = !duplicatesResult.error && Array.isArray(duplicatesResult.data)
             ? duplicatesResult.data.length === 0
             : true;
         const checks = [
-            {
-                ok: Boolean(profile.academy_name),
-                title: 'Nome da academia',
-                detail: 'Usado nas mensagens e recibos.'
-            }, {
-                ok: Boolean(profile.responsible_name),
-                title: 'Responsável cadastrado',
-                detail: 'Contato humano para dúvidas do aluno.'
-            }, {
-                ok: Boolean(profile.support_phone),
-                title: 'Telefone de suporte',
-                detail: 'Será incluído nas mensagens.'
-            }, {
-                ok: hasWithoutWhatsapp || students.length === 0,
-                title: 'Cadastro sem WhatsApp',
-                detail: 'Telefone continua opcional para o aluno.'
-            }, {
-                ok: hasWithWhatsapp,
-                title: 'Cadastro com WhatsApp',
-                detail: 'Tenha ao menos um aluno com telefone para o teste real.'
-            }, {
-                ok: !receiptsResult.error,
-                title: 'Fluxo de recibos',
-                detail: 'Histórico de recibos acessível.'
-            }, {
-                ok: Boolean(settingsResult.data),
-                title: 'Preferências de automação',
-                detail: 'Configurações individuais da academia criadas.'
-            }, {
-                ok: duplicateSafe,
-                title: 'Recibos sem duplicidade',
-                detail: 'Proteção de recibo ativo permanece válida.'
-            }, {
-                ok: false,
-                title: 'Conexão com a Meta',
-                detail: 'Aguardando autenticação e credenciais de produção.'
-            }
+            {ok: Boolean(profile.academy_name), title: 'Nome da academia', detail: 'Usado nas mensagens e recibos.'},
+            {ok: Boolean(profile.responsible_name), title: 'Responsável cadastrado', detail: 'Contato humano para dúvidas do aluno.'},
+            {ok: Boolean(profile.support_phone), title: 'Telefone de suporte', detail: 'Será incluído nas mensagens.'},
+            {ok: hasWithoutWhatsapp || students.length === 0, title: 'Cadastro sem WhatsApp', detail: 'Telefone continua opcional para o aluno.'},
+            {ok: hasWithWhatsapp, title: 'Cadastro com WhatsApp', detail: 'Tenha ao menos um aluno com telefone para o teste real.'},
+            {ok: !receiptsResult.error, title: 'Fluxo de recibos', detail: 'Histórico de recibos acessível.'},
+            {ok: Boolean(settingsResult.data), title: 'Preferências de automação', detail: 'Configurações individuais da academia criadas.'},
+            {ok: duplicateSafe, title: 'Recibos sem duplicidade', detail: 'Proteção de recibo ativo permanece válida.'},
+            {ok: false, title: 'Conexão com a Meta', detail: 'Aguardando autenticação e credenciais de produção.'}
         ];
-        document
-            .getElementById('automationReadiness')
-            .innerHTML = checks
-            .map(
-                    check => `
-            <div class="automation-check ${check.ok
-                        ? 'ok'
-                        : 'pending'}"><b>${check.ok
-                            ? '✓'
-                            : '!'}</b><div><strong>${safeText(check.title)}</strong><span>${safeText(
-                                check.detail
-                            )}</span></div></div>`
-                )
-            .join('');
+        document.getElementById('automationReadiness').innerHTML = checks.map(check => `
+            <div class="automation-check ${check.ok ? 'ok' : 'pending'}"><b>${check.ok ? '✓' : '!'}</b><div><strong>${safeText(check.title)}</strong><span>${safeText(check.detail)}</span></div></div>`
+        ).join('');
     }
 
     async function refreshAll() {
@@ -422,52 +269,32 @@
             await Promise.all([loadMessages(), loadReadiness()]);
         } catch (error) {
             console.warn('automation center load failed', error.message);
-            document
-                .getElementById('automationActivity')
-                .innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação ' +
-                        'agora.</div>';
+            document.getElementById('automationActivity').innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação agora.</div>';
         }
     }
 
     async function retryMessage(button) {
         const sourceMessageId = button.dataset.retryMessage;
-        if (!sourceMessageId || button.disabled) 
-            return;
+        if (!sourceMessageId || button.disabled) return;
         button.disabled = true;
         button.textContent = 'Enviando...';
         const requestId = button.dataset.retryRequestId || crypto.randomUUID();
         button.dataset.retryRequestId = requestId;
         try {
-            const {data, error} = await db
-                .functions
-                .invoke('retry-automation-message', {
-                    body: {
-                        source_message_id: sourceMessageId,
-                        request_id: requestId
-                    }
-                });
-            if (error) 
-                throw error;
-            if (typeof toast === 'function') 
-                toast(
-                    data
-                        ?.status === 'duplicate'
-                            ? 'Reenvio já processado.'
-                            : 'Mensagem reenviada.'
-                );
+            const {data, error} = await db.functions.invoke('retry-automation-message', {
+                body: {source_message_id: sourceMessageId, request_id: requestId}
+            });
+            if (error) throw error;
+            if (typeof toast === 'function') {
+                toast(data?.status === 'duplicate' ? 'Reenvio já processado.' : 'Mensagem reenviada.');
+            }
             delete button.dataset.retryRequestId;
             await loadMessages();
         } catch (error) {
-            const text = String(
-                error
-                    ?.message || ''
-            );
-            if (typeof toast === 'function') 
-                toast(
-                    text.includes('503')
-                        ? 'Conecte a Meta para realizar o reenvio.'
-                        : 'Não foi possível reenviar agora.'
-                );
+            const text = String(error?.message || '');
+            if (typeof toast === 'function') {
+                toast(text.includes('503') ? 'Conecte a Meta para realizar o reenvio.' : 'Não foi possível reenviar agora.');
+            }
             console.warn('automation retry failed', error.message);
         } finally {
             button.disabled = false;
@@ -475,79 +302,42 @@
         }
     }
 
-    document
-        .querySelectorAll('[data-automation-setting]')
-        .forEach(input => input.addEventListener('change', () => updateSetting(input)));
-    document
-        .getElementById('automationRefresh')
-        .addEventListener('click', refreshAll);
-    document
-        .getElementById('automationActivity')
-        .addEventListener('click', event => {
-            const button = event.target.closest
-                ?.('[data-retry-message]');
-            if (button) 
-                retryMessage(button);
-            }
-        );
+    document.querySelectorAll('[data-automation-setting]').forEach(input => input.addEventListener('change', () => updateSetting(input)));
+    document.getElementById('automationRefresh').addEventListener('click', refreshAll);
+    document.getElementById('automationActivity').addEventListener('click', event => {
+        const button = event.target.closest?.('[data-retry-message]');
+        if (button) retryMessage(button);
+    });
 
-    const originalSetView = typeof setView === 'function'
-        ? setView
-        : null;
+    const originalSetView = typeof setView === 'function' ? setView : null;
     if (originalSetView) {
         setView = function (view) {
             if (view !== 'automation') {
                 section.hidden = true;
-                tab
-                    .classList
-                    .remove('active');
+                tab.classList.remove('active');
                 return originalSetView(view);
             }
             activeView = 'automation';
             section.hidden = false;
-            document
-                    .getElementById('dashboardView')
-                    ?
-                    .setAttribute('hidden', '');
-            document
-                    .getElementById('studentsView')
-                    ?
-                    .setAttribute('hidden', '');
-            document
-                    .getElementById('financialView')
-                    ?
-                    .setAttribute('hidden', '');
-            document
-                    .getElementById('reportsView')
-                    ?
-                    .setAttribute('hidden', '');
-            document
-                .querySelectorAll('.view-tab')
-                .forEach(item => item.classList.remove('active'));
-            tab
-                .classList
-                .add('active');
+            document.getElementById('dashboardView')?.setAttribute('hidden', '');
+            document.getElementById('studentsView')?.setAttribute('hidden', '');
+            document.getElementById('financialView')?.setAttribute('hidden', '');
+            document.getElementById('reportsView')?.setAttribute('hidden', '');
+            document.querySelectorAll('.view-tab').forEach(item => item.classList.remove('active'));
+            tab.classList.add('active');
             refreshAll();
-            if (typeof animateView === 'function') 
-                animateView(section);
-            };
+            if (typeof animateView === 'function') animateView(section);
+        };
     }
 
     tab.addEventListener('click', () => setView('automation'));
-    db
-        .auth
-        .onAuthStateChange((event, session) => {
-            activeUserId = session
-                ?.user
-                    ?.id || null;
-            if (
-                !session
-                    ?.user
-            ) {
-                currentMessages = [];
-                studentsById.clear();
-            } else if (activeView === 'automation') {
-                setTimeout(refreshAll, 0);
-            }
-        });
+    db.auth.onAuthStateChange((event, session) => {
+        activeUserId = session?.user?.id || null;
+        if (!session?.user) {
+            currentMessages = [];
+            studentsById.clear();
+        } else if (activeView === 'automation') {
+            setTimeout(refreshAll, 0);
+        }
+    });
 })();

@@ -27,11 +27,24 @@ if (
 }
 
 window.addEventListener('load', () => {
+    const loadPlatformAdmin = () => {
+        if (document.querySelector('script[data-platform-admin]')) return;
+        const adminScript = document.createElement('script');
+        adminScript.src = './js/features/platform-admin.js?v=1';
+        adminScript.dataset.platformAdmin = 'true';
+        document.body.appendChild(adminScript);
+    };
+
     const loadProfile = () => {
-        if (document.querySelector('script[data-profile-feature]')) return;
+        const existingProfile = document.querySelector('script[data-profile-feature]');
+        if (existingProfile) {
+            loadPlatformAdmin();
+            return;
+        }
         const profileScript = document.createElement('script');
         profileScript.src = './js/features/profile.js?v=1';
         profileScript.dataset.profileFeature = 'true';
+        profileScript.addEventListener('load', loadPlatformAdmin, {once: true});
         document.body.appendChild(profileScript);
     };
 

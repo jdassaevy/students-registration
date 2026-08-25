@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { paymentAmount, paymentIsMarked, paymentLabel, receiptActionForState } from "../_shared/payment-lifecycle.ts";
+import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 import { buildDocumentPayload, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
@@ -75,10 +76,12 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
     }
 
-    const [{ data: academy }, { data: clazz }] = await Promise.all([
+    const [{ data: academy }, { data: clazz }, { data: settingsRow }] = await Promise.all([
       admin.from("academy_profiles").select("academy_name,display_name,responsible_name,support_phone").eq("user_id", user.id).maybeSingle(),
       student.class_id ? admin.from("classes").select("name").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
+      admin.from("automation_settings").select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled").eq("user_id", user.id).maybeSingle(),
     ]);
+    const settings = normalizeAutomationSettings(settingsRow);
     const studentName = person === "person2" ? student.person2 : student.person1;
     const academyName = academy?.academy_name || academy?.display_name || "Academia";
     const label = paymentLabel(kind, installment);
@@ -133,7 +136,12 @@ Deno.serve(async (req: Request) => {
     const accessToken = Deno.env.get("META_ACCESS_TOKEN") || "";
     const phoneNumberId = Deno.env.get("META_PHONE_NUMBER_ID") || "";
     const graphVersion = Deno.env.get("META_GRAPH_VERSION") || "v25.0";
-    let whatsapp = eligible ? (accessToken && phoneNumberId ? "ready" : "not_configured") : "skipped";
+    const metaReady = Boolean(accessToken && phoneNumberId);
+    let whatsapp: Record<string, string> = {
+      payment_confirmation: settings.payment_confirmation_enabled ? (eligible ? (metaReady ? "ready" : "not_configured") : "skipped") : "disabled",
+      receipt_document: settings.receipt_delivery_enabled ? (eligible ? (metaReady ? "ready" : "not_configured") : "skipped") : "disabled",
+      payment_voided: settings.void_notification_enabled ? (eligible ? (metaReady ? "ready" : "not_configured") : "skipped") : "disabled",
+    };
 
     async function sendLogged(automationType: string, payload: unknown, idempotencyKey: string) {
       const { data: existing } = await admin.from("automation_messages").select("id,status")
@@ -156,31 +164,33 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (eligible && accessToken && phoneNumberId && receipt && action === "create") {
+    if (eligible && metaReady && receipt && action === "create") {
       const to = normalizeRecipientPhone(phone)!;
-      const confirmation = buildTemplatePayload({
-        to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR",
-        bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
-      });
-      const confirmationStatus = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
-      let documentStatus = "skipped";
-      if (receipt.storage_path) {
+
+      if (settings.payment_confirmation_enabled) {
+        const confirmation = buildTemplatePayload({
+          to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR",
+          bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
+        });
+        whatsapp.payment_confirmation = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
+      }
+
+      if (settings.receipt_delivery_enabled && receipt.storage_path) {
         const { data: signed } = await admin.storage.from("receipts").createSignedUrl(receipt.storage_path, 3600);
         if (signed?.signedUrl) {
           const document = buildDocumentPayload({ to, link: signed.signedUrl, filename: `recibo-${receipt.receipt_number}.pdf`, caption: "Recibo de pagamento" });
-          documentStatus = await sendLogged("receipt_document", document, `payment:${receipt.id}:document`);
+          whatsapp.receipt_document = await sendLogged("receipt_document", document, `payment:${receipt.id}:document`);
         }
       }
-      whatsapp = `${confirmationStatus}/${documentStatus}`;
-    } else if (eligible && accessToken && phoneNumberId && receipt && action === "void") {
+    } else if (eligible && metaReady && receipt && action === "void" && settings.void_notification_enabled) {
       const payload = buildTemplatePayload({
         to: normalizeRecipientPhone(phone)!, templateName: TEMPLATE_NAMES.paymentVoided, languageCode: "pt_BR",
         bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
       });
-      whatsapp = await sendLogged("payment_voided", payload, `payment:${receipt.id}:voided`);
+      whatsapp.payment_voided = await sendLogged("payment_voided", payload, `payment:${receipt.id}:voided`);
     }
 
-    return json({ paid, action, receipt, whatsapp });
+    return json({ paid, action, receipt, whatsapp, settings });
   } catch (error) {
     console.error("payment-lifecycle error", error);
     return json({ error: "Could not process payment lifecycle" }, 500);

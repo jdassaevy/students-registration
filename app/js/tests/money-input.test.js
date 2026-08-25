@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { parseMoney, normalizeMoneyText } = require('../features/money-input.js');
+const {parseMoney, normalizeMoneyText} = require('../features/money-input.js');
 
 assert.equal(parseMoney('250'), 250);
 assert.equal(parseMoney('250,00'), 250);

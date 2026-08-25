@@ -24,12 +24,229 @@
         @media(hover:hover) and (pointer:fine){.dashboard-hero:hover{transform:translateY(-3px);border-color:#fff;box-shadow:0 36px 86px rgba(70,34,23,.21),0 10px 26px rgba(52,21,15,.10)}.dashboard-stat-card:hover{transform:translateY(-5px);border-color:#fff;box-shadow:0 30px 70px rgba(70,34,23,.20),0 10px 24px rgba(52,21,15,.10)}.dashboard-stat-card:hover .dashboard-stat-icon{transform:translateY(-2px) scale(1.06)}.dashboard-section:hover{transform:translateY(-3px);border-color:#fff;box-shadow:0 36px 86px rgba(70,34,23,.20),0 10px 24px rgba(52,21,15,.09)}.dashboard-class-card:hover{transform:translateY(-3px);border-color:rgba(166,75,53,.25);background:rgba(255,253,248,.9);box-shadow:0 10px 24px rgba(70,34,23,.08)}.dashboard-money-grid>div:hover,.dashboard-pending-grid>div:hover{transform:translateY(-2px);background:rgba(255,253,248,.9)}.dashboard-link:hover{transform:translateX(3px);color:var(--wine-dark)}}
         @media(max-width:900px){.dashboard-stats{grid-template-columns:1fr 1fr}.dashboard-grid{grid-template-columns:1fr}}@media(max-width:600px){.dashboard-hero{align-items:flex-start;flex-direction:column}.dashboard-date{align-self:flex-start}.dashboard-stats{grid-template-columns:1fr}.dashboard-class-list{grid-template-columns:1fr}.dashboard-money-grid,.dashboard-pending-grid{grid-template-columns:1fr}.dashboard-section-head{align-items:flex-start;flex-direction:column}.dashboard-stat-card strong{font-size:23px}}@media(prefers-reduced-motion:reduce){.dashboard-hero,.dashboard-stat-card,.dashboard-stat-icon,.dashboard-section,.dashboard-class-card,.dashboard-money-grid>div,.dashboard-pending-grid>div,.dashboard-link{transition-duration:.01ms!important;transform:none!important}}
     `;
-    document.head.appendChild(style);
+    document
+        .head
+        .appendChild(style);
 
-    const nav=document.querySelector('.view-tabs');const dashboardTab=document.createElement('button');dashboardTab.type='button';dashboardTab.className='view-tab';dashboardTab.id='dashboardTab';dashboardTab.textContent='Visão Geral';nav.prepend(dashboardTab);const studentsView=document.getElementById('studentsView');studentsView.insertAdjacentHTML('beforebegin',dashboardMarkup);
-    const originalSetView=setView;setView=function(view){if(view!=='dashboard'){document.getElementById('dashboardView').hidden=true;dashboardTab.classList.remove('active');return originalSetView(view)}activeView='dashboard';document.getElementById('dashboardView').hidden=false;document.getElementById('studentsView').hidden=true;document.getElementById('financialView').hidden=true;dashboardTab.classList.add('active');document.getElementById('studentsTab').classList.remove('active');document.getElementById('financialTab').classList.remove('active');renderDashboard();animateView(document.getElementById('dashboardView'))};
-    function paymentTotals(){return couples.reduce((acc,c)=>{const people=[{exists:true,entry:c.entryPayments.person1,months:c.payments.person1,fees:c.fees.person1},{exists:Boolean(c.person2),entry:c.entryPayments.person2,months:c.payments.person2,fees:c.fees.person2}];people.forEach(person=>{if(!person.exists)return;acc.people+=1;acc.possible+=4;if(person.entry){acc.paid+=1;acc.entriesReceived+=person.fees.entry}else acc.pendingEntries+=1;const paidMonths=person.months.filter(Boolean).length;acc.paid+=paidMonths;acc.pendingMonthly+=3-paidMonths;acc.monthlyReceived+=paidMonths*person.fees.monthly});return acc},{people:0,possible:0,paid:0,pendingEntries:0,pendingMonthly:0,entriesReceived:0,monthlyReceived:0})}
-    function classPaymentRate(classId){const items=couples.filter(c=>c.classId===classId);let possible=0,paid=0;items.forEach(c=>{possible+=c.person2?8:4;paid+=Number(c.entryPayments.person1)+c.payments.person1.filter(Boolean).length;if(c.person2)paid+=Number(c.entryPayments.person2)+c.payments.person2.filter(Boolean).length});return possible?Math.round((paid/possible)*100):0}
-    function renderDashboard(){const totals=paymentTotals(),received=totals.entriesReceived+totals.monthlyReceived,pending=totals.pendingEntries+totals.pendingMonthly,rate=totals.possible?Math.round((totals.paid/totals.possible)*100):0,hour=new Date().getHours(),greeting=hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';document.getElementById('dashboardGreeting').textContent=`${greeting}! Aqui está o resumo da sua academia.`;document.getElementById('dashboardDate').textContent=new Intl.DateTimeFormat('pt-BR',{weekday:'long',day:'2-digit',month:'long'}).format(new Date());document.getElementById('dashboardStudents').textContent=totals.people;document.getElementById('dashboardCouples').textContent=`${couples.length} ${couples.length===1?'cadastro':'cadastros'}`;document.getElementById('dashboardClasses').textContent=classes.length;document.getElementById('dashboardReceived').textContent=money(received);document.getElementById('dashboardPending').textContent=pending;document.getElementById('dashboardEntriesReceived').textContent=money(totals.entriesReceived);document.getElementById('dashboardMonthlyReceived').textContent=money(totals.monthlyReceived);document.getElementById('dashboardPendingEntries').textContent=totals.pendingEntries;document.getElementById('dashboardPendingMonthly').textContent=totals.pendingMonthly;document.getElementById('dashboardPaymentRate').textContent=`${rate}%`;document.getElementById('dashboardPaymentBar').style.width=`${rate}%`;document.getElementById('dashboardPendingHelper').textContent=pending?`${pending} pagamento${pending===1?'':'s'} ainda precisa${pending===1?'':'m'} de atenção.`:'Tudo em dia por aqui. Nenhuma pendência no momento.';const classList=document.getElementById('dashboardClassList');classList.innerHTML=classes.length?classes.map(item=>{const classCouples=couples.filter(c=>c.classId===item.id),people=classCouples.reduce((sum,c)=>sum+(c.person2?2:1),0),rate=classPaymentRate(item.id),details=[item.place,item.schedule].filter(Boolean).join(' • ')||'Sem detalhes cadastrados';return `<article class="dashboard-class-card"><div class="dashboard-class-card-head"><div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(details)}</small></div><span class="dashboard-class-count">${people} aluno${people===1?'':'s'}</span></div><div class="dashboard-class-progress" title="${rate}% dos pagamentos concluídos"><span style="width:${rate}%"></span></div></article>`}).join(''):'<div class="dashboard-empty">Crie sua primeira turma para acompanhar o resumo aqui.</div>'}
-    const originalRender=render;render=function(){originalRender();renderDashboard()};dashboardTab.onclick=()=>setView('dashboard');document.getElementById('dashboardFinancialLink').onclick=()=>setView('financial');document.getElementById('dashboardStudentsLink').onclick=()=>setView('students');setView('dashboard');
+    const nav = document.querySelector('.view-tabs');
+    const dashboardTab = document.createElement('button');
+    dashboardTab.type = 'button';
+    dashboardTab.className = 'view-tab';
+    dashboardTab.id = 'dashboardTab';
+    dashboardTab.textContent = 'Visão Geral';
+    nav.prepend(dashboardTab);
+    const studentsView = document.getElementById('studentsView');
+    studentsView.insertAdjacentHTML('beforebegin', dashboardMarkup);
+    const originalSetView = setView;
+    setView = function (view) {
+        if (view !== 'dashboard') {
+            document
+                .getElementById('dashboardView')
+                .hidden = true;
+            dashboardTab
+                .classList
+                .remove('active');
+            return originalSetView(view)
+        }
+        activeView = 'dashboard';
+        document
+            .getElementById('dashboardView')
+            .hidden = false;
+        document
+            .getElementById('studentsView')
+            .hidden = true;
+        document
+            .getElementById('financialView')
+            .hidden = true;
+        dashboardTab
+            .classList
+            .add('active');
+        document
+            .getElementById('studentsTab')
+            .classList
+            .remove('active');
+        document
+            .getElementById('financialTab')
+            .classList
+            .remove('active');
+        renderDashboard();
+        animateView(document.getElementById('dashboardView'))
+    };
+    function paymentTotals() {
+        return couples.reduce((acc, c) => {
+            const people = [
+                {
+                    exists: true,
+                    entry: c.entryPayments.person1,
+                    months: c.payments.person1,
+                    fees: c.fees.person1
+                }, {
+                    exists: Boolean(c.person2),
+                    entry: c.entryPayments.person2,
+                    months: c.payments.person2,
+                    fees: c.fees.person2
+                }
+            ];
+            people.forEach(person => {
+                if (!person.exists) 
+                    return;
+                acc.people += 1;
+                acc.possible += 4;
+                if (person.entry) {
+                    acc.paid += 1;
+                    acc.entriesReceived += person.fees.entry
+                } else 
+                    acc.pendingEntries += 1;
+                const paidMonths = person
+                    .months
+                    .filter(Boolean)
+                    .length;
+                acc.paid += paidMonths;
+                acc.pendingMonthly += 3 - paidMonths;
+                acc.monthlyReceived += paidMonths * person.fees.monthly
+            });
+            return acc
+        }, {
+            people: 0,
+            possible: 0,
+            paid: 0,
+            pendingEntries: 0,
+            pendingMonthly: 0,
+            entriesReceived: 0,
+            monthlyReceived: 0
+        })
+    }
+    function classPaymentRate(classId) {
+        const items = couples.filter(c => c.classId === classId);
+        let possible = 0,
+            paid = 0;
+        items.forEach(c => {
+            possible += c.person2
+                ? 8
+                : 4;
+            paid += Number(c.entryPayments.person1) + c
+                .payments
+                .person1
+                .filter(Boolean)
+                .length;
+            if (c.person2) 
+                paid += Number(c.entryPayments.person2) + c
+                    .payments
+                    .person2
+                    .filter(Boolean)
+                    .length
+            });
+        return possible
+            ? Math.round((paid / possible) * 100)
+            : 0
+    }
+    function renderDashboard() {
+        const totals = paymentTotals(),
+            received = totals.entriesReceived + totals.monthlyReceived,
+            pending = totals.pendingEntries + totals.pendingMonthly,
+            rate = totals.possible
+                ? Math.round((totals.paid / totals.possible) * 100)
+                : 0,
+            hour = new Date().getHours(),
+            greeting = hour < 12
+                ? 'Bom dia'
+                : hour < 18
+                    ? 'Boa tarde'
+                    : 'Boa noite';
+        document
+            .getElementById('dashboardGreeting')
+            .textContent = `${greeting}! Aqui está o resumo da sua academia.`;
+        document
+            .getElementById('dashboardDate')
+            .textContent = new Intl
+            .DateTimeFormat('pt-BR', {
+                weekday: 'long',
+                day: '2-digit',
+                month: 'long'
+            })
+            .format(new Date());
+        document
+            .getElementById('dashboardStudents')
+            .textContent = totals.people;
+        document
+            .getElementById('dashboardCouples')
+            .textContent = `${couples
+            .length} ${couples
+            .length === 1
+                ? 'cadastro'
+                : 'cadastros'}`;
+        document
+            .getElementById('dashboardClasses')
+            .textContent = classes.length;
+        document
+            .getElementById('dashboardReceived')
+            .textContent = money(received);
+        document
+            .getElementById('dashboardPending')
+            .textContent = pending;
+        document
+            .getElementById('dashboardEntriesReceived')
+            .textContent = money(totals.entriesReceived);
+        document
+            .getElementById('dashboardMonthlyReceived')
+            .textContent = money(totals.monthlyReceived);
+        document
+            .getElementById('dashboardPendingEntries')
+            .textContent = totals.pendingEntries;
+        document
+            .getElementById('dashboardPendingMonthly')
+            .textContent = totals.pendingMonthly;
+        document
+            .getElementById('dashboardPaymentRate')
+            .textContent = `${rate}%`;
+        document
+            .getElementById('dashboardPaymentBar')
+            .style
+            .width = `${rate}%`;
+        document
+            .getElementById('dashboardPendingHelper')
+            .textContent = pending
+                ? `${pending} pagamento${pending === 1
+                    ? ''
+                    : 's'} ainda precisa${pending === 1
+                        ? ''
+                        : 'm'} de atenção.`
+                : 'Tudo em dia por aqui. Nenhuma pendência no momento.';
+        const classList = document.getElementById('dashboardClassList');
+        classList.innerHTML = classes.length
+            ? classes
+                .map(item => {
+                    const classCouples = couples.filter(c => c.classId === item.id),
+                        people = classCouples.reduce((sum, c) => sum + (
+                            c.person2
+                                ? 2
+                                : 1
+                        ), 0),
+                        rate = classPaymentRate(item.id),
+                        details = [item.place, item.schedule]
+                            .filter(Boolean)
+                            .join(' • ') || 'Sem detalhes cadastrados';
+                    return `<article class="dashboard-class-card"><div class="dashboard-class-card-head"><div><strong>${escapeHtml(
+                        item.name
+                    )}</strong><small>${escapeHtml(details)}</small></div><span class="dashboard-class-count">${people} aluno${people === 1
+                        ? ''
+                        : 's'}</span></div><div class="dashboard-class-progress" title="${rate}% dos pagamentos concluídos"><span style="width:${rate}%"></span></div></article>`
+                })
+                .join('')
+            : '<div class="dashboard-empty">Crie sua primeira turma para acompanhar o resumo ' +
+                    'aqui.</div>'
+    }
+    const originalRender = render;
+    render = function () {
+        originalRender();
+        renderDashboard()
+    };
+    dashboardTab.onclick = () => setView('dashboard');
+    document
+        .getElementById('dashboardFinancialLink')
+        .onclick = () => setView('financial');
+    document
+        .getElementById('dashboardStudentsLink')
+        .onclick = () => setView('students');
+    setView('dashboard');
 })();

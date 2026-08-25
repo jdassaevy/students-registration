@@ -297,7 +297,9 @@ button:active:not(:disabled) {
 .financial-head h2 {
   margin: 0 0 5px;
   color: var(--wine-dark);
-  font: 700 30px Georgia, serif;
+  font:
+    700 30px Georgia,
+    serif;
 }
 .financial-head p {
   margin: 0;
@@ -1041,8 +1043,8 @@ dialog form {
 
 @media (prefers-reduced-motion: reduce) {
   *,
-  *::before,
-  *::after {
+  *::after,
+  *::before {
     scroll-behavior: auto !important;
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;

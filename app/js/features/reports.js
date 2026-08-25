@@ -83,7 +83,9 @@
         @media(max-width:950px){.reports-stats{grid-template-columns:1fr 1fr}.reports-grid{grid-template-columns:1fr}}
         @media(max-width:620px){.reports-head{align-items:flex-start;flex-direction:column}.reports-head .class-filter{width:100%}.reports-stats{grid-template-columns:1fr}.report-card-head{flex-direction:column}.chart-wrap,.chart-small,.class-chart-wrap{height:245px}.report-class-row{grid-template-columns:1fr auto}.report-class-row span:nth-of-type(2){display:none}}
     `;
-    document.head.appendChild(style);
+    document
+        .head
+        .appendChild(style);
 
     const nav = document.querySelector('.view-tabs');
     const reportsTab = document.createElement('button');
@@ -93,39 +95,61 @@
     reportsTab.textContent = 'Relatórios';
     nav.appendChild(reportsTab);
 
-    document.querySelector('main.app').insertAdjacentHTML('beforeend', reportsMarkup);
+    document
+        .querySelector('main.app')
+        .insertAdjacentHTML('beforeend', reportsMarkup);
 
     function loadChartJs() {
-        if (window.Chart) return Promise.resolve();
+        if (window.Chart) 
+            return Promise.resolve();
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
             script.onload = resolve;
             script.onerror = reject;
-            document.head.appendChild(script);
+            document
+                .head
+                .appendChild(script);
         });
     }
 
     function normalizeFilterOptions() {
         const select = document.getElementById('reportsClassFilter');
         const previous = select.value;
-        select.innerHTML = `<option value="all">Todas as turmas</option><option value="none">Sem turma</option>${classes.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}`;
-        if ([...select.options].some(option => option.value === previous)) select.value = previous;
-    }
-
+        select.innerHTML = `<option value="all">Todas as turmas</option><option value="none">Sem turma</option>${classes
+            .map(
+                item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`
+            )
+            .join('')}`;
+        if ([...select.options].some(option => option.value === previous)) 
+            select.value = previous;
+        }
+    
     function filteredCouples() {
-        const filter = document.getElementById('reportsClassFilter').value;
-        return couples.filter(c => filter === 'all' || (filter === 'none' ? !c.classId : c.classId === filter));
+        const filter = document
+            .getElementById('reportsClassFilter')
+            .value;
+        return couples.filter(c => filter === 'all' || (
+            filter === 'none'
+                ? !c.classId
+                : c.classId === filter
+        ));
     }
 
     function reportMetrics(items) {
         return items.reduce((acc, c) => {
             const people = [
-                {exists:true, person:'person1'},
-                {exists:Boolean(c.person2), person:'person2'}
+                {
+                    exists: true,
+                    person: 'person1'
+                }, {
+                    exists: Boolean(c.person2),
+                    person: 'person2'
+                }
             ];
             people.forEach(({exists, person}) => {
-                if (!exists) return;
+                if (!exists) 
+                    return;
                 acc.students += 1;
                 const fees = c.fees[person];
                 const entryPaid = c.entryPayments[person];
@@ -138,39 +162,58 @@
                     acc.pendingCount += 1;
                     acc.pendingValue += fees.entry;
                 }
-                c.payments[person].forEach(on => {
-                    if (on) {
-                        acc.paid += 1;
-                        acc.received += fees.monthly;
-                    } else {
-                        acc.pendingCount += 1;
-                        acc.pendingValue += fees.monthly;
-                    }
-                });
+                c
+                    .payments[person]
+                    .forEach(on => {
+                        if (on) {
+                            acc.paid += 1;
+                            acc.received += fees.monthly;
+                        } else {
+                            acc.pendingCount += 1;
+                            acc.pendingValue += fees.monthly;
+                        }
+                    });
             });
             return acc;
-        }, {students:0, possible:0, paid:0, received:0, expected:0, pendingCount:0, pendingValue:0});
+        }, {
+            students: 0,
+            possible: 0,
+            paid: 0,
+            received: 0,
+            expected: 0,
+            pendingCount: 0,
+            pendingValue: 0
+        });
     }
 
     function classRows(items) {
         const groups = new Map();
         items.forEach(c => {
             const key = c.classId || 'none';
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key).push(c);
+            if (!groups.has(key)) 
+                groups.set(key, []);
+            groups
+                .get(key)
+                .push(c);
         });
-        return [...groups.entries()].map(([id, classItems]) => {
-            const metrics = reportMetrics(classItems);
-            const item = classes.find(x => x.id === id);
-            return {
-                id,
-                name: item ? item.name : 'Sem turma',
-                students: metrics.students,
-                received: metrics.received,
-                pending: metrics.pendingValue,
-                rate: metrics.possible ? Math.round((metrics.paid / metrics.possible) * 100) : 0
-            };
-        }).sort((a,b) => b.rate - a.rate || a.name.localeCompare(b.name, 'pt-BR'));
+        return [...groups.entries()]
+            .map(([id, classItems]) => {
+                const metrics = reportMetrics(classItems);
+                const item = classes.find(x => x.id === id);
+                return {
+                    id,
+                    name: item
+                        ? item.name
+                        : 'Sem turma',
+                    students: metrics.students,
+                    received: metrics.received,
+                    pending: metrics.pendingValue,
+                    rate: metrics.possible
+                        ? Math.round((metrics.paid / metrics.possible) * 100)
+                        : 0
+                };
+            })
+            .sort((a, b) => b.rate - a.rate || a.name.localeCompare(b.name, 'pt-BR'));
     }
 
     function monthBuckets() {
@@ -178,27 +221,52 @@
         const buckets = [];
         for (let i = REPORT_MONTHS - 1; i >= 0; i--) {
             const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
-            buckets.push({key, label: new Intl.DateTimeFormat('pt-BR',{month:'short'}).format(date).replace('.',''), total:0});
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+                2,
+                '0'
+            )}`;
+            buckets.push({
+                key,
+                label: new Intl
+                    .DateTimeFormat('pt-BR', {month: 'short'})
+                    .format(date)
+                    .replace('.', ''),
+                total: 0
+            });
         }
         return buckets;
     }
 
     function revenueSeries() {
         const buckets = monthBuckets();
-        const filter = document.getElementById('reportsClassFilter').value;
+        const filter = document
+            .getElementById('reportsClassFilter')
+            .value;
         reportEvents.forEach(event => {
-            if (filter !== 'all' && (filter === 'none' ? Boolean(event.class_id) : event.class_id !== filter)) return;
+            if (filter !== 'all' && (
+                filter === 'none'
+                    ? Boolean(event.class_id)
+                    : event.class_id !== filter
+            )) 
+                return;
             const date = new Date(event.paid_at);
-            const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+                2,
+                '0'
+            )}`;
             const bucket = buckets.find(x => x.key === key);
-            if (bucket) bucket.total += Number(event.amount) || 0;
-        });
+            if (bucket) 
+                bucket.total += Number(event.amount) || 0;
+            }
+        );
         return buckets;
     }
 
     async function loadEvents() {
-        const {data, error} = await db.from('payment_events').select('*').order('paid_at', {ascending:true});
+        const {data, error} = await db
+            .from('payment_events')
+            .select('*')
+            .order('paid_at', {ascending: true});
         if (error) {
             console.warn('Histórico financeiro ainda não configurado:', error.message);
             reportEvents = [];
@@ -209,42 +277,201 @@
     }
 
     function destroyCharts() {
-        [revenueChart,statusChart,classChart].forEach(chart => chart?.destroy());
+        [revenueChart, statusChart, classChart].forEach(
+            chart => chart
+                ?.destroy()
+        );
         revenueChart = statusChart = classChart = null;
     }
 
     async function renderCharts(items, metrics, rows) {
         try {
             await loadChartJs();
-        } catch {
-            document.getElementById('revenueHistoryNotice').textContent = 'Não foi possível carregar a biblioteca de gráficos.';
+        } catch  {
+            document
+                .getElementById('revenueHistoryNotice')
+                .textContent = 'Não foi possível carregar a biblioteca de gráficos.';
             return;
         }
         destroyCharts();
         const css = getComputedStyle(document.documentElement);
-        const wine = css.getPropertyValue('--wine').trim() || '#5b2118';
-        const terracotta = css.getPropertyValue('--terracotta').trim() || '#b95f3c';
-        const green = css.getPropertyValue('--green').trim() || '#56805f';
-        const muted = css.getPropertyValue('--muted').trim() || '#7d6e67';
+        const wine = css
+            .getPropertyValue('--wine')
+            .trim() || '#5b2118';
+        const terracotta = css
+            .getPropertyValue('--terracotta')
+            .trim() || '#b95f3c';
+        const green = css
+            .getPropertyValue('--green')
+            .trim() || '#56805f';
+        const muted = css
+            .getPropertyValue('--muted')
+            .trim() || '#7d6e67';
         const grid = 'rgba(100,70,60,.10)';
         const series = revenueSeries();
 
         revenueChart = new Chart(document.getElementById('revenueChart'), {
-            type:'line',
-            data:{labels:series.map(x=>x.label),datasets:[{label:'Receita',data:series.map(x=>x.total),borderColor:wine,backgroundColor:'rgba(91,33,24,.10)',fill:true,tension:.35,pointRadius:4,pointHoverRadius:5}]},
-            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>money(ctx.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:muted}},y:{beginAtZero:true,grid:{color:grid},ticks:{color:muted,callback:value=>Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0})}}}}
+            type: 'line',
+            data: {
+                labels: series.map(x => x.label),
+                datasets: [
+                    {
+                        label: 'Receita',
+                        data: series.map(x => x.total),
+                        borderColor: wine,
+                        backgroundColor: 'rgba(91,33,24,.10)',
+                        fill: true,
+                        tension: .35,
+                        pointRadius: 4,
+                        pointHoverRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => money(ctx.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: muted
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: grid
+                        },
+                        ticks: {
+                            color: muted,
+                            callback: value => Number(value).toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                                maximumFractionDigits: 0
+                            })
+                        }
+                    }
+                }
+            }
         });
 
         statusChart = new Chart(document.getElementById('statusChart'), {
-            type:'doughnut',
-            data:{labels:['Recebidos','Pendentes'],datasets:[{data:[metrics.paid,metrics.pendingCount],backgroundColor:[green,terracotta],borderWidth:0}]},
-            options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8,color:muted,padding:16}}}}
+            type: 'doughnut',
+            data: {
+                labels: [
+                    'Recebidos', 'Pendentes'
+                ],
+                datasets: [
+                    {
+                        data: [
+                            metrics.paid, metrics.pendingCount
+                        ],
+                        backgroundColor: [
+                            green, terracotta
+                        ],
+                        borderWidth: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '68%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 8,
+                            color: muted,
+                            padding: 16
+                        }
+                    }
+                }
+            }
         });
 
         classChart = new Chart(document.getElementById('classChart'), {
-            type:'bar',
-            data:{labels:rows.map(x=>x.name),datasets:[{label:'Adimplência',data:rows.map(x=>x.rate),backgroundColor:wine,borderRadius:7,maxBarThickness:42}]},
-            options:{responsive:true,maintainAspectRatio:false,indexAxis:rows.length > 5 ? 'y' : 'x',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed[rows.length > 5 ? 'x' : 'y']}%`}}},scales:{x:{beginAtZero:true,max:rows.length > 5 ? 100 : undefined,grid:{color:grid},ticks:{color:muted,callback:rows.length > 5 ? value=>`${value}%` : undefined}},y:{beginAtZero:true,max:rows.length > 5 ? undefined : 100,grid:{color:rows.length > 5 ? 'transparent' : grid},ticks:{color:muted,callback:rows.length > 5 ? undefined : value=>`${value}%`}}}}
+            type: 'bar',
+            data: {
+                labels: rows.map(x => x.name),
+                datasets: [
+                    {
+                        label: 'Adimplência',
+                        data: rows.map(x => x.rate),
+                        backgroundColor: wine,
+                        borderRadius: 7,
+                        maxBarThickness: 42
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: rows.length > 5
+                    ? 'y'
+                    : 'x',
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.parsed[
+                                rows.length > 5
+                                    ? 'x'
+                                    : 'y'
+                            ]}%`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: rows.length > 5
+                            ? 100
+                            : undefined,
+                        grid: {
+                            color: grid
+                        },
+                        ticks: {
+                            color: muted,
+                            callback: rows.length > 5
+                                ? value => `${value}%`
+                                : undefined
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: rows.length > 5
+                            ? undefined
+                            : 100,
+                        grid: {
+                            color: rows.length > 5
+                                ? 'transparent'
+                                : grid
+                        },
+                        ticks: {
+                            color: muted,
+                            callback: rows.length > 5
+                                ? undefined
+                                : value => `${value}%`
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -253,101 +480,212 @@
         const items = filteredCouples();
         const metrics = reportMetrics(items);
         const rows = classRows(items);
-        const rate = metrics.possible ? Math.round((metrics.paid / metrics.possible) * 100) : 0;
+        const rate = metrics.possible
+            ? Math.round((metrics.paid / metrics.possible) * 100)
+            : 0;
         const classCount = new Set(items.map(c => c.classId || 'none')).size;
 
-        document.getElementById('reportReceived').textContent = money(metrics.received);
-        document.getElementById('reportPendingValue').textContent = money(metrics.pendingValue);
-        document.getElementById('reportPendingCount').textContent = `${metrics.pendingCount} pagamento${metrics.pendingCount === 1 ? '' : 's'} em aberto`;
-        document.getElementById('reportPaymentRate').textContent = `${rate}%`;
-        document.getElementById('reportStudents').textContent = metrics.students;
-        document.getElementById('reportClasses').textContent = `${classCount} ${classCount === 1 ? 'turma no filtro' : 'turmas no filtro'}`;
+        document
+            .getElementById('reportReceived')
+            .textContent = money(metrics.received);
+        document
+            .getElementById('reportPendingValue')
+            .textContent = money(metrics.pendingValue);
+        document
+            .getElementById('reportPendingCount')
+            .textContent = `${metrics
+            .pendingCount} pagamento${metrics
+            .pendingCount === 1
+                ? ''
+                : 's'} em aberto`;
+        document
+            .getElementById('reportPaymentRate')
+            .textContent = `${rate}%`;
+        document
+            .getElementById('reportStudents')
+            .textContent = metrics.students;
+        document
+            .getElementById('reportClasses')
+            .textContent = `${classCount} ${classCount === 1
+                ? 'turma no filtro'
+                : 'turmas no filtro'}`;
 
         const historyReady = await loadEvents();
-        document.getElementById('revenueHistoryNotice').textContent = historyReady
-            ? (reportEvents.length ? 'O gráfico usa a data real registrada quando cada pagamento é marcado como recebido.' : 'O histórico começa a ser preenchido a partir dos próximos pagamentos marcados como recebidos.')
-            : 'Execute a atualização do banco da Etapa 4 para ativar o histórico mensal de receita.';
+        document
+            .getElementById('revenueHistoryNotice')
+            .textContent = historyReady
+                ? (
+                    reportEvents.length
+                        ? 'O gráfico usa a data real registrada quando cada pagamento é marcado como rece' +
+                                'bido.'
+                        : 'O histórico começa a ser preenchido a partir dos próximos pagamentos marcados ' +
+                                'como recebidos.'
+                )
+                : 'Execute a atualização do banco da Etapa 4 para ativar o histórico mensal de re' +
+                        'ceita.';
 
-        document.getElementById('reportClassTable').innerHTML = rows.length ? rows.map(row => `
+        document
+            .getElementById('reportClassTable')
+            .innerHTML = rows.length
+                ? rows
+                    .map(
+                        row => `
             <div class="report-class-row">
                 <strong>${escapeHtml(row.name)}</strong>
-                <span>${row.students} aluno${row.students === 1 ? '' : 's'}</span>
-                <span>${money(row.received)} recebidos • ${money(row.pending)} pendentes</span>
+                <span>${row.students} aluno${row.students === 1
+                            ? ''
+                            : 's'}</span>
+                <span>${money(row.received)} recebidos • ${money(
+                                row.pending
+                            )} pendentes</span>
                 <b class="rate">${row.rate}%</b>
-            </div>`).join('') : '<div class="report-empty">Nenhuma turma ou aluno encontrado neste filtro.</div>';
+            </div>`
+                    )
+                    .join('')
+                : '<div class="report-empty">Nenhuma turma ou aluno encontrado neste filtro.</div' +
+                        '>';
 
         await renderCharts(items, metrics, rows);
     }
 
-    async function syncPaymentEvent({student, person, kind, installment = 0, paid}) {
+    async function syncPaymentEvent({
+        student,
+        person,
+        kind,
+        installment = 0,
+        paid
+    }) {
         try {
-            if (!student) return;
-            const amount = kind === 'entry' ? student.fees[person].entry : student.fees[person].monthly;
-            const match = db.from('payment_events').delete().eq('student_id', student.id).eq('person', person).eq('kind', kind).eq('installment', installment);
+            if (!student) 
+                return;
+            const amount = kind === 'entry'
+                ? student
+                    .fees[person]
+                    .entry
+                : student
+                    .fees[person]
+                    .monthly;
+            const match = db
+                .from('payment_events')
+                .delete()
+                .eq('student_id', student.id)
+                .eq('person', person)
+                .eq('kind', kind)
+                .eq('installment', installment);
             if (!paid) {
                 await match;
             } else {
                 await match;
-                const {error} = await db.from('payment_events').insert({
-                    student_id: student.id,
-                    class_id: student.classId || null,
-                    person,
-                    kind,
-                    installment,
-                    amount,
-                    paid_at: new Date().toISOString()
-                });
-                if (error) throw error;
+                const {error} = await db
+                    .from('payment_events')
+                    .insert({
+                        student_id: student.id,
+                        class_id: student.classId || null,
+                        person,
+                        kind,
+                        installment,
+                        amount,
+                        paid_at: new Date().toISOString()
+                    });
+                if (error) 
+                    throw error;
+                }
+            if (activeView === 'reports') 
+                await renderReports();
             }
-            if (activeView === 'reports') await renderReports();
-        } catch (error) {
+        catch (error) {
             console.warn('Não foi possível registrar a data do pagamento:', error.message);
         }
     }
 
     const originalToggleEntry = toggleEntry;
-    toggleEntry = async function(id, person) {
+    toggleEntry = async function (id, person) {
         const student = couples.find(x => x.id === id);
-        const before = Boolean(student?.entryPayments?.[person]);
+        const before = Boolean(
+            student
+                ?.entryPayments
+                    ?.[person]
+        );
         await originalToggleEntry(id, person);
-        const after = Boolean(student?.entryPayments?.[person]);
-        if (before !== after) await syncPaymentEvent({student, person, kind:'entry', paid:after});
-    };
-
+        const after = Boolean(
+            student
+                ?.entryPayments
+                    ?.[person]
+        );
+        if (before !== after) 
+            await syncPaymentEvent({student, person, kind: 'entry', paid: after});
+        };
+    
     const originalToggleMonth = toggleMonth;
-    toggleMonth = async function(id, person, index) {
+    toggleMonth = async function (id, person, index) {
         const student = couples.find(x => x.id === id);
-        const before = Boolean(student?.payments?.[person]?.[index]);
+        const before = Boolean(
+            student
+                ?.payments
+                    ?.[person]
+                        ?.[index]
+        );
         await originalToggleMonth(id, person, index);
-        const after = Boolean(student?.payments?.[person]?.[index]);
-        if (before !== after) await syncPaymentEvent({student, person, kind:'monthly', installment:index + 1, paid:after});
-    };
-
+        const after = Boolean(
+            student
+                ?.payments
+                    ?.[person]
+                        ?.[index]
+        );
+        if (before !== after) 
+            await syncPaymentEvent({
+                student,
+                person,
+                kind: 'monthly',
+                installment: index + 1,
+                paid: after
+            });
+        };
+    
     const originalSetView = setView;
-    setView = function(view) {
+    setView = function (view) {
         if (view !== 'reports') {
-            document.getElementById('reportsView').hidden = true;
-            reportsTab.classList.remove('active');
+            document
+                .getElementById('reportsView')
+                .hidden = true;
+            reportsTab
+                .classList
+                .remove('active');
             return originalSetView(view);
         }
         activeView = 'reports';
-        document.getElementById('reportsView').hidden = false;
-        document.getElementById('dashboardView').hidden = true;
-        document.getElementById('studentsView').hidden = true;
-        document.getElementById('financialView').hidden = true;
-        document.querySelectorAll('.view-tab').forEach(tab => tab.classList.remove('active'));
-        reportsTab.classList.add('active');
+        document
+            .getElementById('reportsView')
+            .hidden = false;
+        document
+            .getElementById('dashboardView')
+            .hidden = true;
+        document
+            .getElementById('studentsView')
+            .hidden = true;
+        document
+            .getElementById('financialView')
+            .hidden = true;
+        document
+            .querySelectorAll('.view-tab')
+            .forEach(tab => tab.classList.remove('active'));
+        reportsTab
+            .classList
+            .add('active');
         renderReports();
         animateView(document.getElementById('reportsView'));
     };
 
     const originalRender = render;
-    render = function() {
+    render = function () {
         originalRender();
         normalizeFilterOptions();
-        if (activeView === 'reports') renderReports();
-    };
-
+        if (activeView === 'reports') 
+            renderReports();
+        };
+    
     reportsTab.onclick = () => setView('reports');
-    document.getElementById('reportsClassFilter').onchange = renderReports;
+    document
+        .getElementById('reportsClassFilter')
+        .onchange = renderReports;
 })();

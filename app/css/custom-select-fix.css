@@ -1,7 +1,7 @@
+.field,
 .financial-head,
 .reports-head,
-.toolbar,
-.field {
+.toolbar {
   position: relative;
 }
 
@@ -15,7 +15,9 @@
 
 .custom-select.is-open .custom-select-menu {
   background: #fffdf8;
-  box-shadow: 0 24px 60px rgba(52, 21, 15, 0.24), 0 8px 20px rgba(52, 21, 15, 0.12);
+  box-shadow:
+    0 24px 60px rgba(52, 21, 15, 0.24),
+    0 8px 20px rgba(52, 21, 15, 0.12);
 }
 
 .financial-head.custom-select-host-open,

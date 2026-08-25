@@ -1,0 +1,24 @@
+.financial-head,
+.reports-head,
+.toolbar,
+.field {
+  position: relative;
+}
+
+.custom-select-host-open {
+  z-index: 3000 !important;
+}
+
+.custom-select.is-open {
+  z-index: 3100;
+}
+
+.custom-select.is-open .custom-select-menu {
+  background: #fffdf8;
+  box-shadow: 0 24px 60px rgba(52, 21, 15, 0.24), 0 8px 20px rgba(52, 21, 15, 0.12);
+}
+
+.financial-head.custom-select-host-open,
+.reports-head.custom-select-host-open {
+  transform: none !important;
+}

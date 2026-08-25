@@ -33,9 +33,11 @@
       if (error) {
         console.warn('Recibos ainda não configurados:', error.message);
         api.items = [];
+        renderHistory();
         return [];
       }
       api.items = data || [];
+      renderHistory();
       root.dispatchEvent?.(new CustomEvent('receipts:loaded', { detail: api.items }));
       return api.items;
     },
@@ -71,9 +73,49 @@
 
   root.Receipts = api;
   if (!root.document) return;
-  if (root.document.readyState === 'loading') {
-    root.document.addEventListener('DOMContentLoaded', () => api.load(), { once: true });
+  const document = root.document;
+  const moneyText = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function ensureHistoryPanel() {
+    const financialView = document.getElementById('financialView');
+    if (!financialView || document.getElementById('receiptHistoryPanel')) return;
+    const panel = document.createElement('section');
+    panel.id = 'receiptHistoryPanel';
+    panel.className = 'panel';
+    panel.style.marginTop = '18px';
+    panel.innerHTML = `<div style="padding:20px 22px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px"><div><small style="color:var(--terracotta);font-weight:850;text-transform:uppercase;letter-spacing:.08em">Auditoria</small><h3 style="margin:4px 0 0;color:var(--wine-dark);font-family:Georgia,serif">Histórico de recibos</h3><p style="margin:5px 0 0;color:var(--muted);font-size:12px">Recibos emitidos permanecem registrados mesmo após estorno.</p></div><button type="button" class="btn btn-light" id="refreshReceiptsBtn">↻ Atualizar</button></div><div id="receiptHistoryList"></div></div>`;
+    financialView.appendChild(panel);
+    document.getElementById('refreshReceiptsBtn').onclick = () => api.load();
+    panel.addEventListener('click', async event => {
+      const button = event.target.closest('[data-open-receipt]');
+      if (!button) return;
+      const receipt = api.items.find(item => item.id === button.dataset.openReceipt);
+      if (!receipt) return;
+      const opened = await api.open(receipt);
+      if (!opened && typeof toast === 'function') toast('PDF do recibo ainda não disponível.');
+    });
+  }
+
+  function renderHistory() {
+    ensureHistoryPanel();
+    const list = document.getElementById('receiptHistoryList');
+    if (!list) return;
+    if (!api.items.length) {
+      list.innerHTML = '<div class="empty"><b>Nenhum recibo emitido ainda</b>Os recibos aparecerão aqui quando a automação de pagamentos for ativada.</div>';
+      return;
+    }
+    list.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Recibo</th><th>Referente</th><th>Valor</th><th>Data</th><th>Status</th><th>PDF</th></tr></thead><tbody>${api.items.map(item => {
+      const status = receiptStatusLabel(item.status);
+      const date = item.paid_at ? new Date(item.paid_at).toLocaleString('pt-BR') : '—';
+      return `<tr><td><strong>${escape(item.receipt_number)}</strong></td><td>${escape(paymentLabel(item))}</td><td>${moneyText(item.amount)}</td><td>${escape(date)}</td><td><span class="pill ${item.status === 'voided' ? 'pending' : 'paid'}">${status}</span></td><td>${item.storage_path ? `<button type="button" class="btn btn-light" data-open-receipt="${item.id}">Visualizar</button>` : '<span style="color:var(--muted);font-size:11px">PDF pendente</span>'}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { ensureHistoryPanel(); api.load(); }, { once: true });
   } else {
+    ensureHistoryPanel();
     api.load();
   }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -3,10 +3,19 @@
 alter table public.automation_messages
     add column if not exists academy_id uuid references public.academies(id) on delete cascade;
 alter table public.automation_settings
+    add column if not exists id uuid not null default gen_random_uuid();
+alter table public.automation_settings
     add column if not exists academy_id uuid references public.academies(id) on delete cascade;
+
+-- user_id was the old primary key. Keep it as audit/compatibility data, but allow
+-- the same support/admin account to work with settings from multiple academies.
+alter table public.automation_settings drop constraint if exists automation_settings_pkey;
+alter table public.automation_settings add constraint automation_settings_pkey primary key(id);
+create index if not exists automation_settings_user_id_idx on public.automation_settings(user_id);
 
 create index if not exists automation_messages_academy_id_idx
     on public.automation_messages(academy_id);
+drop index if exists public.automation_messages_idempotency_idx;
 create unique index if not exists automation_messages_academy_idempotency_idx
     on public.automation_messages(academy_id, idempotency_key)
     where academy_id is not null and idempotency_key is not null;

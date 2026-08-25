@@ -31,7 +31,7 @@
     input.inputMode = 'decimal';
     input.autocomplete = 'off';
     input.spellcheck = false;
-    input.addEventListener('wheel', event => {
+    input.addEventListener('wheel', () => {
       if (document.activeElement === input) input.blur();
     }, {passive: true});
     input.addEventListener('blur', () => {
@@ -45,7 +45,16 @@
 
   if (!root.document) return;
   const ids = ['p1EntryValue','p1MonthlyValue','p2EntryValue','p2MonthlyValue'];
-  const apply = () => ids.forEach(id => enhanceMoneyInput(document.getElementById(id)));
+  const inputs = () => ids.map(id => document.getElementById(id)).filter(Boolean);
+  const apply = () => inputs().forEach(enhanceMoneyInput);
+
+  document.addEventListener('submit', event => {
+    if (event.target?.id !== 'form') return;
+    inputs().forEach(input => {
+      input.value = String(parseMoney(input.value));
+    });
+  }, true);
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, {once:true});
   else apply();
 })(typeof window !== 'undefined' ? window : globalThis);

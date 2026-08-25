@@ -17,6 +17,7 @@
     return [studentId || '', person || '', kind || '', Number(installment) || 0].join(':');
   }
 
+  const client = typeof db !== 'undefined' ? db : root.db;
   const api = {
     items: [],
     paymentLabel,
@@ -24,8 +25,8 @@
     canVoidReceipt,
     buildReceiptIdentity,
     async load() {
-      if (!root.db) return [];
-      const { data, error } = await root.db
+      if (!client) return [];
+      const { data, error } = await client
         .from('receipts')
         .select('*')
         .order('created_at', { ascending: false });
@@ -54,8 +55,8 @@
         .find(item => item.status === 'active') || null;
     },
     async open(receipt) {
-      if (!receipt?.storage_path || !root.db) return false;
-      const { data, error } = await root.db.storage
+      if (!receipt?.storage_path || !client) return false;
+      const { data, error } = await client.storage
         .from('receipts')
         .createSignedUrl(receipt.storage_path, 60);
       if (error || !data?.signedUrl) return false;

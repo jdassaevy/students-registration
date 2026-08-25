@@ -121,3 +121,67 @@ revoke all on function public.is_academy_owner(uuid) from public;
 grant execute on function public.is_platform_admin() to authenticated;
 grant execute on function public.is_academy_member(uuid) to authenticated;
 grant execute on function public.is_academy_owner(uuid) to authenticated;
+
+create or replace function public.bootstrap_academy(
+    academy_name text,
+    responsible_name text,
+    contact_phone text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    v_user_id uuid := auth.uid();
+    v_academy_id uuid;
+    v_email text;
+begin
+    if v_user_id is null then
+        raise exception 'Authentication required';
+    end if;
+    academy_name := btrim(coalesce(academy_name, ''));
+    responsible_name := btrim(coalesce(responsible_name, ''));
+    contact_phone := regexp_replace(coalesce(contact_phone, ''), '\D', '', 'g');
+    if academy_name = '' then raise exception 'Academy name is required'; end if;
+    if responsible_name = '' then raise exception 'Responsible name is required'; end if;
+    if char_length(contact_phone) not in (12, 13) or left(contact_phone, 2) <> '55' then
+        raise exception 'Valid Brazilian phone is required';
+    end if;
+
+    select m.academy_id into v_academy_id
+    from public.academy_members m
+    where m.user_id = v_user_id and m.is_active = true
+    order by m.created_at asc
+    limit 1;
+    if v_academy_id is not null then
+        return v_academy_id;
+    end if;
+
+    select u.email into v_email from auth.users u where u.id = v_user_id;
+
+    insert into public.profiles(user_id, full_name, phone)
+    values(v_user_id, responsible_name, contact_phone)
+    on conflict(user_id) do update
+        set full_name = excluded.full_name,
+            phone = excluded.phone,
+            updated_at = now();
+
+    insert into public.academies(name, contact_email, contact_phone)
+    values(academy_name, coalesce(v_email, ''), contact_phone)
+    returning id into v_academy_id;
+
+    insert into public.academy_members(academy_id, user_id, role, is_active)
+    values(v_academy_id, v_user_id, 'owner', true);
+
+    update public.classes set academy_id = v_academy_id where user_id = v_user_id and academy_id is null;
+    update public.students set academy_id = v_academy_id where user_id = v_user_id and academy_id is null;
+    update public.payment_events set academy_id = v_academy_id where user_id = v_user_id and academy_id is null;
+    update public.receipts set academy_id = v_academy_id where user_id = v_user_id and academy_id is null;
+
+    return v_academy_id;
+end;
+$$;
+
+revoke all on function public.bootstrap_academy(text, text, text) from public;
+grant execute on function public.bootstrap_academy(text, text, text) to authenticated;

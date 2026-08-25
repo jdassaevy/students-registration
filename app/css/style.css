@@ -1,0 +1,8 @@
+@import url("./style-base.css");
+
+/* Modern floating surface theme - stronger visual depth */
+:root {
+  --surface-glass: rgba(255, 253, 248, 0.82);
+  --surface-border: rgba(255, 255, 255, 0.9);
+  --shadow: 0 24px 60px rgba(70, 34, 23, 0.16), 0 6px 18px rgba(52, 21, 15, 0.08);
+}

@@ -1,0 +1,44 @@
+name: Testes do sistema
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  javascript-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validar sintaxe dos scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find app/js -type f -name '*.js' ! -path '*/tests/*' -print0)
+
+      - name: Executar testes Node
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' tests < <(find app/js/tests -type f \( -name '*.test.js' -o -name '*.test.mjs' \) -print0 | sort -z)
+          if [ "${#tests[@]}" -eq 0 ]; then
+            echo 'Nenhum teste encontrado.' >&2
+            exit 1
+          fi
+          node --test "${tests[@]}"

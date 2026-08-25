@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="theme-color" content="#34150f">
+        <title>Gestão de Alunos | Dassaevy Labs</title>
+        <link rel="stylesheet" href="./css/style.css">
+    </head>
+    <body>
+        <section class="auth-view" id="authView">
+            <div class="auth-card">
+                <div class="auth-brand">
+                    <img
+                        class="auth-brand-logo"
+                        src="./assets/images/dassaevy-labs-mark-transparent.png"
+                        alt="Logo da Dassaevy Labs">
+                    <div>
+                        <small>Sistema desenvolvido por</small>
+                        <strong>Dassaevy Labs</strong>
+                    </div>
+                </div>
+                <div class="auth-copy">
+                    <h1 id="authTitle">Entrar na sua conta</h1>
+                    <p id="authSubtitle">Acesse suas turmas e alunos em qualquer dispositivo.</p>
+                </div>
+                <form id="authForm" class="auth-form">
+                    <div class="field" id="emailField">
+                        <label for="authEmail">E-mail</label><input
+                            type="email"
+                            id="authEmail"
+                            autocomplete="email"
+                            required="required"
+                            placeholder="academia@email.com"></div>
+                    <div class="field" id="passwordField">
+                        <label for="authPassword">Senha</label><input
+                            type="password"
+                            id="authPassword"
+                            autocomplete="current-password"
+                            minlength="6"
+                            required="required"
+                            placeholder="Mínimo de 6 caracteres"></div>
+                    <div class="field" id="confirmPasswordField" hidden="hidden">
+                        <label for="authPasswordConfirmation">Confirme a nova senha</label>
+                        <input
+                            type="password"
+                            id="authPasswordConfirmation"
+                            autocomplete="new-password"
+                            minlength="6"
+                            placeholder="Digite novamente a senha">
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="authSubmit">Entrar</button>
+                    <p class="auth-message" id="authMessage" role="status"></p>
+                </form>
+                <div class="auth-links">
+                    <button type="button" id="toggleAuthMode">Criar uma conta</button>
+                    <button type="button" id="forgotPassword">Esqueci minha senha</button>
+                </div>
+            </div>
+        </section>
+
+        <div id="appView" hidden="hidden">
+            <header class="topbar">
+                <div class="brand">
+                    <div class="brand-mark">
+                        <img
+                            src="./assets/images/dassaevy-labs-mark-transparent.png"
+                            alt="Logotipo da Dassaevy Labs: símbolo estilizado formado pelas letras D e L em branco, creme e terracota, sobre fundo transparente.">
+                    </div>
+                    <div>
+                        <small>Tecnologia para academias</small>
+                        <strong>Dassaevy Labs</strong>
+                    </div>
+                </div>
+                <div class="top-copy">
+                    <h1>Gestão de alunos</h1>
+                    <p>Inscrições e mensalidades dos casais em um só lugar.</p>
+                </div>
+                <div class="account-bar">
+                    <span id="userEmail"></span>
+                    <button type="button" class="btn btn-account" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+            <main class="app">
+                <nav class="view-tabs" aria-label="Seções do sistema">
+                    <button type="button" class="view-tab active" id="studentsTab">Alunos</button>
+                    <button type="button" class="view-tab" id="financialTab">Financeiro</button>
+                </nav>
+                <div id="studentsView">
+                <section class="stats" aria-label="Resumo">
+                    <article class="stat">
+                        <span>Casais inscritos</span>
+                        <strong id="statTotal">0</strong>
+                    </article>
+                    <article class="stat">
+                        <span>Inscrições pagas</span>
+                        <strong id="statEntries">0</strong>
+                    </article>
+                    <article class="stat">
+                        <span>Mensalidades pagas</span>
+                        <strong id="statPayments">0</strong>
+                    </article>
+                    <article class="stat">
+                        <span>Turmas ativas</span>
+                        <strong id="statClasses">0</strong>
+                    </article>
+                </section>
+                <section class="panel">
+                    <div class="toolbar">
+                        <div class="search"><input
+                            id="search"
+                            type="search"
+                            placeholder="Buscar pelo nome do casal..."
+                            aria-label="Buscar casais"></div>
+                        <div class="toolbar-actions">
+                            <select id="classFilter" class="class-filter" aria-label="Filtrar por turma">
+                                <option value="all">Todas as turmas</option>
+                                <option value="none">Sem turma</option>
+                            </select>
+                            <button class="btn btn-light" id="exportClassBtn" type="button">⇩ Lista DOCX</button>
+                            <button class="btn btn-light" id="newClassBtn">＋ Nova turma</button>
+                            <button class="btn btn-primary" id="newBtn">＋ Cadastrar casal</button>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Casal</th>
+                                    <th>Turma</th>
+                                    <th>Inscrição</th>
+                                    <th>Mensalidades</th>
+                                    <th>Progresso</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="list"></tbody>
+                        </table>
+                    </div>
+                </section>
+                </div>
+                <section id="financialView" hidden>
+                    <div class="financial-head">
+                        <div>
+                            <h2>Controle financeiro</h2>
+                            <p>Somente pagamentos marcados como recebidos entram nos totais.</p>
+                        </div>
+                        <select id="financialClassFilter" class="class-filter" aria-label="Filtrar financeiro por turma">
+                            <option value="all">Todas as turmas</option>
+                            <option value="none">Sem turma</option>
+                        </select>
+                    </div>
+                    <section class="stats financial-stats" aria-label="Resumo financeiro">
+                        <article class="stat featured"><span>Total recebido</span><strong id="financialTotal">R$ 0,00</strong></article>
+                        <article class="stat"><span>Inscrições recebidas</span><strong id="financialEntries">R$ 0,00</strong></article>
+                        <article class="stat"><span>Mensalidades recebidas</span><strong id="financialMonthly">R$ 0,00</strong></article>
+                        <article class="stat"><span>Pagamentos recebidos</span><strong id="financialPayments">0</strong></article>
+                    </section>
+                    <section class="panel financial-panel">
+                        <div class="table-wrap">
+                            <table class="financial-table">
+                                <thead><tr><th>Turma</th><th>Alunos</th><th>Inscrições</th><th>Mensalidades</th><th>Total recebido</th></tr></thead>
+                                <tbody id="financialList"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </section>
+            </main>
+
+            <dialog id="modal">
+                <div class="modal-head">
+                    <div>
+                        <h2 id="modalTitle">Cadastrar casal</h2>
+                        <p>Preencha os nomes e a situação dos pagamentos.</p>
+                    </div>
+                    <button class="close" type="button" id="closeBtn" aria-label="Fechar">×</button>
+                </div>
+                <form id="form">
+                    <input type="hidden" id="editingId">
+                    <div class="grid">
+                        <div class="field">
+                            <label for="person1">Nome da primeira pessoa</label><input id="person1" required="required" placeholder="Ex.: Ana Silva"></div>
+                        <div class="field">
+                            <label for="person2">Nome da segunda pessoa (opcional)</label><input id="person2" placeholder="Ex.: João Souza"></div>
+                        <div class="field wide">
+                            <label for="coupleClass">Turma do casal</label>
+                            <select id="coupleClass">
+                                <option value="">Sem turma</option>
+                            </select>
+                        </div>
+                        <div class="wide financial-person-block">
+                            <h3>Valores da primeira pessoa</h3>
+                            <div class="value-grid">
+                                <div class="field"><label for="p1EntryValue">Valor da inscrição</label><input type="number" id="p1EntryValue" min="0" step="0.01" placeholder="0,00"></div>
+                                <div class="field"><label for="p1MonthlyValue">Valor da mensalidade</label><input type="number" id="p1MonthlyValue" min="0" step="0.01" placeholder="0,00"></div>
+                            </div>
+                            <div class="checks">
+                                <label class="check"><input type="checkbox" id="p1Entry">
+                                    Inscrição paga</label>
+                            </div>
+                            <div class="checks">
+                                <label class="check"><input type="checkbox" id="p1m1">
+                                    1ª mensalidade</label>
+                                <label class="check"><input type="checkbox" id="p1m2">
+                                    2ª mensalidade</label>
+                                <label class="check"><input type="checkbox" id="p1m3">
+                                    3ª mensalidade</label>
+                            </div>
+                        </div>
+                        <div class="wide financial-person-block" id="person2Payments">
+                            <h3>Valores da segunda pessoa</h3>
+                            <div class="value-grid">
+                                <div class="field"><label for="p2EntryValue">Valor da inscrição</label><input type="number" id="p2EntryValue" min="0" step="0.01" placeholder="0,00"></div>
+                                <div class="field"><label for="p2MonthlyValue">Valor da mensalidade</label><input type="number" id="p2MonthlyValue" min="0" step="0.01" placeholder="0,00"></div>
+                            </div>
+                            <div class="checks">
+                                <label class="check"><input type="checkbox" id="p2Entry"> Inscrição paga</label>
+                            </div>
+                            <div class="checks">
+                                <label class="check"><input type="checkbox" id="p2m1">
+                                    1ª mensalidade</label>
+                                <label class="check"><input type="checkbox" id="p2m2">
+                                    2ª mensalidade</label>
+                                <label class="check"><input type="checkbox" id="p2m3">
+                                    3ª mensalidade</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-light" id="cancelBtn">Cancelar</button>
+                        <button class="btn btn-primary" type="submit">Salvar casal</button>
+                    </div>
+                </form>
+            </dialog>
+
+            <dialog id="classModal">
+                <div class="modal-head">
+                    <div>
+                        <h2>Criar nova turma</h2>
+                        <p>Cadastre uma turma para organizar os casais.</p>
+                    </div>
+                    <button class="close" type="button" id="closeClassBtn" aria-label="Fechar">×</button>
+                </div>
+                <form id="classForm">
+                    <div class="grid">
+                        <div class="field wide">
+                            <label for="className">Nome da turma</label><input
+                                id="className"
+                                required="required"
+                                placeholder="Ex.: Básico de segunda-feira"></div>
+                        <div class="field">
+                            <label for="classPlace">Local</label><input id="classPlace" placeholder="Ex.: ASMUB"></div>
+                        <div class="field">
+                            <label for="classSchedule">Dia e horário</label><input id="classSchedule" placeholder="Ex.: Segunda, 20h"></div>
+                    </div>
+                    <div id="classList" class="class-list"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-light" id="cancelClassBtn">Fechar</button>
+                        <button class="btn btn-primary" type="submit">Criar turma</button>
+                    </div>
+                </form>
+            </dialog>
+            <div class="toast" id="toast"></div>
+
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+        <script src="./js/core/supabase-config.js"></script>
+        <script src="./js/core/script.js?v=6"></script>
+        <script src="./js/features/dashboard.js?v=1"></script>
+        <script src="./js/features/reports.js?v=1"></script>
+    </body>
+</html>

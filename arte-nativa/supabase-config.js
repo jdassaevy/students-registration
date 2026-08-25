@@ -32,17 +32,30 @@ window.addEventListener('load', () => {
         document.body.appendChild(dueScript);
     };
 
-    const existingFinancial = document.querySelector('script[data-financial-details]');
-    if (existingFinancial) {
-        if (window.DueDates) return;
-        existingFinancial.addEventListener('load', loadDueDates, {once: true});
-        setTimeout(loadDueDates, 0);
+    const loadFinancialDetails = () => {
+        const existingFinancial = document.querySelector('script[data-financial-details]');
+        if (existingFinancial) {
+            if (window.DueDates) return;
+            existingFinancial.addEventListener('load', loadDueDates, {once: true});
+            setTimeout(loadDueDates, 0);
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = './financial-details.js?v=1';
+        script.dataset.financialDetails = 'true';
+        script.addEventListener('load', loadDueDates, {once: true});
+        document.body.appendChild(script);
+    };
+
+    if (document.querySelector('script[data-money-input]')) {
+        loadFinancialDetails();
         return;
     }
 
-    const script = document.createElement('script');
-    script.src = './financial-details.js?v=1';
-    script.dataset.financialDetails = 'true';
-    script.addEventListener('load', loadDueDates, {once: true});
-    document.body.appendChild(script);
+    const moneyScript = document.createElement('script');
+    moneyScript.src = './money-input.js?v=1';
+    moneyScript.dataset.moneyInput = 'true';
+    moneyScript.addEventListener('load', loadFinancialDetails, {once: true});
+    document.body.appendChild(moneyScript);
 });

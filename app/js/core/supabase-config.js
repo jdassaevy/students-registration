@@ -27,6 +27,31 @@ if (
 }
 
 window.addEventListener('load', () => {
+    const loadProfileOnboarding = () => {
+        if (document.querySelector('script[data-profile-onboarding]')) return;
+        const onboardingScript = document.createElement('script');
+        onboardingScript.src = './js/features/profile-onboarding.js?v=1';
+        onboardingScript.dataset.profileOnboarding = 'true';
+        document.body.appendChild(onboardingScript);
+    };
+
+    const loadAcademyContext = () => {
+        if (window.AcademyContext) {
+            loadProfileOnboarding();
+            return;
+        }
+        const existingContext = document.querySelector('script[data-academy-context]');
+        if (existingContext) {
+            existingContext.addEventListener('load', loadProfileOnboarding, {once: true});
+            return;
+        }
+        const contextScript = document.createElement('script');
+        contextScript.src = './js/core/academy-context.js?v=1';
+        contextScript.dataset.academyContext = 'true';
+        contextScript.addEventListener('load', loadProfileOnboarding, {once: true});
+        document.body.appendChild(contextScript);
+    };
+
     const loadAutomationCenter = () => {
         if (document.querySelector('script[data-automation-center]')) 
             return;
@@ -105,6 +130,7 @@ window.addEventListener('load', () => {
             .appendChild(receiptScript);
     };
 
+    loadAcademyContext();
     loadPaymentAutomation();
     loadAcademySettings();
     loadAutomationCenter();

@@ -33,7 +33,7 @@ jobs:
       - name: Preparar arquivos
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./arte-nativa
+          path: ./app
 
       - name: Publicar
         id: deployment

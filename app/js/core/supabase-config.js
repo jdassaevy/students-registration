@@ -27,7 +27,7 @@ window.addEventListener('load', () => {
     const loadDueDates = () => {
         if (document.querySelector('script[data-due-dates]')) return;
         const dueScript = document.createElement('script');
-        dueScript.src = './due-dates.js?v=1';
+        dueScript.src = './js/features/due-dates.js?v=1';
         dueScript.dataset.dueDates = 'true';
         document.body.appendChild(dueScript);
     };
@@ -42,7 +42,7 @@ window.addEventListener('load', () => {
         }
 
         const script = document.createElement('script');
-        script.src = './financial-details.js?v=1';
+        script.src = './js/features/financial-details.js?v=1';
         script.dataset.financialDetails = 'true';
         script.addEventListener('load', loadDueDates, {once: true});
         document.body.appendChild(script);
@@ -54,7 +54,7 @@ window.addEventListener('load', () => {
     }
 
     const moneyScript = document.createElement('script');
-    moneyScript.src = './money-input.js?v=1';
+    moneyScript.src = './js/features/money-input.js?v=1';
     moneyScript.dataset.moneyInput = 'true';
     moneyScript.addEventListener('load', loadFinancialDetails, {once: true});
     document.body.appendChild(moneyScript);

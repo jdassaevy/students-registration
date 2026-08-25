@@ -1,4 +1,12 @@
 (() => {
+    if (!document.querySelector('link[data-custom-select-fix]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = './css/custom-select-fix.css?v=1';
+        link.dataset.customSelectFix = 'true';
+        document.head.appendChild(link);
+    }
+
     const SELECTORS = 'select.class-filter, #coupleClass';
     const registry = new Map();
 

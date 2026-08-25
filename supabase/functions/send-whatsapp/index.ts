@@ -9,6 +9,7 @@ import {
   sendMetaPayload,
   TEMPLATE_NAMES,
 } from "../_shared/whatsapp.ts";
+import { requireAcademyAccess } from "../_shared/tenant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,11 +63,18 @@ Deno.serve(async (req: Request) => {
 
   const { data: student, error: studentError } = await admin
     .from("students")
-    .select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+    .select("id,user_id,academy_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
     .eq("id", studentId)
     .single();
   if (studentError || !student) return json({ error: "Student not found" }, 404);
-  if (student.user_id !== user.id) return json({ error: "Forbidden" }, 403);
+  if (!student.academy_id) return json({ error: "Student has no academy" }, 409);
+
+  try {
+    await requireAcademyAccess(admin, user.id, student.academy_id);
+  } catch {
+    return json({ error: "Forbidden" }, 403);
+  }
+
   if (person === "person2" && !student.person2) return json({ error: "Person not found" }, 404);
 
   const phone = person === "person2" ? student.person2_phone : student.person1_phone;
@@ -78,6 +86,7 @@ Deno.serve(async (req: Request) => {
     .from("automation_messages")
     .insert({
       user_id: user.id,
+      academy_id: student.academy_id,
       student_id: student.id,
       class_id: student.class_id,
       receipt_id: receiptId,
@@ -133,10 +142,15 @@ Deno.serve(async (req: Request) => {
       if (!receiptId) throw new Error("Receipt required");
       const { data: receipt, error: receiptError } = await admin
         .from("receipts")
-        .select("id,user_id,receipt_number,storage_path,status")
+        .select("id,academy_id,receipt_number,storage_path,status")
         .eq("id", receiptId)
         .single();
-      if (receiptError || !receipt || receipt.user_id !== user.id || !receipt.storage_path) {
+      if (
+        receiptError ||
+        !receipt ||
+        receipt.academy_id !== student.academy_id ||
+        !receipt.storage_path
+      ) {
         throw new Error("Receipt PDF unavailable");
       }
       const { data: signed, error: signedError } = await admin.storage

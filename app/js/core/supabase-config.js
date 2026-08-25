@@ -16,6 +16,14 @@ if (window.supabase?.createClient) {
 }
 
 window.addEventListener('load', () => {
+    const loadAutomationCenter = () => {
+        if (document.querySelector('script[data-automation-center]')) return;
+        const centerScript = document.createElement('script');
+        centerScript.src = './js/features/automation-center.js?v=1';
+        centerScript.dataset.automationCenter = 'true';
+        document.body.appendChild(centerScript);
+    };
+
     const loadPaymentAutomation = () => {
         if (document.querySelector('script[data-payment-automation]')) return;
         const automationScript = document.createElement('script');
@@ -69,6 +77,7 @@ window.addEventListener('load', () => {
 
     loadPaymentAutomation();
     loadAcademySettings();
+    loadAutomationCenter();
 
     if (document.querySelector('script[data-money-input]')) {
         loadReceipts();

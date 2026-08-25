@@ -1,134 +1,114 @@
-# Gestão de Alunos — Arte Nativa
+# Students Registration
 
-Aplicação web desenvolvida para facilitar o cadastro e o controle de alunos da **Família Arte Nativa**.
+Sistema web de gestão de alunos desenvolvido pela **Dassaevy Labs** para academias e projetos de dança.
 
-O sistema permite organizar alunos individuais ou casais por turmas, acompanhar inscrições e controlar separadamente o pagamento das mensalidades de cada pessoa.
+A aplicação centraliza cadastro de alunos e casais, organização por turmas, controle financeiro individual, vencimentos, relatórios e histórico de pagamentos em uma interface responsiva.
 
-## Funcionalidades
+## Principais funcionalidades
 
 - Cadastro de alunos individuais ou casais
-- Segundo integrante do casal opcional
-- Criação e exclusão de turmas
-- Definição de nome, local, dia e horário da turma
-- Organização dos alunos por turma
-- Filtro de alunos por turma
-- Busca pelo nome do aluno ou casal
-- Controle do pagamento da inscrição
-- Controle individual de 3 mensalidades para cada pessoa
-- Valores de inscrição e mensalidade configuráveis para cada pessoa
-- Painel financeiro com totais recebidos no geral ou por turma
-- Edição dos cadastros
-- Exclusão de alunos ou casais
-- Resumo de alunos, inscrições, mensalidades e turmas
-- Interface responsiva para computadores e celulares
-- Salvamento automático dos dados no navegador
+- Organização e filtro por turmas
+- Nome, local, dia, horário e data de início da turma
+- Controle individual de inscrição e 3 mensalidades por pessoa
+- Valores de inscrição e mensalidade configuráveis por aluno
+- Cálculo dos vencimentos a partir da data de início da turma
+- Painel financeiro geral e por turma
+- Detalhamento financeiro dos alunos em modal
+- Dashboard de visão geral
+- Gráficos de receita, inadimplência e desempenho por turma
+- Histórico de pagamentos com data real de recebimento
+- Exportação da lista de uma turma em DOCX
+- Autenticação e recuperação de senha
+- Separação dos dados por conta com Row Level Security
+- Interface responsiva e animações de transição
 
-## Tecnologias utilizadas
+## Tecnologias
 
 - HTML5
 - CSS3
 - JavaScript
 - Supabase Auth
-- PostgreSQL (Supabase)
-- Row Level Security
+- PostgreSQL / Supabase
+- Row Level Security (RLS)
+- Chart.js
+- docx.js
+- GitHub Actions
+- GitHub Pages
 
 ## Estrutura do projeto
 
 ```text
-arte-nativa/
-├── index.html
-├── style.css
-├── script.js
-├── supabase-config.js
-├── supabase-schema.sql
+students-registration/
+├── .github/
+│   └── workflows/
+│       └── deploy-pages.yml
+├── app/
+│   ├── assets/
+│   │   └── images/
+│   │       └── dassaevy-labs-mark-transparent.png
+│   ├── css/
+│   │   ├── style-base.css
+│   │   └── style.css
+│   ├── database/
+│   │   └── supabase-schema.sql
+│   ├── js/
+│   │   ├── core/
+│   │   │   ├── script.js
+│   │   │   └── supabase-config.js
+│   │   ├── features/
+│   │   │   ├── dashboard.js
+│   │   │   ├── due-dates.js
+│   │   │   ├── financial-details.js
+│   │   │   ├── money-input.js
+│   │   │   └── reports.js
+│   │   └── tests/
+│   │       └── money-input.test.js
+│   └── index.html
+├── docs/
+│   └── superpowers/
+├── CNAME
 └── README.md
 ```
 
-Se o CSS e o JavaScript estiverem dentro do próprio HTML, a estrutura também pode ser:
+### Organização
 
-```text
-arte-nativa/
-├── index.html
-└── README.md
-```
+- `app/js/core/`: inicialização, autenticação, estado e fluxo principal da aplicação.
+- `app/js/features/`: funcionalidades independentes adicionadas ao sistema.
+- `app/js/tests/`: testes automatizados de JavaScript.
+- `app/css/`: estilos base e tema visual atual.
+- `app/database/`: schema e migrações de referência do Supabase.
+- `app/assets/`: recursos visuais utilizados pela interface.
+- `.github/workflows/`: automação de deploy do GitHub Pages.
 
-## Como executar
+## Executando localmente
 
-1. Faça o download ou clone este repositório:
+Não há processo de build nem dependências para instalar.
+
+1. Clone o repositório.
+2. Abra o projeto no Visual Studio Code.
+3. Inicie `app/index.html` usando uma extensão como **Live Server**.
+4. Configure o Supabase conforme `app/database/supabase-schema.sql` quando necessário.
+
+Para testar o parser de valores monetários com Node.js:
 
 ```bash
-git clone URL_DO_REPOSITORIO
+node app/js/tests/money-input.test.js
 ```
 
-2. Abra a pasta do projeto no Visual Studio Code.
+## Banco de dados e segurança
 
-3. Abra o arquivo `index.html` diretamente no navegador ou utilize a extensão **Live Server**.
+Os dados são armazenados no PostgreSQL do Supabase. Cada registro é associado ao usuário autenticado e protegido por políticas de **Row Level Security**, mantendo os dados de diferentes contas isolados.
 
-4. Caso utilize o Live Server, clique com o botão direito no `index.html` e escolha **Open with Live Server**.
+O sistema também mantém um histórico de eventos de pagamento para alimentar relatórios de receita mensal sem inventar datas para pagamentos antigos.
 
-Antes do primeiro uso, abra o **SQL Editor** do Supabase, cole o conteúdo de `supabase-schema.sql` e execute. Depois abra a aplicação normalmente. Não é necessário instalar dependências.
+## Deploy
 
-## Como utilizar
+A publicação é feita automaticamente pelo workflow `.github/workflows/deploy-pages.yml`. Ao receber alterações na branch `main`, o GitHub Actions publica o conteúdo da pasta `app/` no GitHub Pages.
 
-### Criar uma turma
+## Arquitetura
 
-1. Clique em **Nova turma**.
-2. Informe o nome da turma.
-3. Preencha o local, dia e horário, se desejar.
-4. Clique em **Criar turma**.
-
-### Cadastrar um aluno ou casal
-
-1. Clique em **Cadastrar casal** ou **Cadastrar aluno ou casal**.
-2. Preencha o nome da primeira pessoa.
-3. Preencha o segundo nome somente quando for um casal.
-4. Selecione a turma.
-5. Marque a inscrição e as mensalidades já pagas.
-6. Clique em **Salvar**.
-
-### Controlar mensalidades
-
-Cada pessoa possui três mensalidades independentes. Clique no número da mensalidade para alternar entre **paga** e **pendente**.
-
-Isso permite registrar situações em que somente uma das pessoas do casal realizou o pagamento.
-
-## Armazenamento dos dados
-
-Os dados são armazenados no banco PostgreSQL do Supabase e vinculados ao usuário autenticado. Eles ficam disponíveis em qualquer dispositivo após o login.
-
-Os registros antigos encontrados no `LocalStorage` podem ser enviados para a conta online no primeiro acesso.
-
-As políticas de Row Level Security garantem que cada conta acesse somente as próprias turmas e alunos.
-
-## Responsividade
-
-A aplicação foi adaptada para funcionar em computadores, tablets e celulares. Em telas menores, os formulários possuem rolagem interna e a tabela pode ser movimentada horizontalmente.
-
-## Publicação no GitHub Pages
-
-1. Abra o repositório no GitHub.
-2. Acesse **Settings**.
-3. Clique em **Pages**.
-4. Em **Build and deployment**, selecione **Deploy from a branch**.
-5. Escolha a branch `main` e a pasta `/root`.
-6. Clique em **Save**.
-
-Após alguns minutos, o GitHub disponibilizará o endereço público da aplicação.
-
-## Melhorias futuras
-
-- Banco de dados online
-- Login de administradores
-- Sincronização entre dispositivos
-- Exportação de relatórios em PDF ou Excel
-- Controle de presença nas aulas
-- Cadastro de professores
-- Histórico de pagamentos com datas e formas de pagamento
+O projeto continua propositalmente leve, usando JavaScript puro e módulos funcionais separados por responsabilidade. A organização atual facilita manutenção, leitura de código e evolução futura sem exigir um framework ou bundler para o tamanho atual da aplicação.
 
 ## Autor
 
-Desenvolvido por **Júlio Dassaevy** para a **Família Arte Nativa**.
-
----
-
-**Família Arte Nativa — fazendo amigos através da dança.**
+Desenvolvido por **Júlio Dassaevy** — **Dassaevy Labs**.

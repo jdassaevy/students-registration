@@ -14,7 +14,10 @@
         const {root, trigger, host} = entry;
         root.classList.toggle('is-open', open);
         trigger.setAttribute('aria-expanded', String(open));
-        host?.classList.toggle('custom-select-host-open', open);
+        if (host) {
+            if (open) host.classList.add('custom-select-host-open');
+            else host.classList.remove('custom-select-host-open');
+        }
     }
 
     function closeAll(except = null) {

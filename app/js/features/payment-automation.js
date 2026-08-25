@@ -1,6 +1,15 @@
 (() => {
     if (typeof toggleEntry !== 'function' || typeof toggleMonth !== 'function' || typeof db === 'undefined') return;
 
+    function paymentAutomationSummary(whatsapp) {
+        if (!whatsapp || typeof whatsapp !== 'object') return 'receipt_only';
+        const states = Object.values(whatsapp);
+        if (states.includes('sent') || states.includes('delivered') || states.includes('read')) return 'processed';
+        if (states.includes('not_configured')) return 'waiting_meta';
+        if (states.every(state => state === 'disabled' || state === 'skipped')) return 'receipt_only';
+        return 'processed';
+    }
+
     async function processLifecycle({studentId, person, kind, installment = 0}) {
         try {
             const {data, error} = await db.functions.invoke('payment-lifecycle', {
@@ -9,9 +18,10 @@
             if (error) throw error;
             if (window.Receipts?.load) await window.Receipts.load();
             if (data?.action === 'create') {
-                toast(data.whatsapp === 'not_configured'
-                    ? 'Pagamento salvo e recibo PDF gerado.'
-                    : 'Pagamento salvo, recibo gerado e automação processada.');
+                const summary = paymentAutomationSummary(data.whatsapp);
+                toast(summary === 'processed'
+                    ? 'Pagamento salvo, recibo gerado e automação processada.'
+                    : 'Pagamento salvo e recibo PDF gerado.');
             } else if (data?.action === 'void') {
                 toast('Pagamento desmarcado e recibo estornado.');
             }
@@ -39,4 +49,6 @@
         const after = Boolean(student?.payments?.[person]?.[index]);
         if (before !== after) await processLifecycle({studentId: id, person, kind: 'monthly', installment: index + 1});
     };
+
+    window.PaymentAutomationTest = { paymentAutomationSummary };
 })();

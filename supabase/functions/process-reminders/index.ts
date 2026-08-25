@@ -73,44 +73,65 @@ Deno.serve(async (req: Request) => {
     { data: classes, error: classesError },
     { data: students, error: studentsError },
     { data: academies, error: academiesError },
+    { data: owners, error: ownersError },
+    { data: profiles, error: profilesError },
     { data: automationSettings, error: settingsError },
   ] = await Promise.all([
-    admin.from("classes").select("id,user_id,name,start_date").not("start_date", "is", null),
-    admin.from("students").select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,fees,payments").not("class_id", "is", null),
-    admin.from("academy_profiles").select("user_id,academy_name,display_name,responsible_name,support_phone"),
-    admin.from("automation_settings").select("user_id,reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled"),
+    admin.from("classes").select("id,user_id,academy_id,name,start_date").not("start_date", "is", null).not("academy_id", "is", null),
+    admin.from("students").select("id,user_id,academy_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,fees,payments").not("class_id", "is", null).not("academy_id", "is", null),
+    admin.from("academies").select("id,name,contact_phone"),
+    admin.from("academy_members").select("academy_id,user_id").eq("role", "owner").eq("is_active", true),
+    admin.from("profiles").select("user_id,full_name,phone"),
+    admin.from("automation_settings").select("academy_id,reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled").not("academy_id", "is", null),
   ]);
 
-  if (classesError || studentsError || academiesError || settingsError) {
-    console.error("process-reminders load failed", classesError || studentsError || academiesError || settingsError);
+  if (classesError || studentsError || academiesError || ownersError || profilesError || settingsError) {
+    console.error("process-reminders load failed", classesError || studentsError || academiesError || ownersError || profilesError || settingsError);
     return json({ error: "Could not load reminder data" }, 500);
   }
 
   const classesById = new Map((classes || []).map(item => [item.id, item]));
-  const academyByUser = new Map((academies || []).map(item => [item.user_id, item]));
-  const settingsByUser = new Map((automationSettings || []).map(item => [item.user_id, item]));
+  const ownerByAcademy = new Map((owners || []).map(item => [item.academy_id, item.user_id]));
+  const profileByUser = new Map((profiles || []).map(item => [item.user_id, item]));
+  const academyById = new Map((academies || []).map(item => {
+    const ownerUserId = ownerByAcademy.get(item.id) || null;
+    const ownerProfile = ownerUserId ? profileByUser.get(ownerUserId) : null;
+    return [item.id, {
+      academy_name: item.name,
+      responsible_name: ownerProfile?.full_name || "",
+      support_phone: item.contact_phone || ownerProfile?.phone || "",
+      owner_user_id: ownerUserId,
+    }];
+  }));
+  const settingsByAcademy = new Map((automationSettings || []).map(item => [item.academy_id, item]));
   const summary = { today, candidates: 0, sent: 0, failed: 0, duplicates: 0, disabled: 0 };
 
   for (const student of students || []) {
     const clazz = classesById.get(student.class_id);
-    if (!clazz || clazz.user_id !== student.user_id) continue;
+    if (!clazz || clazz.academy_id !== student.academy_id) continue;
 
-    const settings = normalizeAutomationSettings(settingsByUser.get(student.user_id));
+    const settings = normalizeAutomationSettings(settingsByAcademy.get(student.academy_id));
     if (!settings.reminders_enabled) {
       summary.disabled += 1;
       continue;
     }
 
-    const academy = academyByUser.get(student.user_id) || null;
+    const academy = academyById.get(student.academy_id) || null;
     const candidates = buildReminderCandidates({ student, clazz, academy, today });
     summary.candidates += candidates.length;
 
     for (const candidate of candidates) {
       const idempotencyKey = buildReminderIdempotencyKey(candidate);
+      const auditUserId = academy?.owner_user_id || student.user_id;
+      if (!auditUserId) {
+        summary.failed += 1;
+        continue;
+      }
       const { data: log, error: logError } = await admin
         .from("automation_messages")
         .insert({
-          user_id: candidate.userId,
+          user_id: auditUserId,
+          academy_id: student.academy_id,
           student_id: candidate.studentId,
           class_id: candidate.classId,
           person: candidate.person,
@@ -162,7 +183,7 @@ Deno.serve(async (req: Request) => {
           provider_message_id: providerMessageId,
           executed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        }).eq("id", log.id);
+        }).eq("id", log.id).eq("academy_id", student.academy_id);
         summary.sent += 1;
       } catch (error: any) {
         const safe = error?.meta || sanitizeMetaError(error);
@@ -172,7 +193,7 @@ Deno.serve(async (req: Request) => {
           error_message: safe.message || "Falha ao enviar lembrete",
           executed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        }).eq("id", log.id);
+        }).eq("id", log.id).eq("academy_id", student.academy_id);
         summary.failed += 1;
       }
     }

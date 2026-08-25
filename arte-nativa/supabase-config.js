@@ -20,3 +20,42 @@ if (window.supabase?.createClient) {
         return client;
     };
 }
+
+// Carrega extensões somente depois dos módulos principais,
+// garantindo que compartilhem o mesmo estado de turmas, alunos e financeiro.
+window.addEventListener('load', () => {
+    const loadDueDates = () => {
+        if (document.querySelector('script[data-due-dates]')) return;
+        const dueScript = document.createElement('script');
+        dueScript.src = './due-dates.js?v=1';
+        dueScript.dataset.dueDates = 'true';
+        document.body.appendChild(dueScript);
+    };
+
+    const loadFinancialDetails = () => {
+        const existingFinancial = document.querySelector('script[data-financial-details]');
+        if (existingFinancial) {
+            if (window.DueDates) return;
+            existingFinancial.addEventListener('load', loadDueDates, {once: true});
+            setTimeout(loadDueDates, 0);
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = './financial-details.js?v=1';
+        script.dataset.financialDetails = 'true';
+        script.addEventListener('load', loadDueDates, {once: true});
+        document.body.appendChild(script);
+    };
+
+    if (document.querySelector('script[data-money-input]')) {
+        loadFinancialDetails();
+        return;
+    }
+
+    const moneyScript = document.createElement('script');
+    moneyScript.src = './money-input.js?v=1';
+    moneyScript.dataset.moneyInput = 'true';
+    moneyScript.addEventListener('load', loadFinancialDetails, {once: true});
+    document.body.appendChild(moneyScript);
+});

@@ -46,8 +46,7 @@ for each row execute function public.sync_owner_legacy_data_to_academy();
 
 -- Existing academies/members created before this extension are backfilled here.
 update public.automation_messages am
-set academy_id = membership.academy_id
-from lateral (
+set academy_id = (
     select m.academy_id
     from public.academy_members m
     where m.user_id = am.user_id
@@ -55,12 +54,15 @@ from lateral (
       and m.is_active = true
     order by m.created_at asc
     limit 1
-) membership
-where am.academy_id is null;
+)
+where am.academy_id is null
+  and exists(
+      select 1 from public.academy_members m
+      where m.user_id = am.user_id and m.role = 'owner' and m.is_active = true
+  );
 
 update public.automation_settings aset
-set academy_id = membership.academy_id
-from lateral (
+set academy_id = (
     select m.academy_id
     from public.academy_members m
     where m.user_id = aset.user_id
@@ -68,8 +70,12 @@ from lateral (
       and m.is_active = true
     order by m.created_at asc
     limit 1
-) membership
-where aset.academy_id is null;
+)
+where aset.academy_id is null
+  and exists(
+      select 1 from public.academy_members m
+      where m.user_id = aset.user_id and m.role = 'owner' and m.is_active = true
+  );
 
 drop trigger if exists assign_automation_messages_academy on public.automation_messages;
 create trigger assign_automation_messages_academy

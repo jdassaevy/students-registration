@@ -10,6 +10,7 @@ import {
   buildReminderCandidates,
   buildReminderIdempotencyKey,
 } from "../_shared/reminders.js";
+import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 
 const templateByType: Record<string, string> = {
   reminder_before_due: TEMPLATE_NAMES.reminderBeforeDue,
@@ -68,24 +69,38 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(supabaseUrl, serviceRoleKey);
   const today = todayInSaoPaulo();
 
-  const [{ data: classes, error: classesError }, { data: students, error: studentsError }, { data: academies, error: academiesError }] = await Promise.all([
+  const [
+    { data: classes, error: classesError },
+    { data: students, error: studentsError },
+    { data: academies, error: academiesError },
+    { data: automationSettings, error: settingsError },
+  ] = await Promise.all([
     admin.from("classes").select("id,user_id,name,start_date").not("start_date", "is", null),
     admin.from("students").select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,fees,payments").not("class_id", "is", null),
     admin.from("academy_profiles").select("user_id,academy_name,display_name,responsible_name,support_phone"),
+    admin.from("automation_settings").select("user_id,reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled"),
   ]);
 
-  if (classesError || studentsError || academiesError) {
-    console.error("process-reminders load failed", classesError || studentsError || academiesError);
+  if (classesError || studentsError || academiesError || settingsError) {
+    console.error("process-reminders load failed", classesError || studentsError || academiesError || settingsError);
     return json({ error: "Could not load reminder data" }, 500);
   }
 
   const classesById = new Map((classes || []).map(item => [item.id, item]));
   const academyByUser = new Map((academies || []).map(item => [item.user_id, item]));
-  const summary = { today, candidates: 0, sent: 0, failed: 0, duplicates: 0 };
+  const settingsByUser = new Map((automationSettings || []).map(item => [item.user_id, item]));
+  const summary = { today, candidates: 0, sent: 0, failed: 0, duplicates: 0, disabled: 0 };
 
   for (const student of students || []) {
     const clazz = classesById.get(student.class_id);
     if (!clazz || clazz.user_id !== student.user_id) continue;
+
+    const settings = normalizeAutomationSettings(settingsByUser.get(student.user_id));
+    if (!settings.reminders_enabled) {
+      summary.disabled += 1;
+      continue;
+    }
+
     const academy = academyByUser.get(student.user_id) || null;
     const candidates = buildReminderCandidates({ student, clazz, academy, today });
     summary.candidates += candidates.length;

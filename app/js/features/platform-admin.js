@@ -10,6 +10,7 @@
     let currentAdminUserId = null;
     let activeSupportLogId = null;
     let activeSupportAcademyId = null;
+    let activeSupportOwnerUserId = null;
     let restoreDbFrom = null;
 
     const tab = document.createElement('button');
@@ -59,7 +60,7 @@
 
     const byId = id => document.getElementById(id);
 
-    function wrapAutomationSettingsBuilder(builder, academyId) {
+    function wrapSupportBuilder(builder, table, academyId, ownerUserId) {
         if (!builder || (typeof builder !== 'object' && typeof builder !== 'function')) return builder;
         return new Proxy(builder, {
             get(target, property, receiver) {
@@ -70,29 +71,37 @@
                 const value = Reflect.get(target, property, receiver);
                 if (typeof value !== 'function') return value;
                 if (property === 'eq') {
-                    return (column, expected) => wrapAutomationSettingsBuilder(
-                        value.call(target, column === 'user_id' ? 'academy_id' : column, column === 'user_id' ? academyId : expected),
-                        academyId
-                    );
+                    return (column, expected) => {
+                        let nextColumn = column;
+                        let nextExpected = expected;
+                        if (table === 'automation_settings' && column === 'user_id') {
+                            nextColumn = 'academy_id';
+                            nextExpected = academyId;
+                        } else if (table === 'academy_profiles' && column === 'user_id' && ownerUserId) {
+                            nextExpected = ownerUserId;
+                        }
+                        return wrapSupportBuilder(value.call(target, nextColumn, nextExpected), table, academyId, ownerUserId);
+                    };
                 }
-                if (property === 'insert') {
+                if (property === 'insert' && table === 'automation_settings') {
                     return (payload, options) => {
                         const addAcademy = row => ({...row, academy_id: row?.academy_id || academyId});
                         const nextPayload = Array.isArray(payload) ? payload.map(addAcademy) : addAcademy(payload);
-                        return wrapAutomationSettingsBuilder(value.call(target, nextPayload, options), academyId);
+                        return wrapSupportBuilder(value.call(target, nextPayload, options), table, academyId, ownerUserId);
                     };
                 }
-                return (...args) => wrapAutomationSettingsBuilder(value.apply(target, args), academyId);
+                return (...args) => wrapSupportBuilder(value.apply(target, args), table, academyId, ownerUserId);
             }
         });
     }
 
-    function installSupportDbCompatibility(academyId) {
+    function installSupportDbCompatibility(academyId, ownerUserId) {
         if (restoreDbFrom) return;
         const originalFrom = db.from.bind(db);
         db.from = table => {
             const builder = originalFrom(table);
-            return table === 'automation_settings' ? wrapAutomationSettingsBuilder(builder, academyId) : builder;
+            if (table !== 'automation_settings' && table !== 'academy_profiles') return builder;
+            return wrapSupportBuilder(builder, table, academyId, ownerUserId);
         };
         restoreDbFrom = () => {
             db.from = originalFrom;
@@ -123,9 +132,8 @@
 
     async function closeOtherOpenLogs() {
         if (!currentAdminUserId) return;
-        const now = new Date().toISOString();
         await db.from('support_access_logs')
-            .update({ended_at: now})
+            .update({ended_at: new Date().toISOString()})
             .eq('admin_user_id', currentAdminUserId)
             .is('ended_at', null);
     }
@@ -140,10 +148,25 @@
             metadata: {source: 'platform_console'}
         }).select('id,academy_id').single();
         if (error) throw error;
+
+        const {data: owner, error: ownerError} = await db.from('academy_members')
+            .select('user_id')
+            .eq('academy_id', academyId)
+            .eq('role', 'owner')
+            .eq('is_active', true)
+            .order('created_at', {ascending: true})
+            .limit(1)
+            .maybeSingle();
+        if (ownerError || !owner?.user_id) {
+            await db.from('support_access_logs').update({ended_at: new Date().toISOString()}).eq('id', data.id);
+            throw ownerError || new Error('Professor responsável não encontrado.');
+        }
+
         activeSupportLogId = data.id;
         activeSupportAcademyId = data.academy_id;
+        activeSupportOwnerUserId = owner.user_id;
         AcademyContext.useSupportAcademy(activeSupportAcademyId);
-        installSupportDbCompatibility(activeSupportAcademyId);
+        installSupportDbCompatibility(activeSupportAcademyId, activeSupportOwnerUserId);
         byId('supportModeAcademyName').textContent = `Você está acessando: ${academyName}`;
         banner.hidden = false;
         if (typeof loadData === 'function') await loadData();
@@ -160,6 +183,7 @@
         }
         activeSupportLogId = null;
         activeSupportAcademyId = null;
+        activeSupportOwnerUserId = null;
         uninstallSupportDbCompatibility();
         AcademyContext.clear();
         banner.hidden = true;
@@ -228,6 +252,7 @@
             uninstallSupportDbCompatibility();
             activeSupportLogId = null;
             activeSupportAcademyId = null;
+            activeSupportOwnerUserId = null;
             banner.hidden = true;
             tab.hidden = true;
             return;

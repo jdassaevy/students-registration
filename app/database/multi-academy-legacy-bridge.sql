@@ -49,6 +49,56 @@ create trigger create_legacy_academy_profile_for_owner
 after insert or update of academy_id, role, is_active on public.academy_members
 for each row execute function public.create_legacy_academy_profile_for_owner();
 
+create or replace function public.sync_legacy_profile_from_academy()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    update public.academy_profiles ap
+       set academy_name = new.name,
+           display_name = new.name,
+           support_phone = nullif(new.contact_phone, ''),
+           updated_at = now()
+      from public.academy_members m
+     where m.academy_id = new.id
+       and m.user_id = ap.user_id
+       and m.role = 'owner'
+       and m.is_active = true;
+    return new;
+end;
+$$;
+
+drop trigger if exists sync_legacy_profile_from_academy on public.academies;
+create trigger sync_legacy_profile_from_academy
+after update of name, contact_phone on public.academies
+for each row execute function public.sync_legacy_profile_from_academy();
+
+create or replace function public.sync_legacy_profile_from_owner_profile()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    update public.academy_profiles ap
+       set responsible_name = new.full_name,
+           updated_at = now()
+      from public.academy_members m
+     where m.user_id = new.user_id
+       and m.user_id = ap.user_id
+       and m.role = 'owner'
+       and m.is_active = true;
+    return new;
+end;
+$$;
+
+drop trigger if exists sync_legacy_profile_from_owner_profile on public.profiles;
+create trigger sync_legacy_profile_from_owner_profile
+after update of full_name on public.profiles
+for each row execute function public.sync_legacy_profile_from_owner_profile();
+
 -- Backfill owners that existed before this compatibility bridge.
 insert into public.academy_profiles(user_id, academy_name, responsible_name, support_phone, display_name, updated_at)
 select

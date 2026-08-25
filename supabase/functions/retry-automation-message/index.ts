@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildRetryIdempotencyKey, canRetryAutomationType, retryEligibility } from "../_shared/retry-policy.ts";
 import { buildDocumentPayload, buildTemplatePayload, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
+import { loadAcademyIdentity, requireAcademyAccess } from "../_shared/tenant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,19 +46,26 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
   const { data: source, error: sourceError } = await admin.from("automation_messages")
-    .select("id,user_id,student_id,class_id,receipt_id,person,automation_type,status")
+    .select("id,user_id,academy_id,student_id,class_id,receipt_id,person,automation_type,status")
     .eq("id", sourceMessageId)
     .single();
   if (sourceError || !source) return json({ error: "Source message not found" }, 404);
-  if (source.user_id !== user.id) return json({ error: "Forbidden" }, 403);
+  if (!source.academy_id) return json({ error: "Message is not linked to an academy" }, 409);
+  try {
+    await requireAcademyAccess(admin, user.id, source.academy_id);
+  } catch (error) {
+    if (String(error?.message || error).includes("Forbidden")) return json({ error: "Forbidden" }, 403);
+    throw error;
+  }
   if (!canRetryAutomationType(source.automation_type)) return json({ error: "Message type cannot be retried" }, 400);
   if (!source.student_id) return json({ error: "Student unavailable" }, 409);
 
+  const academyId = source.academy_id;
   const { data: student, error: studentError } = await admin.from("students")
-    .select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+    .select("id,user_id,academy_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
     .eq("id", source.student_id)
     .single();
-  if (studentError || !student) return json({ error: "Student unavailable" }, 409);
+  if (studentError || !student || student.academy_id !== academyId) return json({ error: "Student unavailable" }, 409);
 
   const person = source.person === "person2" ? "person2" : "person1";
   const phone = person === "person2" ? student.person2_phone : student.person1_phone;
@@ -67,14 +75,15 @@ Deno.serve(async (req: Request) => {
   let receipt: any = null;
   if (source.receipt_id) {
     const { data } = await admin.from("receipts")
-      .select("id,user_id,receipt_number,storage_path,status,kind,installment,amount,paid_at")
+      .select("id,academy_id,receipt_number,storage_path,status,kind,installment,amount,paid_at")
       .eq("id", source.receipt_id)
+      .eq("academy_id", academyId)
       .maybeSingle();
     receipt = data || null;
   }
 
   const eligibility = retryEligibility({
-    ownerMatches: student.user_id === user.id,
+    ownerMatches: true,
     hasPhone: Boolean(normalizeRecipientPhone(phone)),
     hasConsent: consent === true,
     type: source.automation_type,
@@ -94,17 +103,17 @@ Deno.serve(async (req: Request) => {
   const idempotencyKey = buildRetryIdempotencyKey(source.id, requestId);
   const { data: existing } = await admin.from("automation_messages")
     .select("id,status,provider_message_id")
-    .eq("user_id", user.id)
+    .eq("academy_id", academyId)
     .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
   if (existing) return json({ status: "duplicate", retry: existing }, 200);
 
-  const [{ data: academy }, { data: clazz }] = await Promise.all([
-    admin.from("academy_profiles").select("academy_name,display_name,responsible_name,support_phone").eq("user_id", user.id).maybeSingle(),
-    student.class_id ? admin.from("classes").select("name").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
+  const [identity, { data: clazz }] = await Promise.all([
+    loadAcademyIdentity(admin, academyId),
+    student.class_id ? admin.from("classes").select("name,academy_id").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
-  const academyName = academy?.academy_name || academy?.display_name || "Academia";
+  const academyName = identity.name || "Academia";
   const to = normalizeRecipientPhone(phone)!;
   let payload: unknown;
 
@@ -132,16 +141,17 @@ Deno.serve(async (req: Request) => {
         label,
         money(receipt.amount),
         receipt.receipt_number,
-        academy?.responsible_name || "responsável da academia",
-        academy?.support_phone || "contato da academia",
+        identity.responsibleName || "responsável da academia",
+        identity.contactPhone || "contato da academia",
       ],
     });
   }
 
   const { data: retryLog, error: logError } = await admin.from("automation_messages").insert({
     user_id: user.id,
+    academy_id: academyId,
     student_id: source.student_id,
-    class_id: source.class_id,
+    class_id: clazz?.academy_id === academyId ? source.class_id : null,
     receipt_id: source.receipt_id,
     person,
     automation_type: source.automation_type,
@@ -151,7 +161,11 @@ Deno.serve(async (req: Request) => {
   }).select("id").single();
   if (logError) {
     if (logError.code === "23505") {
-      const { data: duplicate } = await admin.from("automation_messages").select("id,status,provider_message_id").eq("user_id", user.id).eq("idempotency_key", idempotencyKey).maybeSingle();
+      const { data: duplicate } = await admin.from("automation_messages")
+        .select("id,status,provider_message_id")
+        .eq("academy_id", academyId)
+        .eq("idempotency_key", idempotencyKey)
+        .maybeSingle();
       return json({ status: "duplicate", retry: duplicate }, 200);
     }
     return json({ error: "Could not create retry log" }, 500);
@@ -165,7 +179,7 @@ Deno.serve(async (req: Request) => {
       provider_message_id: providerMessageId,
       executed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    }).eq("id", retryLog.id);
+    }).eq("id", retryLog.id).eq("academy_id", academyId);
     return json({ status: "sent", retry_message_id: retryLog.id, provider_message_id: providerMessageId });
   } catch (error: any) {
     const safe = error?.meta || sanitizeMetaError(error);
@@ -175,7 +189,7 @@ Deno.serve(async (req: Request) => {
       error_message: safe.message || "Falha ao reenviar mensagem",
       executed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    }).eq("id", retryLog.id);
+    }).eq("id", retryLog.id).eq("academy_id", academyId);
     return json({ error: "Could not resend WhatsApp message", retry_message_id: retryLog.id }, 502);
   }
 });

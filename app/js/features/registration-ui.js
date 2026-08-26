@@ -119,4 +119,11 @@
     }, true);
 
     setRegistrationVisibility(false);
+
+    if (!document.querySelector('script[data-student-contact-runtime]')) {
+        const script = document.createElement('script');
+        script.src = './js/features/student-contact.js?v=1';
+        script.dataset.studentContactRuntime = 'true';
+        document.body.appendChild(script);
+    }
 })();

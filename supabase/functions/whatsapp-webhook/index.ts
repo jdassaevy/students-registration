@@ -29,26 +29,47 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const verifyToken = Deno.env.get("META_WEBHOOK_VERIFY_TOKEN") || "";
 
+  console.info("whatsapp-webhook request", {
+    method: req.method,
+    pathname: url.pathname,
+  });
+
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
 
-    if (!verifyToken) return text("Webhook verify token not configured", 503);
+    if (!verifyToken) {
+      console.error("whatsapp-webhook verify token missing");
+      return text("Webhook verify token not configured", 503);
+    }
     if (mode === "subscribe" && token === verifyToken && challenge) {
+      console.info("whatsapp-webhook verification accepted");
       return text(challenge, 200);
     }
+    console.warn("whatsapp-webhook verification rejected", {
+      mode,
+      hasToken: Boolean(token),
+      hasChallenge: Boolean(challenge),
+    });
     return text("Forbidden", 403);
   }
 
   if (req.method !== "POST") return text("Method not allowed", 405);
 
   const appSecret = Deno.env.get("META_APP_SECRET") || "";
-  if (!appSecret) return json({ error: "Meta app secret not configured" }, 503);
+  if (!appSecret) {
+    console.error("whatsapp-webhook Meta app secret missing");
+    return json({ error: "Meta app secret not configured" }, 503);
+  }
 
   const rawBody = await req.text();
   const signatureHeader = req.headers.get("x-hub-signature-256");
   if (!(await verifyMetaSignature(rawBody, signatureHeader, appSecret))) {
+    console.warn("whatsapp-webhook invalid signature", {
+      hasSignature: Boolean(signatureHeader),
+      bodyLength: rawBody.length,
+    });
     return json({ error: "Invalid signature" }, 401);
   }
 
@@ -56,16 +77,21 @@ Deno.serve(async (req: Request) => {
   try {
     payload = JSON.parse(rawBody);
   } catch {
+    console.warn("whatsapp-webhook invalid JSON");
     return json({ error: "Invalid JSON" }, 400);
   }
 
   const statuses = extractStatuses(payload);
+  console.info("whatsapp-webhook payload accepted", {
+    statuses: statuses.length,
+  });
   if (!statuses.length) return json({ received: true, updated: 0 }, 200);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceRoleKey);
   let updated = 0;
+  let unmatched = 0;
 
   for (const event of statuses) {
     const { data: current, error: readError } = await admin
@@ -74,12 +100,33 @@ Deno.serve(async (req: Request) => {
       .eq("provider_message_id", event.id)
       .maybeSingle();
 
-    if (readError || !current) continue;
+    if (readError) {
+      console.error("whatsapp-webhook lookup failed", {
+        providerMessageId: event.id,
+        error: readError.message,
+      });
+      continue;
+    }
+    if (!current) {
+      unmatched += 1;
+      console.warn("whatsapp-webhook provider message not found", {
+        providerMessageId: event.id,
+        incomingStatus: event.status,
+      });
+      continue;
+    }
 
     const currentRank = rank[current.status] ?? 0;
     const incomingRank = rank[event.status] ?? 0;
     const shouldApply = event.status === "failed" || incomingRank >= currentRank;
-    if (!shouldApply) continue;
+    if (!shouldApply) {
+      console.info("whatsapp-webhook ignored status regression", {
+        providerMessageId: event.id,
+        currentStatus: current.status,
+        incomingStatus: event.status,
+      });
+      continue;
+    }
 
     const providerAt = event.timestamp && /^\d+$/.test(event.timestamp)
       ? new Date(Number(event.timestamp) * 1000).toISOString()
@@ -103,8 +150,22 @@ Deno.serve(async (req: Request) => {
       .update(changes)
       .eq("id", current.id);
 
-    if (!updateError) updated += 1;
+    if (updateError) {
+      console.error("whatsapp-webhook update failed", {
+        providerMessageId: event.id,
+        incomingStatus: event.status,
+        error: updateError.message,
+      });
+      continue;
+    }
+
+    updated += 1;
+    console.info("whatsapp-webhook status updated", {
+      providerMessageId: event.id,
+      from: current.status,
+      to: event.status,
+    });
   }
 
-  return json({ received: true, updated }, 200);
+  return json({ received: true, updated, unmatched }, 200);
 });

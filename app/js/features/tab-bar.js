@@ -66,7 +66,23 @@
         return tab;
     }
 
-    createAutomationFallback();
+    function ensureAutomationTab() {
+        if (document.getElementById('automationTab')) return;
+
+        const loader = document.querySelector('script[data-automation-center-v2]');
+        if (loader && !document.getElementById('automationView')) {
+            const afterLoad = () => {
+                if (!document.getElementById('automationTab')) createAutomationFallback();
+            };
+            loader.addEventListener('load', afterLoad, {once: true});
+            loader.addEventListener('error', () => createAutomationFallback(), {once: true});
+            return;
+        }
+
+        createAutomationFallback();
+    }
+
+    ensureAutomationTab();
 
     const indicator = document.createElement('span');
     indicator.className = 'tab-indicator';

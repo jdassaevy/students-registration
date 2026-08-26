@@ -4,6 +4,7 @@ export const TEMPLATE_NAMES = {
   overdue: "dassaevy_overdue",
   paymentConfirmation: "dassaevy_payment_confirmation",
   paymentVoided: "dassaevy_payment_voided",
+  receiptDocument: "dassaevy_receipt_document",
 } as const;
 
 type EligibilityInput = { phone?: string | null; consent?: boolean | null };
@@ -20,6 +21,15 @@ type DocumentInput = {
   link: string;
   filename: string;
   caption?: string;
+};
+
+type DocumentTemplateInput = {
+  to: string;
+  link: string;
+  filename: string;
+  templateName: string;
+  languageCode?: string;
+  bodyParameters?: Array<string | number>;
 };
 
 export function normalizeRecipientPhone(value?: string | null): string | null {
@@ -54,6 +64,42 @@ export function buildTemplatePayload({
             parameters: bodyParameters.map(value => ({ type: "text", text: String(value) })),
           }]
         : [],
+    },
+  };
+}
+
+export function buildDocumentTemplatePayload({
+  to,
+  link,
+  filename,
+  templateName,
+  languageCode = "pt_BR",
+  bodyParameters = [],
+}: DocumentTemplateInput) {
+  const components: Array<Record<string, unknown>> = [{
+    type: "header",
+    parameters: [{
+      type: "document",
+      document: { link, filename },
+    }],
+  }];
+
+  if (bodyParameters.length) {
+    components.push({
+      type: "body",
+      parameters: bodyParameters.map(value => ({ type: "text", text: String(value) })),
+    });
+  }
+
+  return {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: normalizeRecipientPhone(to) || to,
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+      components,
     },
   };
 }

@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
-  buildDocumentPayload,
+  buildDocumentTemplatePayload,
   buildTemplatePayload,
   isWhatsappEligible,
   normalizeRecipientPhone,
@@ -157,11 +157,12 @@ Deno.serve(async (req: Request) => {
         .from("receipts")
         .createSignedUrl(receipt.storage_path, 60 * 60);
       if (signedError || !signed?.signedUrl) throw new Error("Receipt URL unavailable");
-      payload = buildDocumentPayload({
+      payload = buildDocumentTemplatePayload({
         to: normalizedPhone!,
         link: signed.signedUrl,
         filename: `recibo-${receipt.receipt_number}.pdf`,
-        caption: receipt.status === "voided" ? "Recibo estornado" : "Recibo de pagamento",
+        templateName: TEMPLATE_NAMES.receiptDocument,
+        languageCode: "pt_BR",
       });
     } else {
       payload = buildTemplatePayload({

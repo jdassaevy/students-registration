@@ -17,9 +17,12 @@ test('automation center readiness uses academies and profiles, not academy_profi
     assert.doesNotMatch(source, /academy_profiles/);
 });
 
-test('automation center reuses fallback tab instead of creating a duplicate', () => {
-    assert.match(source, /document\.getElementById\('automationTab'\)/);
-    assert.match(source, /tab\s*=\s*document\.getElementById\('automationTab'\)\s*\|\|/);
+test('tab bar waits for automation v2 loader before creating fallback', () => {
+    const tabBar = readFileSync(new URL('../features/tab-bar.js', import.meta.url), 'utf8');
+    assert.match(tabBar, /data-automation-center-v2/);
+    assert.match(tabBar, /loader\.addEventListener\('load'/);
+    assert.match(tabBar, /loader\.addEventListener\('error'/);
+    assert.match(tabBar, /if \(!document\.getElementById\('automationTab'\)\) createAutomationFallback\(\)/);
 });
 
 test('legacy automation module is only a recovery loader', () => {

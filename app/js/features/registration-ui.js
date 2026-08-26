@@ -93,6 +93,7 @@
                 email,
                 password,
                 options: {
+                    emailRedirectTo: window.location.origin,
                     data: {
                         academy_name: academyName,
                         responsible_name: responsibleName,

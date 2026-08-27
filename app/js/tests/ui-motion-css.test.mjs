@@ -29,12 +29,14 @@ for (const selector of requiredSelectors) {
     assert.ok(css.includes(selector), `missing motion selector: ${selector}`);
 }
 
-assert.ok(
-    css.includes('@media (hover: hover) and (pointer: fine)'),
+assert.match(
+    css,
+    /@media\s*\(hover\s*:\s*hover\)\s*and\s*\(pointer\s*:\s*fine\)/,
     'hover effects must be limited to hover-capable pointers'
 );
-assert.ok(
-    css.includes('@media (prefers-reduced-motion: reduce)'),
+assert.match(
+    css,
+    /@media\s*\(prefers-reduced-motion\s*:\s*reduce\)/,
     'motion must respect reduced-motion preference'
 );
 assert.match(

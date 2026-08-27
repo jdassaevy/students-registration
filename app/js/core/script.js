@@ -876,6 +876,9 @@ $('form').addEventListener('submit', async event => {
         person2 = $('person2')
             .value
             .trim();
+    const previousStudent = id
+        ? structuredClone(couples.find(student => student.id === id) || null)
+        : null;
     const payload = {
         person1: $('person1')
             .value
@@ -937,6 +940,9 @@ $('form').addEventListener('submit', async event => {
     closeDialog($('modal'));
     render();
     toast('Cadastro salvo!');
+    if (window.PaymentAutomation?.processSavedStudent) {
+        void window.PaymentAutomation.processSavedStudent(previousStudent, mapped);
+    }
 });
 $('classForm').addEventListener('submit', async event => {
     event.preventDefault();

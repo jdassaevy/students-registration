@@ -21,3 +21,22 @@ export function receiptActionForState({ paid, hasActiveReceipt }: { paid: boolea
 export function paymentIdentity(studentId: string, person: string, kind: string, installment = 0): string {
   return `${studentId}:${person}:${kind}:${Number(installment) || 0}`;
 }
+
+export function receiptNeedsPdf(receipt: any): boolean {
+  return receipt?.status === 'active' && !receipt?.storage_path;
+}
+
+export function isUniqueViolation(error: any): boolean {
+  return error?.code === '23505';
+}
+
+export function paymentNotificationAmount(action: string, receipt: any, currentAmount: number): number {
+  void action;
+  return paymentReceiptAmount(receipt, currentAmount);
+}
+
+export function paymentReceiptAmount(receipt: any, currentAmount: number): number {
+  const auditedAmount = Number(receipt?.amount);
+  if (Number.isFinite(auditedAmount) && auditedAmount >= 0) return auditedAmount;
+  return Math.max(0, Number(currentAmount) || 0);
+}

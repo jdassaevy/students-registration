@@ -42,7 +42,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-payment-automation]')) 
             return;
         const automationScript = document.createElement('script');
-        automationScript.src = './js/features/payment-automation.js?v=1';
+        automationScript.src = './js/features/payment-automation.js?v=2';
         automationScript.dataset.paymentAutomation = 'true';
         document
             .body

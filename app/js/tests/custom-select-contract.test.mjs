@@ -43,13 +43,10 @@ assert.ok(
     customSelect.includes("closest('.financial-head, .reports-head, .toolbar, .field')"),
     'open dropdown must elevate its container stacking context'
 );
-assert.ok(
-    customSelect.includes("classList.add('custom-select-host-open')"),
-    'opening a dropdown must mark its host as elevated'
-);
-assert.ok(
-    customSelect.includes("classList.remove('custom-select-host-open')"),
-    'closing a dropdown must restore its host layer'
+assert.match(
+    customSelect,
+    /classList\s*\.toggle\('custom-select-host-open',\s*open\)/,
+    'dropdown state must keep the host elevation synchronized'
 );
 assert.ok(
     css.includes('.custom-select-menu'),

@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
-import { paymentAmount, paymentIsMarked, paymentLabel, receiptActionForState } from "../_shared/payment-lifecycle.ts";
+import { isUniqueViolation, paymentAmount, paymentIsMarked, paymentLabel, paymentNotificationAmount, paymentReceiptAmount, receiptActionForState, receiptNeedsPdf } from "../_shared/payment-lifecycle.ts";
 import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 import { buildDocumentPayload, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 
@@ -49,8 +49,6 @@ Deno.serve(async (req: Request) => {
       .eq("id", studentId).single();
     if (studentError || !student) return json({ error: "Student not found" }, 404);
     if (student.user_id !== user.id) return json({ error: "Forbidden" }, 403);
-    if (person === "person2" && !student.person2) return json({ error: "Person not found" }, 404);
-
     const paid = paymentIsMarked(student, person, kind, installment);
     const amount = paymentAmount(student, person, kind);
     const { data: activeReceipt } = await admin.from("receipts").select("*")
@@ -67,8 +65,14 @@ Deno.serve(async (req: Request) => {
         const { data, error } = await admin.from("payment_events").insert({
           user_id: user.id, student_id: studentId, class_id: student.class_id, person, kind, installment, amount,
         }).select().single();
-        if (error) throw error;
-        paymentEvent = data;
+        if (error && !isUniqueViolation(error)) throw error;
+        if (data) paymentEvent = data;
+        else {
+          const { data: concurrentEvent, error: concurrentError } = await admin.from("payment_events").select("*")
+            .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).single();
+          if (concurrentError) throw concurrentError;
+          paymentEvent = concurrentEvent;
+        }
       }
     } else {
       const { error } = await admin.from("payment_events").delete()
@@ -82,11 +86,12 @@ Deno.serve(async (req: Request) => {
       admin.from("automation_settings").select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled").eq("user_id", user.id).maybeSingle(),
     ]);
     const settings = normalizeAutomationSettings(settingsRow);
-    const studentName = person === "person2" ? student.person2 : student.person1;
+    const studentName = (person === "person2" ? student.person2 : student.person1) || "Aluno(a)";
     const academyName = academy?.academy_name || academy?.display_name || "Academia";
     const label = paymentLabel(kind, installment);
 
     let receipt: any = activeReceipt || null;
+    let repairedPdf = false;
     if (action === "create") {
       const { data, error } = await admin.from("receipts").insert({
         user_id: user.id,
@@ -98,9 +103,19 @@ Deno.serve(async (req: Request) => {
         amount,
         paid_at: paymentEvent?.paid_at || new Date().toISOString(),
       }).select().single();
-      if (error) throw error;
-      receipt = data;
+      if (error && !isUniqueViolation(error)) throw error;
+      if (data) receipt = data;
+      else {
+        const { data: concurrentReceipt, error: concurrentError } = await admin.from("receipts").select("*")
+          .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment)
+          .eq("status", "active").single();
+        if (concurrentError) throw concurrentError;
+        receipt = concurrentReceipt;
+      }
+    }
 
+    if (paid && receiptNeedsPdf(receipt)) {
+      const receiptAmount = paymentReceiptAmount(receipt, amount);
       const pdfBytes = await generateReceiptPdf({
         receiptNumber: receipt.receipt_number,
         academyName,
@@ -110,19 +125,20 @@ Deno.serve(async (req: Request) => {
         studentName,
         className: clazz?.name || "Sem turma",
         paymentLabel: label,
-        amount,
+        amount: receiptAmount,
         paidAt: receipt.paid_at,
         status: "active",
       });
       const storagePath = `${user.id}/${receipt.id}.pdf`;
       const { error: uploadError } = await admin.storage.from("receipts").upload(storagePath, pdfBytes, {
-        contentType: "application/pdf", upsert: false,
+        contentType: "application/pdf", upsert: true,
       });
       if (uploadError) throw uploadError;
       const { data: updated, error: updateError } = await admin.from("receipts")
         .update({ storage_path: storagePath }).eq("id", receipt.id).select().single();
       if (updateError) throw updateError;
       receipt = updated;
+      repairedPdf = true;
     } else if (action === "void" && receipt) {
       const { data, error } = await admin.from("receipts").update({ status: "voided" })
         .eq("id", receipt.id).eq("status", "active").select().single();
@@ -130,6 +146,7 @@ Deno.serve(async (req: Request) => {
       receipt = data;
     }
 
+    const notificationAmount = paymentNotificationAmount(action, receipt, amount);
     const phone = person === "person2" ? student.person2_phone : student.person1_phone;
     const consent = person === "person2" ? student.person2_whatsapp_consent : student.person1_whatsapp_consent;
     const eligible = isWhatsappEligible({ phone, consent });
@@ -151,6 +168,11 @@ Deno.serve(async (req: Request) => {
         user_id: user.id, student_id: studentId, class_id: student.class_id, receipt_id: receipt?.id || null,
         person, automation_type: automationType, idempotency_key: idempotencyKey, planned_at: new Date().toISOString(), status: "pending",
       }).select("id").single();
+      if (logError && isUniqueViolation(logError)) {
+        const { data: concurrent } = await admin.from("automation_messages").select("status")
+          .eq("user_id", user.id).eq("idempotency_key", idempotencyKey).single();
+        return concurrent?.status || "pending";
+      }
       if (logError) throw logError;
       try {
         const provider = await sendMetaPayload({ phoneNumberId, accessToken, graphVersion, payload });
@@ -164,13 +186,13 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (eligible && metaReady && receipt && action === "create") {
+    if (eligible && metaReady && receipt && (action === "create" || repairedPdf)) {
       const to = normalizeRecipientPhone(phone)!;
 
       if (settings.payment_confirmation_enabled) {
         const confirmation = buildTemplatePayload({
           to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR",
-          bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
+          bodyParameters: [studentName, academyName, label, money(notificationAmount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
         });
         whatsapp.payment_confirmation = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
       }
@@ -185,12 +207,12 @@ Deno.serve(async (req: Request) => {
     } else if (eligible && metaReady && receipt && action === "void" && settings.void_notification_enabled) {
       const payload = buildTemplatePayload({
         to: normalizeRecipientPhone(phone)!, templateName: TEMPLATE_NAMES.paymentVoided, languageCode: "pt_BR",
-        bodyParameters: [studentName, academyName, label, money(amount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
+        bodyParameters: [studentName, academyName, label, money(notificationAmount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
       });
       whatsapp.payment_voided = await sendLogged("payment_voided", payload, `payment:${receipt.id}:voided`);
     }
 
-    return json({ paid, action, receipt, whatsapp, settings });
+    return json({ paid, action: repairedPdf && action === "keep" ? "repair" : action, receipt, whatsapp, settings });
   } catch (error) {
     console.error("payment-lifecycle error", error);
     return json({ error: "Could not process payment lifecycle" }, 500);

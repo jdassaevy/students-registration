@@ -1,0 +1,23 @@
+name: Multi-academy Stage 1 validation
+
+on:
+  push:
+    branches:
+      - feat/multi-academy-foundation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run app Node tests
+        run: node --test app/js/tests/*.test.js app/js/tests/*.test.mjs

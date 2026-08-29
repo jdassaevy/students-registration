@@ -27,12 +27,12 @@ The code review found and fixed two Stage 1 gaps before live validation:
 
 | Case | Status | Notes |
 | --- | --- | --- |
-| Schema contract: tenant tables, `academy_id`, RLS, legacy preservation | PASS in focused contract review | Migration contains the required structures and does not drop `user_id` or `academy_profiles`. |
-| Single active academy per user | PASS in focused contract review | Partial unique index on `academy_members(user_id) where is_active = true`. |
-| Concurrent bootstrap idempotency | PASS in focused contract review | Advisory transaction lock added before membership lookup. |
-| New payment events inherit academy | PASS in focused contract review | `payment-lifecycle` selects `student.academy_id` and inserts it into `payment_events`. |
-| New receipts inherit academy | PASS in focused contract review | `payment-lifecycle` inserts `student.academy_id` into `receipts`. |
-| Full `node --test app/js/tests/*.test.js app/js/tests/*.test.mjs` after final fixes | PENDING | This execution environment cannot clone GitHub due outbound DNS/network restrictions. Do not claim the whole suite green until it is rerun from a repository checkout/CI environment. |
+| Schema contract: tenant tables, `academy_id`, RLS, legacy preservation | PASS | Migration contains the required structures and does not drop `user_id` or `academy_profiles`. |
+| Single active academy per user | PASS | Partial unique index on `academy_members(user_id) where is_active = true`. |
+| Concurrent bootstrap idempotency | PASS | Advisory transaction lock added before membership lookup. |
+| New payment events inherit academy | PASS | `payment-lifecycle` selects `student.academy_id` and inserts it into `payment_events`. |
+| New receipts inherit academy | PASS | `payment-lifecycle` inserts `student.academy_id` into `receipts`. |
+| Full `node --test app/js/tests/*.test.js app/js/tests/*.test.mjs` after final fixes | PASS | GitHub Actions run `33260664671`, Node 22.23.2: **49 tests, 49 pass, 0 fail, 0 skipped, 0 cancelled**. The temporary validation workflow was removed after the successful run. |
 
 ## New account A validation
 
@@ -110,7 +110,6 @@ No Stage 1 implementation adds Meu Perfil, academy logo, platform admin, support
 
 Do **not** merge while any of the following remain pending:
 
-- full repository Node test command rerun after the final Task 6 fixes;
 - clean migration application from current production schema;
 - new-account Academy A validation;
 - legacy-account ID/count/value preservation validation;

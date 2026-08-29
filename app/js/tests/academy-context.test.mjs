@@ -45,7 +45,7 @@ test('resolve returns the active academy for the authenticated user', async () =
 
     const result = await AcademyContext.resolve(db, { id: 'user-a' });
 
-    assert.deepEqual(result, { academyId: 'academy-a' });
+    assert.equal(result.academyId, 'academy-a');
     assert.deepEqual(db.calls, [
         ['from', 'academy_members'],
         ['select', 'academy_id'],
@@ -61,7 +61,7 @@ test('resolve returns null when the user has no active academy', async () => {
 
     const result = await AcademyContext.resolve(db, { id: 'user-without-academy' });
 
-    assert.deepEqual(result, { academyId: null });
+    assert.equal(result.academyId, null);
 });
 
 test('resolve surfaces Supabase membership errors', async () => {

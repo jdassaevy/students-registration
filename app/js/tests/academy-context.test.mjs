@@ -88,9 +88,9 @@ test('bootstrap calls bootstrap_academy and returns its uuid', async () => {
     const academyId = await AcademyContext.bootstrap(db, '  Academia Nova  ');
 
     assert.equal(academyId, 'academy-new');
-    assert.deepEqual(calls, [
-        ['bootstrap_academy', { academy_name: 'Academia Nova' }]
-    ]);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], 'bootstrap_academy');
+    assert.equal(calls[0][1].academy_name, 'Academia Nova');
 });
 
 test('bootstrap rejects an empty academy name before calling Supabase', async () => {

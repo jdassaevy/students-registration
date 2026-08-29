@@ -24,7 +24,8 @@ function createElement(tagName = 'div') {
             remove(...names) { names.forEach(name => this.values.delete(name)); },
             contains(name) { return this.values.has(name); }
         },
-        setAttribute(name, value) { attributes.set(name, value); },
+        setAttribute(name, value) { attributes.set(name, String(value)); },
+        getAttribute(name) { return attributes.get(name) ?? null; },
         appendChild(child) { children.push(child); child.parentNode = this; return child; },
         insertBefore(child, reference) {
             const index = children.indexOf(reference);
@@ -47,14 +48,18 @@ function harness({ title = 'Entrar na sua conta', academyName = '' } = {}) {
     const authTitle = createElement('h1');
     authTitle.id = 'authTitle';
     authTitle.textContent = title;
+    const authSubmit = createElement('button');
+    authSubmit.id = 'authSubmit';
     const elements = new Map([
         ['authForm', form],
         ['emailField', emailField],
-        ['authTitle', authTitle]
+        ['authTitle', authTitle],
+        ['authSubmit', authSubmit]
     ]);
 
+    const observers = [];
     class MutationObserver {
-        constructor(callback) { this.callback = callback; }
+        constructor(callback) { this.callback = callback; observers.push(this); }
         observe() {}
     }
 
@@ -83,15 +88,15 @@ function harness({ title = 'Entrar na sua conta', academyName = '' } = {}) {
         window: {
             AcademyContext,
             supabase: { createClient: () => client },
-            requestAnimationFrame: callback => callback(),
-            MutationObserver
+            requestAnimationFrame: callback => callback()
         },
         document,
         MutationObserver,
-        console,
+        console: { error() {}, log() {}, warn() {} },
         setTimeout
     };
     context.window.document = document;
+    context.window.MutationObserver = MutationObserver;
     vm.createContext(context);
 
     const source = fs.readFileSync(moduleUrl, 'utf8');
@@ -101,7 +106,7 @@ function harness({ title = 'Entrar na sua conta', academyName = '' } = {}) {
     const academyInput = academyField?.children.find(child => child.id === 'academyName');
     if (academyInput) academyInput.value = academyName;
 
-    return { context, form, client, signupCalls, authCallbacks, resolveCalls, bootstrapCalls, academyField, academyInput };
+    return { context, form, authTitle, authSubmit, observers, client, signupCalls, authCallbacks, resolveCalls, bootstrapCalls, academyField, academyInput };
 }
 
 test('registration field is injected before email and hidden outside register mode', () => {
@@ -167,4 +172,26 @@ test('existing academy membership is reused without duplicate bootstrap', async 
 
     assert.equal(h.bootstrapCalls.length, 0);
     assert.equal(h.context.window.currentAcademyId, 'academy-existing');
+});
+
+test('auth submit mirrors disabled loading state through aria-busy', () => {
+    const h = harness();
+    assert.equal(h.authSubmit.getAttribute('aria-busy'), 'false');
+    h.authSubmit.disabled = true;
+    h.observers.forEach(observer => observer.callback());
+    assert.equal(h.authSubmit.getAttribute('aria-busy'), 'true');
+});
+
+test('academy context failure still forwards auth event to core callback', async () => {
+    const h = harness();
+    h.context.window.AcademyContext.resolve = async () => { throw new Error('tenant unavailable'); };
+    const db = h.context.window.supabase.createClient('url', 'key');
+    const coreEvents = [];
+    db.auth.onAuthStateChange((event, session) => coreEvents.push([event, session]));
+
+    await h.authCallbacks[0]('SIGNED_IN', { user: { id: 'user-1', user_metadata: {} } });
+
+    assert.equal(h.context.window.currentAcademyId, null);
+    assert.equal(coreEvents.length, 1);
+    assert.equal(coreEvents[0][0], 'SIGNED_IN');
 });

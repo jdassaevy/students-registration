@@ -72,6 +72,21 @@
 
     syncRegistrationField();
 
+    const authSubmit = document.getElementById('authSubmit');
+    const syncSubmitBusy = () => {
+        if (authSubmit) {
+            authSubmit.setAttribute('aria-busy', String(Boolean(authSubmit.disabled)));
+        }
+    };
+
+    if (authSubmit && window.MutationObserver) {
+        new window.MutationObserver(syncSubmitBusy).observe(authSubmit, {
+            attributes: true,
+            attributeFilter: ['disabled']
+        });
+    }
+    syncSubmitBusy();
+
     const originalCreateClient = supabase.createClient.bind(supabase);
     supabase.__academyOnboardingWrapped = true;
     supabase.createClient = (...args) => {
@@ -111,17 +126,22 @@
                 }
 
                 if (event !== 'PASSWORD_RECOVERY') {
-                    const resolved = await academyContext.resolve(client, session.user);
-                    let academyId = resolved.academyId;
-                    const academyName = String(
-                        session.user.user_metadata?.academy_name || ''
-                    ).trim();
+                    try {
+                        const resolved = await academyContext.resolve(client, session.user);
+                        let academyId = resolved.academyId;
+                        const academyName = String(
+                            session.user.user_metadata?.academy_name || ''
+                        ).trim();
 
-                    if (!academyId && academyName) {
-                        academyId = await academyContext.bootstrap(client, academyName);
+                        if (!academyId && academyName) {
+                            academyId = await academyContext.bootstrap(client, academyName);
+                        }
+
+                        window.currentAcademyId = academyId || null;
+                    } catch (error) {
+                        window.currentAcademyId = null;
+                        console.error('Não foi possível resolver a academia ativa.', error);
                     }
-
-                    window.currentAcademyId = academyId || null;
                 }
 
                 return callback(event, session);

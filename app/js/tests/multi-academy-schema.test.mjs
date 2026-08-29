@@ -37,3 +37,8 @@ test('migration preserves legacy ownership columns and academy_profiles', () => 
   assert.doesNotMatch(sql, /drop\s+column(?:\s+if\s+exists)?\s+user_id/);
   assert.doesNotMatch(sql, /drop\s+table(?:\s+if\s+exists)?\s+(?:public\.)?academy_profiles/);
 });
+
+test('stage 1 allows only one active academy membership per user', () => {
+  const sql = readMigration();
+  assert.match(sql, /create unique index[^;]+academy_members[^;]+user_id[^;]+where is_active = true/);
+});

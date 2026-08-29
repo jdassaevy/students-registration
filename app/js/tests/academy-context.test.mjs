@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const moduleUrl = new URL('../core/academy-context.js', import.meta.url);
+const indexUrl = new URL('../../index.html', import.meta.url);
 
 function loadAcademyContext() {
     const source = fs.readFileSync(moduleUrl, 'utf8');
@@ -108,4 +109,15 @@ test('bootstrap rejects an empty academy name before calling Supabase', async ()
         /academy name is required/i
     );
     assert.equal(called, false);
+});
+
+test('academy context loads after Supabase config and before the core app script', () => {
+    const html = fs.readFileSync(indexUrl, 'utf8');
+    const configIndex = html.indexOf('./js/core/supabase-config.js');
+    const academyContextIndex = html.indexOf('./js/core/academy-context.js');
+    const coreScriptIndex = html.indexOf('./js/core/script.js');
+
+    assert.ok(configIndex >= 0, 'Supabase config script must be present');
+    assert.ok(academyContextIndex > configIndex, 'academy context must load after Supabase config');
+    assert.ok(coreScriptIndex > academyContextIndex, 'core app script must load after academy context');
 });

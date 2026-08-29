@@ -88,6 +88,10 @@ begin
         raise exception 'Academy name must contain between 1 and 160 characters';
     end if;
 
+    -- Serialize bootstrap attempts for the same authenticated user. This keeps
+    -- retries/refreshes and concurrent auth callbacks idempotent.
+    perform pg_advisory_xact_lock(hashtextextended(v_user_id::text, 0));
+
     select member.academy_id
       into v_academy_id
       from public.academy_members member

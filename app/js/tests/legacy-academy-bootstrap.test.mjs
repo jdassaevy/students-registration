@@ -187,6 +187,22 @@ test('legacy user without academy is blocked before the core auth callback', asy
     assert.equal(h.document.getElementById('academyBootstrapName')?.required, true);
 });
 
+test('legacy onboarding is exposed as an accessible modal status flow', async () => {
+    const h = createHarness();
+    const db = h.context.window.supabase.createClient('url', 'key');
+    db.auth.onAuthStateChange(() => {});
+
+    await h.authCallbacks[0]('SIGNED_IN', legacySession);
+
+    const view = h.document.getElementById('academyBootstrapView');
+    const message = h.document.getElementById('academyBootstrapMessage');
+    assert.equal(view.getAttribute('role'), 'dialog');
+    assert.equal(view.getAttribute('aria-modal'), 'true');
+    assert.equal(view.getAttribute('aria-labelledby'), 'academyBootstrapTitle');
+    assert.equal(message.getAttribute('role'), 'status');
+    assert.equal(message.getAttribute('aria-live'), 'polite');
+});
+
 test('legacy bootstrap creates academy and releases the original auth event', async () => {
     const h = createHarness();
     const db = h.context.window.supabase.createClient('url', 'key');

@@ -42,3 +42,12 @@ test('stage 1 allows only one active academy membership per user', () => {
   const sql = readMigration();
   assert.match(sql, /create unique index[^;]+academy_members[^;]+user_id[^;]+where is_active = true/);
 });
+
+test('bootstrap serializes concurrent calls for the same user', () => {
+  const sql = readMigration();
+  assert.match(
+    sql,
+    /pg_advisory_xact_lock\s*\(\s*hashtextextended\s*\(\s*v_user_id::text\s*,\s*0\s*\)\s*\)/,
+    'bootstrap must serialize concurrent calls before checking memberships'
+  );
+});

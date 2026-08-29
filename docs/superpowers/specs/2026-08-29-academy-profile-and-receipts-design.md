@@ -91,10 +91,9 @@ Stage 1 currently allows one active academy per ordinary user and only the `owne
 - Active members can continue to read their academy.
 - Updating academy institutional data requires an active membership with `role = 'owner'`.
 - No client operation may update another academy by supplying a foreign UUID.
-- The frontend must use `currentAcademyId` for reads/writes as defense-in-depth; database RLS remains authoritative.
+- The frontend uses direct `select`/`update` operations on `academies`, always constrained by `currentAcademyId` as defense-in-depth; database RLS remains authoritative.
+- No new profile RPC is introduced in this phase.
 - Missing `currentAcademyId` fails closed before profile data access.
-
-A dedicated helper/RPC may be used if it provides clearer validation and atomicity than direct table updates, but it must remain academy-scoped and owner-only.
 
 ## Legacy migration
 
@@ -105,7 +104,7 @@ Migration rules:
 1. Add the new columns to `academies` additively.
 2. For each existing active `academy_members` owner, locate the user's `academy_profiles` row.
 3. Copy values only when the destination value is empty/null:
-   - `academy_profiles.academy_name` → `academies.name` only if the academy name is blank (normally it will already exist).
+   - `academy_profiles.academy_name` → `academies.name` only if the academy name is blank (normally it will already exist because `academies.name` is required).
    - `academy_profiles.responsible_name` → `academies.responsible_name` if empty.
    - `academy_profiles.support_phone` → `academies.support_phone` if null/empty.
    - `academy_profiles.display_name` → `academies.display_name` if null/empty.
@@ -136,7 +135,7 @@ Meu Perfil
 ### Behavior
 
 - Opening the profile loads the active academy using `currentAcademyId`.
-- The form must never query academy identity by `currentUser.id`.
+- The form never queries academy identity by `currentUser.id`.
 - Academy name is required.
 - Responsible name is optional at database level for migration compatibility, but the UI should encourage filling it because receipts/messages use it.
 - Support phone is optional and normalized/validated using the project's existing phone normalization rules.
@@ -192,10 +191,11 @@ The Edge Function must authorize the payment operation against academy membershi
 
 For this phase, with only the owner role active, the authenticated user must be an active member of `student.academy_id`.
 
-Fallback display rules:
+Display rules are explicit:
 
-- academy display in receipt/message: `display_name` when explicitly desired by that consumer, otherwise `name`; the official receipt header should prefer `name`.
-- responsible missing: existing neutral fallback text remains.
+- receipt/PDF academy header always uses official `academies.name`;
+- WhatsApp payment/receipt messaging uses `academies.display_name` when non-empty, otherwise `academies.name`;
+- responsible missing: existing neutral fallback text remains;
 - support phone missing: existing neutral fallback text remains.
 
 ## Existing `academy_profiles`
@@ -228,7 +228,7 @@ All production changes follow TDD.
 - legacy profile backfill is present and non-destructive;
 - non-empty academy values are not overwritten;
 - owner update policy exists and is academy-scoped;
-- non-owner/foreign academy update is denied by policy contract;
+- foreign academy update is denied by policy contract;
 - legacy `academy_profiles` table is retained.
 
 ### Frontend tests
@@ -247,7 +247,7 @@ All production changes follow TDD.
 - `academy_profiles` is no longer queried by payment lifecycle;
 - active academy membership is verified before processing;
 - PDF receives official academy name, responsible and phone;
-- WhatsApp parameters use the same academy identity source;
+- WhatsApp uses `display_name || name` from the same academy identity source;
 - existing receipt idempotency and void behavior remain green.
 
 ### DEV integration validation
@@ -259,10 +259,11 @@ Before merge:
 3. Reload and confirm persistence.
 4. Confirm another academy cannot read/update those values.
 5. Mark a monthly payment as paid.
-6. Open generated PDF and verify academy name, responsible and phone.
-7. Confirm receipt/payment rows remain tenant-scoped.
-8. Run complete Node test suite.
-9. Merge only after manual preview validation and explicit user approval.
+6. Open generated PDF and verify official academy name, responsible and phone.
+7. Confirm WhatsApp identity selection uses display name fallback correctly without changing template structure.
+8. Confirm receipt/payment rows remain tenant-scoped.
+9. Run complete Node test suite.
+10. Merge only after manual preview validation and explicit user approval.
 
 ## Rollback strategy
 

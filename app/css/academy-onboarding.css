@@ -1,0 +1,63 @@
+.academy-name-field.is-entering {
+    animation: academy-onboarding-enter 180ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes academy-onboarding-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+        filter: blur(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
+#authSubmit {
+    position: relative;
+}
+
+#authSubmit:disabled {
+    cursor: wait;
+    opacity: .92;
+}
+
+#authSubmit:disabled::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    vertical-align: -2px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: academy-onboarding-spin 700ms linear infinite;
+}
+
+@keyframes academy-onboarding-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .academy-name-field.is-entering,
+    #authSubmit:disabled::before {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+
+    .academy-name-field.is-entering {
+        transform: none !important;
+        filter: none !important;
+    }
+
+    #authSubmit:disabled::before {
+        transform: none !important;
+        border-right-color: currentColor;
+        opacity: .65;
+    }
+}

@@ -21,6 +21,9 @@ create table if not exists public.academy_members (
 
 create index if not exists academy_members_user_id_idx
     on public.academy_members(user_id);
+create unique index if not exists academy_members_one_active_user_idx
+    on public.academy_members(user_id)
+    where is_active = true;
 create index if not exists academy_members_active_idx
     on public.academy_members(user_id, is_active);
 

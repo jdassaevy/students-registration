@@ -4,7 +4,7 @@
         return;
     }
 
-    const tenantTables = new Set(['classes', 'students']);
+    const tenantTables = new Set(['classes', 'students', 'payment_events', 'receipts']);
     const originalCreateClient = supabase.createClient.bind(supabase);
 
     const requireAcademyId = () => {

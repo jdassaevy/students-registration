@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: student, error: studentError } = await admin.from("students")
-      .select("id,user_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+      .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
       .eq("id", studentId).single();
     if (studentError || !student) return json({ error: "Student not found" }, 404);
     if (student.user_id !== user.id) return json({ error: "Forbidden" }, 403);
@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
       if (existingEvent) paymentEvent = existingEvent;
       else {
         const { data, error } = await admin.from("payment_events").insert({
-          user_id: user.id, student_id: studentId, class_id: student.class_id, person, kind, installment, amount,
+          user_id: user.id, academy_id: student.academy_id, student_id: studentId, class_id: student.class_id, person, kind, installment, amount,
         }).select().single();
         if (error && !isUniqueViolation(error)) throw error;
         if (data) paymentEvent = data;
@@ -95,6 +95,7 @@ Deno.serve(async (req: Request) => {
     if (action === "create") {
       const { data, error } = await admin.from("receipts").insert({
         user_id: user.id,
+        academy_id: student.academy_id,
         student_id: studentId,
         class_id: student.class_id,
         person,

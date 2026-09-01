@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const moduleUrl = new URL('../features/academy-profile.js', import.meta.url);
+const indexUrl = new URL('../../index.html', import.meta.url);
 
 function createBuilder(state, table) {
     const builder = {
@@ -146,4 +147,15 @@ test('profile source is tenant-owned and account email is read-only', () => {
     assert.doesNotMatch(source, /eq\(['"]user_id['"]/);
     assert.match(source, /academyProfileEmail/);
     assert.match(source, /readOnly\s*=\s*true|readonly/i);
+});
+
+test('index exposes Meu Perfil and loads profile assets after core script', () => {
+    const html = fs.readFileSync(indexUrl, 'utf8');
+    assert.match(html, /id="academyProfileBtn"[^>]*>Meu Perfil<\/button>/);
+    assert.match(html, /\.\/css\/academy-profile\.css/);
+    assert.match(html, /\.\/js\/features\/academy-profile\.js\?v=\d+/);
+    assert.ok(
+        html.indexOf('./js/features/academy-profile.js') > html.indexOf('./js/core/script.js'),
+        'academy profile must load after db/currentUser core declarations'
+    );
 });

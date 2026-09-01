@@ -17,4 +17,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test app/js/tests/academy-profile-bootstrap-backfill.test.mjs
+      - name: Verify legacy identity bootstrap contract
+        run: node --test app/js/tests/academy-profile-bootstrap-backfill.test.mjs

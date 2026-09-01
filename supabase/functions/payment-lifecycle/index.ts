@@ -48,7 +48,17 @@ Deno.serve(async (req: Request) => {
       .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
       .eq("id", studentId).single();
     if (studentError || !student) return json({ error: "Student not found" }, 404);
-    if (student.user_id !== user.id) return json({ error: "Forbidden" }, 403);
+    if (!student.academy_id) return json({ error: "Academy not resolved" }, 409);
+
+    const { data: membership, error: membershipError } = await admin.from("academy_members")
+      .select("academy_id,role,is_active")
+      .eq("academy_id", student.academy_id)
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (membershipError) throw membershipError;
+    if (!membership) return json({ error: "Forbidden" }, 403);
+
     const paid = paymentIsMarked(student, person, kind, installment);
     const amount = paymentAmount(student, person, kind);
     const { data: activeReceipt } = await admin.from("receipts").select("*")
@@ -80,14 +90,17 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
     }
 
-    const [{ data: academy }, { data: clazz }, { data: settingsRow }] = await Promise.all([
-      admin.from("academy_profiles").select("academy_name,display_name,responsible_name,support_phone").eq("user_id", user.id).maybeSingle(),
+    const [{ data: academy, error: academyError }, { data: clazz }, { data: settingsRow }] = await Promise.all([
+      admin.from("academies").select("name,display_name,responsible_name,support_phone").eq("id", student.academy_id).single(),
       student.class_id ? admin.from("classes").select("name").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
       admin.from("automation_settings").select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled").eq("user_id", user.id).maybeSingle(),
     ]);
+    if (academyError || !academy) return json({ error: "Academy not found" }, 404);
+
     const settings = normalizeAutomationSettings(settingsRow);
     const studentName = (person === "person2" ? student.person2 : student.person1) || "Aluno(a)";
-    const academyName = academy?.academy_name || academy?.display_name || "Academia";
+    const academyName = academy.name;
+    const academyMessageName = academy.display_name || academy.name;
     const label = paymentLabel(kind, installment);
 
     let receipt: any = activeReceipt || null;
@@ -119,10 +132,10 @@ Deno.serve(async (req: Request) => {
       const receiptAmount = paymentReceiptAmount(receipt, amount);
       const pdfBytes = await generateReceiptPdf({
         receiptNumber: receipt.receipt_number,
-        academyName,
-        displayName: academy?.display_name,
-        responsibleName: academy?.responsible_name,
-        supportPhone: academy?.support_phone,
+        academyName: academy.name,
+        displayName: academy.display_name,
+        responsibleName: academy.responsible_name,
+        supportPhone: academy.support_phone,
         studentName,
         className: clazz?.name || "Sem turma",
         paymentLabel: label,
@@ -193,7 +206,7 @@ Deno.serve(async (req: Request) => {
       if (settings.payment_confirmation_enabled) {
         const confirmation = buildTemplatePayload({
           to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR",
-          bodyParameters: [studentName, academyName, label, money(notificationAmount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
+          bodyParameters: [studentName, academyMessageName, label, money(notificationAmount), receipt.receipt_number, academy.responsible_name || "responsável da academia", academy.support_phone || "contato da academia"],
         });
         whatsapp.payment_confirmation = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
       }
@@ -208,7 +221,7 @@ Deno.serve(async (req: Request) => {
     } else if (eligible && metaReady && receipt && action === "void" && settings.void_notification_enabled) {
       const payload = buildTemplatePayload({
         to: normalizeRecipientPhone(phone)!, templateName: TEMPLATE_NAMES.paymentVoided, languageCode: "pt_BR",
-        bodyParameters: [studentName, academyName, label, money(notificationAmount), receipt.receipt_number, academy?.responsible_name || "responsável da academia", academy?.support_phone || "contato da academia"],
+        bodyParameters: [studentName, academyMessageName, label, money(notificationAmount), receipt.receipt_number, academy.responsible_name || "responsável da academia", academy.support_phone || "contato da academia"],
       });
       whatsapp.payment_voided = await sendLogged("payment_voided", payload, `payment:${receipt.id}:voided`);
     }

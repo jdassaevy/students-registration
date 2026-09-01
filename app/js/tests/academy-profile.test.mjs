@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const moduleUrl = new URL('../features/academy-profile.js', import.meta.url);
 const indexUrl = new URL('../../index.html', import.meta.url);
+const configUrl = new URL('../core/supabase-config.js', import.meta.url);
 
 function createBuilder(state, table) {
     const builder = {
@@ -158,4 +159,10 @@ test('index exposes Meu Perfil and loads profile assets after core script', () =
         html.indexOf('./js/features/academy-profile.js') > html.indexOf('./js/core/script.js'),
         'academy profile must load after db/currentUser core declarations'
     );
+});
+
+test('legacy user-owned academy settings are no longer injected', () => {
+    const source = fs.readFileSync(configUrl, 'utf8');
+    assert.doesNotMatch(source, /academy-settings\.js/);
+    assert.doesNotMatch(source, /loadAcademySettings/);
 });

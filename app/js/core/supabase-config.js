@@ -27,6 +27,17 @@ if (
 }
 
 window.addEventListener('load', () => {
+    const loadStudentWhatsappContact = () => {
+        if (document.querySelector('script[data-student-whatsapp-contact]'))
+            return;
+        const contactScript = document.createElement('script');
+        contactScript.src = './js/features/student-whatsapp-contact.js?v=1';
+        contactScript.dataset.studentWhatsappContact = 'true';
+        document
+            .body
+            .appendChild(contactScript);
+    };
+
     const loadAutomationCenter = () => {
         if (document.querySelector('script[data-automation-center]')) 
             return;
@@ -94,6 +105,7 @@ window.addEventListener('load', () => {
             .appendChild(receiptScript);
     };
 
+    loadStudentWhatsappContact();
     loadPaymentAutomation();
     loadAutomationCenter();
 

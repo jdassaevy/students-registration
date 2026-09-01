@@ -1,4 +1,4 @@
-name: Academy profile bootstrap backfill TDD
+name: Academy profile final regression
 
 on:
   push:
@@ -17,5 +17,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verify legacy identity bootstrap contract
-        run: node --test app/js/tests/academy-profile-bootstrap-backfill.test.mjs
+      - name: Run full Node suite
+        run: node --test app/js/tests/*.test.js app/js/tests/*.test.mjs

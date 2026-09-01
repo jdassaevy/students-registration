@@ -29,9 +29,10 @@ test('student contact module exposes optional WhatsApp and consent for both peop
     for (const id of ['p1Phone', 'p1WhatsappConsent', 'p2Phone', 'p2WhatsappConsent']) {
         assert.match(source, new RegExp(id));
     }
+    assert.match(source, /'primeira pessoa'/);
+    assert.match(source, /'segunda pessoa'/);
+    assert.match(source, /WhatsApp da \$\{label\} \(opcional\)/);
     assert.match(source, /Aluno autorizou o recebimento de lembretes, confirmações de pagamento e recibos pelo WhatsApp/);
-    assert.match(source, /WhatsApp da primeira pessoa \(opcional\)/);
-    assert.match(source, /WhatsApp da segunda pessoa \(opcional\)/);
 });
 
 test('student contact save persists phone consent and consent timestamps', () => {
@@ -45,6 +46,7 @@ test('student contact save persists phone consent and consent timestamps', () =>
     ]) {
         assert.match(source, new RegExp(field));
     }
+    assert.match(source, /PaymentAutomation\?\.processSavedStudent/);
 });
 
 test('new contact module is loaded while legacy academy settings stays disabled', () => {

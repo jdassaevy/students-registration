@@ -17,4 +17,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test app/js/tests/student-whatsapp-consent.test.mjs
+      - name: Verify WhatsApp consent regression contract
+        run: node --test app/js/tests/student-whatsapp-consent.test.mjs

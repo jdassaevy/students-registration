@@ -7,7 +7,7 @@ Production database mutation: **none**
 
 ## Current status
 
-Overall: **PENDING — do not merge**
+Overall: **PENDING — final browser check before merge**
 
 ### Automated development gates
 
@@ -18,6 +18,8 @@ Overall: **PENDING — do not merge**
 - [x] Task 3 receipt identity/membership RED → GREEN.
 - [x] Task 3 focused regression: 9 tests passed, 0 failed.
 - [x] Legacy `academy-settings.js` dynamic loader regression added RED → GREEN; the user-owned settings UI is no longer injected.
+- [x] Student WhatsApp phone/consent regression reproduced RED and fixed in a dedicated `student-whatsapp-contact.js` module without restoring legacy academy settings.
+- [x] Full Node suite passed on commit `54a509ea8b2ad52e1a2abd27b907a48a18c29bc9`: 72 tests passed, 0 failed.
 
 ### DEV integration gates
 
@@ -29,15 +31,16 @@ Overall: **PENDING — do not merge**
 - [x] `Owners update own academy` policy uses `is_academy_owner(id)` for both USING and WITH CHECK.
 - [x] Updated `payment-lifecycle` deployed to DEV as version 5, ACTIVE, preserving `verify_jwt=true`.
 - [x] Database advisors checked after migration. No feature-blocking advisory was introduced; existing/intentional SECURITY DEFINER and pre-existing index/auth warnings remain documented by Supabase.
+- [x] User manually validated Meu Perfil save/reload and receipt PDF with official academy identity before the WhatsApp UI regression was found.
+- [x] User manually validated payment/receipt generation after the academy identity changes.
 - [ ] Confirm through a real authenticated Edge Function request that a user without membership receives 403 when attempting another academy's student. Connector has no auth-user/session action, so this is not claimed from privileged SQL simulation.
-- [x] Published isolated preview branch `test/academy-profile-receipts-preview`, wired only to `students-registration-dev`.
-- [ ] Manually edit/save/reload Meu Perfil in preview.
-- [ ] Generate a new receipt in preview and verify official academy name, responsible person and phone in the PDF.
-- [ ] Confirm the new payment and receipt rows created by the manual flow remain tenant scoped.
+- [x] Published isolated preview branch wired only to `students-registration-dev`.
+- [ ] Final browser check: WhatsApp phone and consent controls are visible again for person 1/person 2 and can be saved/edited.
+- [ ] Confirm the new payment and receipt rows created by the final manual flow remain tenant scoped.
 
 ### Final gate
 
-- [ ] Full Node suite passes on final branch tree.
+- [x] Full Node suite passes: 72/72.
 - [ ] Final branch diff contains only approved feature scope.
-- [ ] User manually approves preview behavior.
-- [ ] User explicitly approves merge to `main`.
+- [ ] User manually approves the final preview after WhatsApp consent restoration.
+- [ ] User explicitly approves merge to `main` after final preview validation.

@@ -49,17 +49,6 @@ window.addEventListener('load', () => {
             .appendChild(automationScript);
     };
 
-    const loadAcademySettings = () => {
-        if (document.querySelector('script[data-academy-settings]')) 
-            return;
-        const settingsScript = document.createElement('script');
-        settingsScript.src = './js/features/academy-settings.js?v=1';
-        settingsScript.dataset.academySettings = 'true';
-        document
-            .body
-            .appendChild(settingsScript);
-    };
-
     const loadDueDates = () => {
         if (document.querySelector('script[data-due-dates]')) 
             return;
@@ -106,7 +95,6 @@ window.addEventListener('load', () => {
     };
 
     loadPaymentAutomation();
-    loadAcademySettings();
     loadAutomationCenter();
 
     if (document.querySelector('script[data-money-input]')) {

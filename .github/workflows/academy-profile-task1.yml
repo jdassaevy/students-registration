@@ -17,4 +17,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test app/js/tests/academy-profile-schema.test.mjs
+      - run: node --test app/js/tests/academy-profile-schema.test.mjs app/js/tests/multi-academy-schema.test.mjs

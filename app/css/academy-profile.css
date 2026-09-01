@@ -1,0 +1,221 @@
+.academy-profile-dialog {
+    width: min(720px, calc(100vw - 28px));
+    max-height: min(88vh, 820px);
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, .9);
+    border-radius: 24px;
+    background: rgba(255, 253, 248, .97);
+    box-shadow: 0 34px 90px rgba(52, 21, 15, .26), 0 8px 24px rgba(52, 21, 15, .10);
+    overflow: auto;
+}
+
+.academy-profile-dialog::backdrop {
+    background: rgba(38, 18, 13, .42);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.academy-profile-shell {
+    padding: 28px;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.academy-profile-dialog[open] .academy-profile-shell {
+    animation: academy-profile-enter 180ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.academy-profile-dialog.is-closing .academy-profile-shell {
+    opacity: 0;
+    transform: translateY(5px);
+    transition: opacity 120ms ease-out, transform 120ms cubic-bezier(.4, 0, 1, 1);
+}
+
+.academy-profile-head,
+.academy-profile-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.academy-profile-head {
+    margin-bottom: 24px;
+}
+
+.academy-profile-head h2,
+.academy-profile-section h3 {
+    margin: 0;
+    color: var(--wine-dark);
+}
+
+.academy-profile-head h2 {
+    margin-top: 4px;
+    font-size: clamp(24px, 4vw, 32px);
+}
+
+.academy-profile-head p,
+.academy-profile-section-head p {
+    margin: 7px 0 0;
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.academy-profile-eyebrow {
+    color: var(--wine);
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.academy-profile-form {
+    display: grid;
+    gap: 16px;
+}
+
+.academy-profile-section {
+    padding: 20px;
+    border: 1px solid rgba(91, 33, 24, .10);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .72);
+}
+
+.academy-profile-section-head {
+    display: block;
+    margin-bottom: 16px;
+}
+
+.academy-profile-section-head h3 {
+    font-size: 16px;
+}
+
+.academy-profile-section-head p {
+    font-size: 12px;
+}
+
+.academy-profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.academy-profile-grid .wide {
+    grid-column: 1 / -1;
+}
+
+.academy-profile-account .field {
+    margin: 0;
+}
+
+#academyProfileEmail[readonly] {
+    color: var(--muted);
+    background: rgba(245, 240, 234, .9);
+    cursor: default;
+}
+
+.academy-profile-message {
+    min-height: 20px;
+    margin: 0;
+    color: var(--wine);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.academy-profile-message.is-error {
+    color: #9b2d20;
+}
+
+.academy-profile-form[aria-busy="true"] {
+    opacity: .76;
+}
+
+.academy-profile-form[aria-busy="true"] input {
+    pointer-events: none;
+}
+
+.academy-profile-skeleton {
+    display: grid;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid rgba(91, 33, 24, .08);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .62);
+    overflow: hidden;
+}
+
+.academy-profile-skeleton[hidden] {
+    display: none;
+}
+
+.academy-profile-skeleton span {
+    position: relative;
+    display: block;
+    height: 46px;
+    border-radius: 12px;
+    background: rgba(91, 33, 24, .08);
+    overflow: hidden;
+}
+
+.academy-profile-skeleton span:first-child {
+    height: 66px;
+}
+
+.academy-profile-skeleton span::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 18%, rgba(255, 255, 255, .72) 48%, transparent 78%);
+    transform: translateX(-115%);
+    animation: academy-profile-skeleton 1.1s linear infinite;
+}
+
+#academyProfileSave[aria-busy="true"] {
+    cursor: progress;
+}
+
+@keyframes academy-profile-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes academy-profile-skeleton {
+    to {
+        transform: translateX(115%);
+    }
+}
+
+@media (max-width: 650px) {
+    .academy-profile-shell {
+        padding: 20px;
+    }
+
+    .academy-profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .academy-profile-grid .wide {
+        grid-column: auto;
+    }
+
+    .academy-profile-head {
+        gap: 12px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .academy-profile-dialog[open] .academy-profile-shell,
+    .academy-profile-dialog.is-closing .academy-profile-shell,
+    .academy-profile-skeleton span::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        transform: none !important;
+    }
+}

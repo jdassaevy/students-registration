@@ -27,6 +27,17 @@ if (
 }
 
 window.addEventListener('load', () => {
+    const loadStudentWhatsappContact = () => {
+        if (document.querySelector('script[data-student-whatsapp-contact]'))
+            return;
+        const contactScript = document.createElement('script');
+        contactScript.src = './js/features/student-whatsapp-contact.js?v=1';
+        contactScript.dataset.studentWhatsappContact = 'true';
+        document
+            .body
+            .appendChild(contactScript);
+    };
+
     const loadAutomationCenter = () => {
         if (document.querySelector('script[data-automation-center]')) 
             return;
@@ -47,17 +58,6 @@ window.addEventListener('load', () => {
         document
             .body
             .appendChild(automationScript);
-    };
-
-    const loadAcademySettings = () => {
-        if (document.querySelector('script[data-academy-settings]')) 
-            return;
-        const settingsScript = document.createElement('script');
-        settingsScript.src = './js/features/academy-settings.js?v=1';
-        settingsScript.dataset.academySettings = 'true';
-        document
-            .body
-            .appendChild(settingsScript);
     };
 
     const loadDueDates = () => {
@@ -105,8 +105,8 @@ window.addEventListener('load', () => {
             .appendChild(receiptScript);
     };
 
+    loadStudentWhatsappContact();
     loadPaymentAutomation();
-    loadAcademySettings();
     loadAutomationCenter();
 
     if (document.querySelector('script[data-money-input]')) {

@@ -28,6 +28,18 @@ test('payment-receipt uses tenant academy identity', () => {
     assert.match(source, /academyName:\s*academy\.name/);
 });
 
+test('payment-receipt fails closed on student and class tenant mismatches before PDF reuse', () => {
+    assert.match(source, /select\(["']id,person1,person2,academy_id["']\)/);
+    assert.match(source, /student\.academy_id\s*!==\s*receipt\.academy_id/);
+    assert.match(source, /select\(["']name,academy_id["']\)/);
+    assert.match(source, /classRow\.academy_id\s*!==\s*receipt\.academy_id/);
+
+    const studentTenantCheck = source.indexOf('student.academy_id !== receipt.academy_id');
+    const pdfReuse = source.indexOf('if (receipt.storage_path)');
+    assert.ok(studentTenantCheck >= 0, 'student tenant check must exist');
+    assert.ok(pdfReuse > studentTenantCheck, 'tenant consistency must be validated before reusing an existing PDF');
+});
+
 test('payment-receipt reuses an existing PDF before generating another one', () => {
     assert.match(source, /if\s*\(receipt\.storage_path\)\s*return json\(\{\s*receipt\s*\}\)/);
     assert.match(source, /upload\(storagePath,\s*pdfBytes,[\s\S]*?upsert:\s*true/);

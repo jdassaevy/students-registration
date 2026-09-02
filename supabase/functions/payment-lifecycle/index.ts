@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
+import { requestMonthlyReceiptPdf } from "../_shared/monthly-receipt-delegation.mjs";
 import { isUniqueViolation, paymentAmount, paymentIsMarked, paymentLabel, paymentNotificationAmount, paymentReceiptAmount, receiptActionForState, receiptNeedsPdf } from "../_shared/payment-lifecycle.ts";
 import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 import { buildDocumentPayload, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
@@ -36,6 +37,159 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json().catch(() => ({}));
+    const operation = String(body?.operation || "").trim();
+    const repairReceiptId = String(body?.receipt_id || "").trim();
+
+    if (operation === "repair_monthly_receipt") {
+      if (!repairReceiptId) return json({ error: "receipt_id is required" }, 400);
+
+      const { data: receipt, error: receiptError } = await admin.from("receipts")
+        .select("*").eq("id", repairReceiptId).single();
+      if (receiptError || !receipt) return json({ error: "Receipt not found" }, 404);
+      if (receipt.kind !== "monthly") return json({ error: "Monthly receipt required" }, 400);
+      if (receipt.status !== "active") return json({ error: "Active receipt required" }, 400);
+      if (!receipt.academy_id) return json({ error: "Academy not resolved" }, 409);
+
+      const { data: repairMembership, error: repairMembershipError } = await admin.from("academy_members")
+        .select("academy_id,is_active")
+        .eq("academy_id", receipt.academy_id)
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (repairMembershipError) throw repairMembershipError;
+      if (!repairMembership) return json({ error: "Forbidden" }, 403);
+
+      const { data: repairStudent, error: repairStudentError } = await admin.from("students")
+        .select("id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+        .eq("id", receipt.student_id)
+        .single();
+      if (repairStudentError || !repairStudent) return json({ error: "Student not found" }, 404);
+
+      const { data: repairSettingsRow, error: repairSettingsError } = await admin.from("automation_settings")
+        .select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (repairSettingsError) throw repairSettingsError;
+      const repairSettings = normalizeAutomationSettings(repairSettingsRow);
+
+      const repairPhone = receipt.person === "person2" ? repairStudent.person2_phone : repairStudent.person1_phone;
+      const repairConsent = receipt.person === "person2" ? repairStudent.person2_whatsapp_consent : repairStudent.person1_whatsapp_consent;
+      const repairEligible = isWhatsappEligible({ phone: repairPhone, consent: repairConsent });
+      const repairAccessToken = Deno.env.get("META_ACCESS_TOKEN") || "";
+      const repairPhoneNumberId = Deno.env.get("META_PHONE_NUMBER_ID") || "";
+      const repairGraphVersion = Deno.env.get("META_GRAPH_VERSION") || "v25.0";
+      const repairMetaReady = Boolean(repairAccessToken && repairPhoneNumberId);
+      const repairWhatsapp: Record<string, string> = {
+        receipt_document: repairSettings.receipt_delivery_enabled
+          ? (repairEligible ? (repairMetaReady ? "ready" : "not_configured") : "skipped")
+          : "disabled",
+      };
+
+      let repairedReceipt: any = receipt;
+      try {
+        repairedReceipt = await requestMonthlyReceiptPdf({
+          supabaseUrl,
+          anonKey,
+          authHeader,
+          receiptId: receipt.id,
+        });
+      } catch (error: any) {
+        console.warn("monthly receipt repair remains pending", error?.message || "unknown error");
+        repairWhatsapp.receipt_document = repairSettings.receipt_delivery_enabled
+          ? "pending_pdf"
+          : "disabled";
+        return json({
+          paid: true,
+          action: "repair_pending",
+          receipt,
+          pdf_status: "pending",
+          whatsapp: repairWhatsapp,
+          settings: repairSettings,
+        });
+      }
+
+      async function sendRepairDocument(payload: unknown, idempotencyKey: string) {
+        const { data: existing } = await admin.from("automation_messages").select("id,status")
+          .eq("user_id", user.id).eq("idempotency_key", idempotencyKey).maybeSingle();
+        if (existing) return existing.status;
+
+        const { data: log, error: logError } = await admin.from("automation_messages").insert({
+          user_id: user.id,
+          student_id: repairStudent.id,
+          class_id: repairStudent.class_id,
+          receipt_id: repairedReceipt.id,
+          person: receipt.person,
+          automation_type: "receipt_document",
+          idempotency_key: idempotencyKey,
+          planned_at: new Date().toISOString(),
+          status: "pending",
+        }).select("id").single();
+        if (logError && isUniqueViolation(logError)) {
+          const { data: concurrent } = await admin.from("automation_messages").select("status")
+            .eq("user_id", user.id).eq("idempotency_key", idempotencyKey).single();
+          return concurrent?.status || "pending";
+        }
+        if (logError) throw logError;
+
+        try {
+          const provider = await sendMetaPayload({
+            phoneNumberId: repairPhoneNumberId,
+            accessToken: repairAccessToken,
+            graphVersion: repairGraphVersion,
+            payload,
+          });
+          const providerId = provider?.messages?.[0]?.id ? String(provider.messages[0].id) : null;
+          await admin.from("automation_messages").update({
+            status: "sent",
+            provider_message_id: providerId,
+            executed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", log.id);
+          return "sent";
+        } catch (error: any) {
+          const safe = error?.meta || sanitizeMetaError(error);
+          await admin.from("automation_messages").update({
+            status: "failed",
+            error_code: safe.code ? String(safe.code) : "send_failed",
+            error_message: safe.message,
+            executed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", log.id);
+          return "failed";
+        }
+      }
+
+      if (
+        repairEligible && repairMetaReady && repairSettings.receipt_delivery_enabled &&
+        repairedReceipt.storage_path
+      ) {
+        const to = normalizeRecipientPhone(repairPhone)!;
+        const { data: signed } = await admin.storage.from("receipts")
+          .createSignedUrl(repairedReceipt.storage_path, 3600);
+        if (signed?.signedUrl) {
+          const document = buildDocumentPayload({
+            to,
+            link: signed.signedUrl,
+            filename: `recibo-${repairedReceipt.receipt_number}.pdf`,
+            caption: "Recibo de pagamento",
+          });
+          repairWhatsapp.receipt_document = await sendRepairDocument(
+            document,
+            `payment:${repairedReceipt.id}:document`,
+          );
+        }
+      }
+
+      return json({
+        paid: true,
+        action: "repair",
+        receipt: repairedReceipt,
+        pdf_status: repairedReceipt.storage_path ? "ready" : "pending",
+        whatsapp: repairWhatsapp,
+        settings: repairSettings,
+      });
+    }
+
     const studentId = String(body?.student_id || "").trim();
     const person = body?.person === "person2" ? "person2" : "person1";
     const kind = body?.kind === "entry" ? "entry" : body?.kind === "monthly" ? "monthly" : null;
@@ -105,6 +259,7 @@ Deno.serve(async (req: Request) => {
 
     let receipt: any = activeReceipt || null;
     let repairedPdf = false;
+    let pdfStatus: "ready" | "pending" | "not_applicable" = "not_applicable";
     if (action === "create") {
       const { data, error } = await admin.from("receipts").insert({
         user_id: user.id,
@@ -128,7 +283,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (paid && receiptNeedsPdf(receipt)) {
+    if (paid && kind === "entry" && receiptNeedsPdf(receipt)) {
       const receiptAmount = paymentReceiptAmount(receipt, amount);
       const pdfBytes = await generateReceiptPdf({
         receiptNumber: receipt.receipt_number,
@@ -153,12 +308,15 @@ Deno.serve(async (req: Request) => {
       if (updateError) throw updateError;
       receipt = updated;
       repairedPdf = true;
+      pdfStatus = "ready";
     } else if (action === "void" && receipt) {
       const { data, error } = await admin.from("receipts").update({ status: "voided" })
         .eq("id", receipt.id).eq("status", "active").select().single();
       if (error) throw error;
       receipt = data;
     }
+
+    if (paid && kind === "entry" && receipt?.storage_path) pdfStatus = "ready";
 
     const notificationAmount = paymentNotificationAmount(action, receipt, amount);
     const phone = person === "person2" ? student.person2_phone : student.person1_phone;
@@ -200,25 +358,57 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (eligible && metaReady && receipt && (action === "create" || repairedPdf)) {
-      const to = normalizeRecipientPhone(phone)!;
+    const to = eligible && metaReady && receipt ? normalizeRecipientPhone(phone) : null;
 
-      if (settings.payment_confirmation_enabled) {
-        const confirmation = buildTemplatePayload({
-          to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR",
-          bodyParameters: [studentName, academyMessageName, label, money(notificationAmount), receipt.receipt_number, academy.responsible_name || "responsável da academia", academy.support_phone || "contato da academia"],
-        });
-        whatsapp.payment_confirmation = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
-      }
+    if (
+      to && receipt && settings.payment_confirmation_enabled &&
+      (action === "create" || (kind === "entry" && repairedPdf))
+    ) {
+      const confirmation = buildTemplatePayload({
+        to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR",
+        bodyParameters: [studentName, academyMessageName, label, money(notificationAmount), receipt.receipt_number, academy.responsible_name || "responsável da academia", academy.support_phone || "contato da academia"],
+      });
+      whatsapp.payment_confirmation = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
+    }
 
-      if (settings.receipt_delivery_enabled && receipt.storage_path) {
-        const { data: signed } = await admin.storage.from("receipts").createSignedUrl(receipt.storage_path, 3600);
-        if (signed?.signedUrl) {
-          const document = buildDocumentPayload({ to, link: signed.signedUrl, filename: `recibo-${receipt.receipt_number}.pdf`, caption: "Recibo de pagamento" });
-          whatsapp.receipt_document = await sendLogged("receipt_document", document, `payment:${receipt.id}:document`);
+    if (paid && kind === "monthly" && receipt) {
+      if (receipt.storage_path) {
+        pdfStatus = "ready";
+      } else {
+        try {
+          receipt = await requestMonthlyReceiptPdf({
+            supabaseUrl,
+            anonKey,
+            authHeader,
+            receiptId: receipt.id,
+          });
+          pdfStatus = receipt?.storage_path ? "ready" : "pending";
+          repairedPdf = pdfStatus === "ready";
+        } catch (error: any) {
+          console.warn("monthly receipt PDF remains pending", error?.message || "unknown error");
+          pdfStatus = "pending";
+          whatsapp.receipt_document = settings.receipt_delivery_enabled ? "pending_pdf" : "disabled";
         }
       }
-    } else if (eligible && metaReady && receipt && action === "void" && settings.void_notification_enabled) {
+    }
+
+    if (
+      to && receipt && settings.receipt_delivery_enabled && receipt.storage_path &&
+      (action === "create" || repairedPdf)
+    ) {
+      const { data: signed } = await admin.storage.from("receipts").createSignedUrl(receipt.storage_path, 3600);
+      if (signed?.signedUrl) {
+        const document = buildDocumentPayload({
+          to,
+          link: signed.signedUrl,
+          filename: `recibo-${receipt.receipt_number}.pdf`,
+          caption: "Recibo de pagamento",
+        });
+        whatsapp.receipt_document = await sendLogged("receipt_document", document, `payment:${receipt.id}:document`);
+      }
+    }
+
+    if (eligible && metaReady && receipt && action === "void" && settings.void_notification_enabled) {
       const payload = buildTemplatePayload({
         to: normalizeRecipientPhone(phone)!, templateName: TEMPLATE_NAMES.paymentVoided, languageCode: "pt_BR",
         bodyParameters: [studentName, academyMessageName, label, money(notificationAmount), receipt.receipt_number, academy.responsible_name || "responsável da academia", academy.support_phone || "contato da academia"],
@@ -226,7 +416,14 @@ Deno.serve(async (req: Request) => {
       whatsapp.payment_voided = await sendLogged("payment_voided", payload, `payment:${receipt.id}:voided`);
     }
 
-    return json({ paid, action: repairedPdf && action === "keep" ? "repair" : action, receipt, whatsapp, settings });
+    return json({
+      paid,
+      action: repairedPdf && action === "keep" ? "repair" : action,
+      receipt,
+      whatsapp,
+      settings,
+      pdf_status: pdfStatus,
+    });
   } catch (error) {
     console.error("payment-lifecycle error", error);
     return json({ error: "Could not process payment lifecycle" }, 500);

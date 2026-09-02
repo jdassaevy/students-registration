@@ -9,7 +9,7 @@ Environment: Supabase DEV `lulvvkrrysfmiqtefwnf`
 - [x] delegation client tests
 - [x] lifecycle partial-success/repair tests
 - [x] frontend repair tests
-- [x] full Node suite — 90 tests, 90 pass, 0 fail on feature head `92dfabd07b5aa3f77493d9efbf6526dfe02909b1`
+- [x] full Node suite — 90 tests, 90 pass, 0 fail on implementation head `92dfabd07b5aa3f77493d9efbf6526dfe02909b1`
 - [x] validation-doc head CI passed after implementation (`497539f9eadadae2cbfcf676719df3e0da46a094`)
 
 ## TDD evidence
@@ -64,7 +64,7 @@ A dedicated temporary validation branch was then created:
 - [x] PDF is generated through payment-receipt
 - [ ] payment confirmation Meta delivery succeeds — blocked by existing template parameter mismatch (`132000`); lifecycle recorded one failed attempt and payment/PDF remained successful
 - [x] receipt document is attempted only when PDF exists; DEV Meta rejected delivery with re-engagement error (`131047`)
-- [ ] registration flow remains unchanged — manual regression still pending
+- [x] registration flow remains unchanged
 
 Monthly validation record:
 - payment_event: `a2cfdd17-b7e6-49b6-9182-16baa6cebd17`
@@ -75,7 +75,21 @@ Monthly validation record:
 - active receipt count for identity: 1
 - payment event count for identity: 1
 
-The WhatsApp failures are recorded as separate Meta/configuration issues and did not roll back or duplicate payment/receipt state.
+The WhatsApp failures are separate Meta/configuration issues and did not roll back or duplicate payment/receipt state. The payment-confirmation body parameter list in this feature is unchanged from `main`, so the `132000` template mismatch was not introduced by monthly receipt separation.
+
+### Registration regression
+
+Manual mark/unmark of an enrollment payment completed on DEV using the same preview:
+- receipt: `6231afc0-28e8-49a9-bf99-a6c276a6c6eb`
+- person: `person2`
+- amount: R$ 15.00
+- final student entry-payment flag: false
+- active entry payment events for identity: 0
+- active entry receipts for identity: 0
+- receipt final status: `voided`
+- PDF remains stored at `cd63d9a2-c88c-4203-b19a-18d3e8271733/6231afc0-28e8-49a9-bf99-a6c276a6c6eb.pdf`
+
+This confirms registration stayed on the existing inline lifecycle path and was not routed through the monthly-only receipt worker.
 
 ## Repair flow
 - [x] active monthly receipt with null storage_path shows Gerar PDF
@@ -92,11 +106,12 @@ Restored path: `cd63d9a2-c88c-4203-b19a-18d3e8271733/f7723db4-7462-46e5-94c7-a3a
 - [x] no duplicate active monthly receipts — global DEV duplicate query returned zero rows after repair
 - [x] no duplicate payment confirmation automation rows — global duplicate query returned zero rows
 - [x] no duplicate receipt document automation rows — global duplicate query returned zero rows
-- [ ] cross-tenant receipt generation is rejected — covered by automated source contract; no cross-tenant runtime mutation performed
-- [ ] cross-tenant repair is rejected — covered by automated source contract; no cross-tenant runtime mutation performed
+- [ ] cross-tenant receipt generation runtime rejection — covered by automated source contract; no cross-tenant runtime mutation performed
+- [ ] cross-tenant repair runtime rejection — covered by automated source contract; no cross-tenant runtime mutation performed
 
 ## Final gate
-- [ ] temporary CI workflow removed
-- [ ] preview manually approved after registration regression
+- [ ] final full Node suite on cleaned feature head
+- [ ] temporary CI workflow removed from feature branch
+- [x] preview manually approved after monthly, repair, and registration validation
 - [ ] branch diff reviewed
 - [ ] explicit merge approval received

@@ -15,7 +15,7 @@ jobs:
       - name: Checkout exact feature head
         uses: actions/checkout@v4
         with:
-          ref: 069f40be432cbda67bb5c3dc7ade553baf5cf161
+          ref: 5a2ef199403f68c2ec9c4ddc0ac652149c6d968e
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

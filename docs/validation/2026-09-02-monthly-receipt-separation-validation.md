@@ -59,30 +59,44 @@ A dedicated temporary validation branch was then created:
 - Target: preview only
 
 ## Manual DEV flow
-- [ ] monthly payment records payment_event
-- [ ] active monthly receipt uses same academy_id
-- [ ] PDF is generated through payment-receipt
-- [ ] payment confirmation behavior remains correct
-- [ ] receipt document is sent only when PDF exists
-- [ ] registration flow remains unchanged
+- [x] monthly payment records payment_event
+- [x] active monthly receipt uses same academy_id
+- [x] PDF is generated through payment-receipt
+- [ ] payment confirmation Meta delivery succeeds — blocked by existing template parameter mismatch (`132000`); lifecycle recorded one failed attempt and payment/PDF remained successful
+- [x] receipt document is attempted only when PDF exists; DEV Meta rejected delivery with re-engagement error (`131047`)
+- [ ] registration flow remains unchanged — manual regression still pending
+
+Monthly validation record:
+- payment_event: `a2cfdd17-b7e6-49b6-9182-16baa6cebd17`
+- receipt: `f7723db4-7462-46e5-94c7-a3a4b217b0af`
+- academy_id on both: `a3673ef7-3a90-4817-b263-13b3f7d25b5d`
+- person/installment: `person2`, monthly installment 1
+- amount: R$ 150.00
+- active receipt count for identity: 1
+- payment event count for identity: 1
+
+The WhatsApp failures are recorded as separate Meta/configuration issues and did not roll back or duplicate payment/receipt state.
 
 ## Repair flow
-- [ ] active monthly receipt with null storage_path shows Gerar PDF
-- [ ] repair preserves receipt id
-- [ ] repair preserves payment_event
-- [ ] repair restores storage_path
-- [ ] repair does not duplicate payment confirmation
-- [ ] repair does not duplicate receipt document
+- [x] active monthly receipt with null storage_path shows Gerar PDF
+- [x] repair preserves receipt id — `f7723db4-7462-46e5-94c7-a3a4b217b0af`
+- [x] repair preserves payment_event — `a2cfdd17-b7e6-49b6-9182-16baa6cebd17`
+- [x] repair restores storage_path
+- [x] repair does not duplicate payment confirmation — still exactly 1 row
+- [x] repair does not duplicate receipt document — still exactly 1 row
+- [x] repaired row returns to `Visualizar` in the preview
+
+Restored path: `cd63d9a2-c88c-4203-b19a-18d3e8271733/f7723db4-7462-46e5-94c7-a3a4b217b0af.pdf`.
 
 ## Tenant and idempotency checks
-- [ ] no duplicate active monthly receipts
-- [ ] no duplicate payment confirmation automation rows
-- [ ] no duplicate receipt document automation rows
-- [ ] cross-tenant receipt generation is rejected
-- [ ] cross-tenant repair is rejected
+- [x] no duplicate active monthly receipts — global DEV duplicate query returned zero rows after repair
+- [x] no duplicate payment confirmation automation rows — global duplicate query returned zero rows
+- [x] no duplicate receipt document automation rows — global duplicate query returned zero rows
+- [ ] cross-tenant receipt generation is rejected — covered by automated source contract; no cross-tenant runtime mutation performed
+- [ ] cross-tenant repair is rejected — covered by automated source contract; no cross-tenant runtime mutation performed
 
 ## Final gate
 - [ ] temporary CI workflow removed
-- [ ] preview manually approved
+- [ ] preview manually approved after registration regression
 - [ ] branch diff reviewed
 - [ ] explicit merge approval received

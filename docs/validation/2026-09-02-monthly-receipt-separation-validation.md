@@ -42,11 +42,21 @@ Before deployment, DEV `payment-receipt` version 3 was found to contain logo/sup
 
 No database rows were modified to manufacture a failure state during this snapshot.
 
-## Preview
-- Vercel preview deployment: `dpl_HxYvaY79iNo3zhs99z91BKZSEKsB`
+## Preview isolation correction
+
+The first Vercel preview generated directly from `feat/separate-payment-receipts` still used the repository production Supabase configuration. A manual monthly-payment test therefore reached production before the configuration mismatch was detected.
+
+Impact was limited to one second installment (`person2`, monthly installment 2, R$ 250.00): one `payment_event` and one active receipt were created, with no WhatsApp automation rows. With explicit user approval, the exact test payment was reverted in a guarded transaction: the student payment flag was restored to unpaid, the exact test `payment_event` was deleted, and the receipt was changed to `voided`; its PDF remains stored as audit history.
+
+The unsafe preview must not be reused for DEV validation.
+
+A dedicated temporary validation branch was then created:
+- Branch: `test/separate-payment-receipts-dev-preview`
+- Commit: `03adfaa1b279cdd5cc98247d616fb6d0f5b8f1e3`
+- Only environment-specific change: `app/js/core/supabase-config.js` points to Supabase DEV `lulvvkrrysfmiqtefwnf` using its DEV publishable key.
+- Vercel deployment: `dpl_9MvLS95kQFHw6aJpTXhPmxdc4BMr`
 - State: READY
-- Commit: `497539f9eadadae2cbfcf676719df3e0da46a094`
-- Branch: `feat/separate-payment-receipts`
+- Target: preview only
 
 ## Manual DEV flow
 - [ ] monthly payment records payment_event

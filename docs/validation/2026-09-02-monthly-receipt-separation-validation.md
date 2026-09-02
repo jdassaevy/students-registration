@@ -10,6 +10,7 @@ Environment: Supabase DEV `lulvvkrrysfmiqtefwnf`
 - [x] lifecycle partial-success/repair tests
 - [x] frontend repair tests
 - [x] full Node suite — 90 tests, 90 pass, 0 fail on feature head `92dfabd07b5aa3f77493d9efbf6526dfe02909b1`
+- [x] validation-doc head CI passed after implementation (`497539f9eadadae2cbfcf676719df3e0da46a094`)
 
 ## TDD evidence
 - Task 1 RED: 80 total, 76 pass, 4 expected failures before `payment-receipt` implementation.
@@ -22,8 +23,30 @@ Environment: Supabase DEV `lulvvkrrysfmiqtefwnf`
 - Task 4 GREEN: 90/90.
 
 ## DEV Edge Functions
-- [ ] payment-receipt deployed with verify_jwt=true
-- [ ] payment-lifecycle deployed with verify_jwt=true
+- [x] `payment-receipt` deployed with `verify_jwt=true` — version 4, ACTIVE, hash `b389b327c7b7a02636cb208232f142c1b1e725cd3c61bbeb8316ed58a80e6cfd`.
+- [x] `payment-lifecycle` deployed with `verify_jwt=true` — version 6, ACTIVE, hash `4ba922829ea131aa0d3102fb8a14c31ea11c807701f9395e730478ccc9476749`.
+- [x] Production Edge Functions were not changed during DEV validation.
+
+### DEV divergence handled before deploy
+
+Before deployment, DEV `payment-receipt` version 3 was found to contain logo/support/platform-admin code from the abandoned `feat/multi-academy-platform` branch rather than the current clean incremental architecture. Deployment was paused, the source was traced to that old branch, and only then was the stale DEV function replaced with the version from `feat/separate-payment-receipts`. The old implementation remains recoverable from its historical branch. Production was not affected.
+
+## DEV data snapshot after deploy
+- academies: 5
+- active academy memberships: 5
+- students: 6
+- payment_events: 7
+- receipts: 7
+- active monthly receipts with pending PDF: 0
+- active monthly receipts with ready PDF: 3
+
+No database rows were modified to manufacture a failure state during this snapshot.
+
+## Preview
+- Vercel preview deployment: `dpl_HxYvaY79iNo3zhs99z91BKZSEKsB`
+- State: READY
+- Commit: `497539f9eadadae2cbfcf676719df3e0da46a094`
+- Branch: `feat/separate-payment-receipts`
 
 ## Manual DEV flow
 - [ ] monthly payment records payment_event

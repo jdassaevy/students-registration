@@ -42,7 +42,8 @@ test('repair operation validates the receipt and never sends payment confirmatio
     assert.match(repairBlock, /receipt\.status\s*!==\s*["']active["']/);
     assert.match(repairBlock, /academy_members/);
     assert.match(repairBlock, /requestMonthlyReceiptPdf/);
-    assert.doesNotMatch(repairBlock, /payment_confirmation/);
+    assert.doesNotMatch(repairBlock, /TEMPLATE_NAMES\.paymentConfirmation/);
+    assert.doesNotMatch(repairBlock, /["']payment_confirmation["']/);
     assert.match(repairBlock, /action:\s*["']repair(?:_pending)?["']/);
 });
 

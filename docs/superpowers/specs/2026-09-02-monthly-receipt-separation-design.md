@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-02  
 **Branch:** `feat/separate-payment-receipts`  
-**Status:** Approved design — pending implementation plan
+**Status:** Drafted from approved design — pending user review
 
 ## 1. Context
 
@@ -34,6 +34,7 @@ This change separates receipt PDF generation **only for monthly payments** (`kin
 - Preserve payment confirmation WhatsApp behavior even when PDF generation fails.
 - Keep receipt-document WhatsApp delivery dependent on a successfully generated PDF.
 - Support safe PDF retry/repair without creating duplicate receipts.
+- Add an explicit repair action for active monthly receipts whose PDF is pending.
 - Preserve existing monthly void behavior.
 - Validate the complete flow in DEV before production rollout.
 
@@ -56,6 +57,7 @@ This change separates receipt PDF generation **only for monthly payments** (`kin
 5. **Independent authentication.** `payment-receipt` validates the user and membership itself using the same user JWT; it is not trusted merely because another Edge Function called it.
 6. **Idempotency by reuse.** Existing receipt rows and existing PDFs are reused rather than duplicated.
 7. **Registration is unchanged.** The existing `kind = 'entry'` path remains inside `payment-lifecycle` during this stage.
+8. **The browser does not orchestrate financial side effects.** Normal payment and explicit repair both enter through `payment-lifecycle`; document generation is delegated server-to-server.
 
 ## 4. Target architecture
 
@@ -88,6 +90,22 @@ payment-lifecycle
 payment-lifecycle
 └── if PDF is available and delivery enabled:
        send receipt document WhatsApp
+```
+
+Explicit repair uses the same server-side delegation:
+
+```text
+Histórico de recibos: "Gerar PDF"
+        │
+        ▼
+payment-lifecycle
+operation = repair_monthly_receipt
+receipt_id = <uuid>
+        │
+        ├── authenticate + validate membership
+        ├── require active monthly receipt
+        ├── call payment-receipt with original JWT
+        └── on success, send receipt document only when eligible
 ```
 
 Registration (`kind = 'entry'`) bypasses the new monthly document delegation and keeps its current behavior.
@@ -143,19 +161,43 @@ Payment confirmation WhatsApp remains independent and may still be sent.
 
 Receipt-document WhatsApp must not be sent without a generated PDF.
 
-The response should expose that the PDF is pending so the frontend can show a specific warning rather than a generic lifecycle failure.
+The response exposes that the PDF is pending so the frontend can show a specific warning rather than a generic lifecycle failure.
 
 ### 5.4 Retry / repair
 
-A retry calls `payment-receipt` again for the same `receipt_id`.
+The existing receipts history already identifies rows whose `storage_path` is missing as **PDF pendente**. This stage adds a **Gerar PDF** action only when all of the following are true:
 
-Rules:
+- `receipt.status = 'active'`;
+- `receipt.kind = 'monthly'`;
+- `receipt.storage_path` is null.
 
-- it does not create another receipt;
-- it does not create another `payment_event`;
-- if `storage_path` is already present, it returns/reuses the existing receipt;
-- if `storage_path` is null, it generates/uploads the PDF and updates the same receipt row;
-- when repair succeeds, receipt-document WhatsApp may be sent through the lifecycle flow without resending the original payment confirmation unless the existing automation idempotency rules explicitly require it.
+The button does **not** call `payment-receipt` directly. It invokes `payment-lifecycle` with a dedicated request shape:
+
+```json
+{
+  "operation": "repair_monthly_receipt",
+  "receipt_id": "uuid"
+}
+```
+
+For this operation, `payment-lifecycle` must:
+
+1. authenticate the user;
+2. load the receipt;
+3. require an active monthly receipt with non-null `academy_id`;
+4. validate active membership for `receipt.academy_id`;
+5. make no changes to the student payment state or `payment_events`;
+6. call `payment-receipt` with the original JWT and the same `receipt_id`;
+7. if PDF generation succeeds, send only the receipt document when enabled/eligible;
+8. never resend the original payment confirmation;
+9. return a repair-specific result for the frontend.
+
+Repair invariants:
+
+- no new receipt is created;
+- no new `payment_event` is created;
+- if `storage_path` is already present due to a race, the existing PDF is reused;
+- document delivery remains protected by the existing automation idempotency key.
 
 ### 5.5 Unmark monthly installment
 
@@ -167,6 +209,8 @@ Rules:
 4. send the existing payment-voided WhatsApp when enabled and eligible.
 
 `payment-receipt` does not change payment state and does not perform receipt voiding.
+
+A voided receipt with a missing PDF does not expose the repair action; historical void state is preserved as-is.
 
 ## 6. `payment-receipt` contract
 
@@ -188,10 +232,11 @@ The request must include the same authenticated user JWT in the `Authorization` 
 2. resolve the authenticated user through Supabase Auth;
 3. load the receipt by ID;
 4. require `receipt.kind = 'monthly'`;
-5. require a non-null `receipt.academy_id`;
-6. validate an active `academy_members` row matching both `receipt.academy_id` and the authenticated `user.id`;
-7. reject cross-academy access with `403`;
-8. reject registration receipts with a client error and perform no mutation.
+5. require `receipt.status = 'active'`;
+6. require a non-null `receipt.academy_id`;
+7. validate an active `academy_members` row matching both `receipt.academy_id` and the authenticated `user.id`;
+8. reject cross-academy access with `403`;
+9. reject registration or voided receipts with a client error and perform no mutation.
 
 It must not use `receipt.user_id` as the authoritative authorization mechanism.
 
@@ -220,7 +265,7 @@ The function may keep the current user-based Storage path for this stage to avoi
 
 If the receipt already has `storage_path`, the function returns it without generating a duplicate PDF.
 
-If the receipt is active and `storage_path` is null, it generates and uploads the PDF with `upsert: true`, then persists `storage_path` on the existing row.
+If the active monthly receipt has `storage_path = null`, it generates and uploads the PDF with `upsert: true`, then persists `storage_path` on the existing row.
 
 ## 7. `payment-lifecycle` responsibilities after the change
 
@@ -235,7 +280,8 @@ If the receipt is active and `storage_path` is null, it generates and uploads th
 - payment confirmation WhatsApp;
 - payment void WhatsApp;
 - automation message logging/idempotency;
-- deciding whether receipt-document WhatsApp should be sent.
+- deciding whether receipt-document WhatsApp should be sent;
+- explicit monthly receipt repair orchestration.
 
 ### Removed from the monthly path
 
@@ -259,7 +305,7 @@ A service role may still be used internally by the function after authorization 
 
 Payment confirmation is independent from PDF creation.
 
-Preferred monthly order:
+Preferred initial monthly order:
 
 ```text
 payment saved
@@ -273,25 +319,50 @@ This ensures a Storage/PDF failure cannot suppress acknowledgement of a valid pa
 
 Automation message idempotency keys remain authoritative for preventing duplicate WhatsApp sends.
 
-A PDF repair must not blindly resend the payment confirmation. It may send the receipt document once the PDF becomes available, subject to existing document idempotency.
+During explicit repair:
+
+```text
+payment confirmation is not attempted
+→ monthly PDF is generated/reused
+→ receipt-document WhatsApp is attempted only if eligible
+```
+
+The existing document idempotency key prevents duplicate document delivery if repair is retried.
 
 ## 10. Frontend behavior
 
-The frontend continues calling `payment-lifecycle`; it does not orchestrate multiple Edge Functions.
+### Normal payment
 
-This avoids a browser-level two-call transaction where navigation, connection loss, or tab closure could leave the flow half-completed.
+The frontend continues calling only `payment-lifecycle` for payment state changes; it does not orchestrate multiple Edge Functions.
 
-The lifecycle response should distinguish at least these outcomes for monthly payments:
+This avoids a browser-level two-call transaction where navigation, connection loss, or tab closure could leave the financial flow half-completed.
 
-### Complete success
+The lifecycle response distinguishes at least these outcomes for monthly payments:
+
+#### Complete success
 
 > Pagamento salvo, recibo gerado e automação processada.
 
-### Payment success with PDF pending
+#### Payment success with PDF pending
 
 > Pagamento registrado e confirmação enviada. O PDF do recibo ficou pendente e poderá ser gerado novamente.
 
-The existing generic message should remain a fallback only for truly unknown lifecycle failures.
+The existing generic message remains a fallback only for truly unknown lifecycle failures.
+
+### Explicit repair
+
+In the receipt history, an active monthly receipt with missing `storage_path` shows a **Gerar PDF** button instead of only static “PDF pendente” text.
+
+The button calls `payment-lifecycle` with `operation = repair_monthly_receipt` and `receipt_id`.
+
+While the repair is pending, the button must be disabled to prevent duplicate submissions.
+
+On success, receipts reload and the row changes to the existing **Visualizar** action.
+
+Recommended messages:
+
+- success: **Recibo gerado com sucesso.**
+- failure: **O pagamento continua registrado, mas o PDF ainda não pôde ser gerado.**
 
 ## 11. Error handling
 
@@ -299,7 +370,7 @@ The existing generic message should remain a fallback only for truly unknown lif
 
 Expected categories:
 
-- `400`: invalid/missing receipt ID or receipt is not monthly;
+- `400`: invalid/missing receipt ID, receipt is not monthly, or receipt is not active;
 - `401`: missing/invalid user authentication;
 - `403`: authenticated user is not an active member of the receipt academy;
 - `404`: receipt, student, or academy cannot be resolved;
@@ -307,9 +378,11 @@ Expected categories:
 
 ### `payment-lifecycle`
 
-A delegated PDF `500` must be converted into a partial-success result when the payment state was already persisted successfully.
+A delegated PDF `500` during the initial paid flow must be converted into a partial-success result when the payment state was already persisted successfully.
 
 It must not return a generic payment failure solely because monthly PDF generation failed.
+
+For `repair_monthly_receipt`, PDF failure is returned as a repair failure without changing payment or receipt status.
 
 ## 12. Idempotency and concurrency
 
@@ -321,15 +394,19 @@ Additional monthly PDF invariants:
 - one receipt row is reused during retries;
 - `storage_path != null` means no regeneration is required;
 - `upsert: true` protects Storage retry behavior;
-- concurrent PDF calls must converge on the same receipt/storage path rather than creating additional receipt rows.
+- concurrent PDF calls converge on the same receipt/storage path rather than creating additional receipt rows;
+- repair never creates or deletes financial events;
+- payment confirmation is not repeated during repair;
+- receipt-document delivery remains idempotent.
 
 ## 13. Security requirements
 
 - Both functions require authenticated requests.
 - `payment-receipt` uses `academy_members` membership as authorization.
+- The repair operation in `payment-lifecycle` independently validates membership before delegation.
 - Cross-tenant receipt generation is forbidden.
 - `academy_profiles` must not be used by the new monthly receipt path.
-- Registration receipts are explicitly rejected by the delegated monthly function.
+- Registration and voided receipts are explicitly rejected by the delegated monthly function.
 - Service-role credentials are never exposed to the browser.
 - The original user JWT is forwarded only server-to-server for the delegated request and is not logged.
 
@@ -341,24 +418,28 @@ Implementation follows TDD. Required regression contracts include:
 2. monthly PDF failure → payment remains paid and receipt remains active with null `storage_path`;
 3. payment confirmation WhatsApp can succeed despite PDF failure;
 4. receipt-document WhatsApp is not sent without a PDF;
-5. retry generates the missing PDF on the same receipt;
+5. repair generates the missing PDF on the same receipt;
 6. an existing `storage_path` is reused and no duplicate PDF/receipt is produced;
 7. `payment-receipt` rejects `kind = 'entry'`;
-8. Academy A cannot generate a monthly PDF for Academy B;
-9. unmark monthly payment still removes the event and voids the receipt;
-10. existing PDF remains stored after void;
-11. repaired PDF can trigger document delivery without duplicating payment confirmation;
-12. registration payment regression remains unchanged;
-13. full existing Node suite remains green.
+8. `payment-receipt` rejects voided receipts;
+9. Academy A cannot generate a monthly PDF for Academy B;
+10. repair operation cannot target Academy B from Academy A;
+11. unmark monthly payment still removes the event and voids the receipt;
+12. existing PDF remains stored after void;
+13. repaired PDF can trigger document delivery without duplicating payment confirmation;
+14. the repair button appears only for active monthly receipts with missing PDF;
+15. repair button disables while the request is pending and reloads receipts on success;
+16. registration payment regression remains unchanged;
+17. full existing Node suite remains green.
 
 DEV integration must additionally verify:
 
 - real tenant membership authorization;
 - one complete monthly payment flow;
 - one forced/controlled PDF failure flow if practical;
-- successful retry/repair;
+- successful UI repair through `payment-lifecycle`;
 - receipt and payment rows remain academy-scoped;
-- no duplicate receipt or automation message is created.
+- no duplicate receipt, payment event, payment confirmation, or receipt document is created.
 
 ## 15. Rollout sequence
 
@@ -367,11 +448,12 @@ DEV integration must additionally verify:
 3. Deploy the updated `payment-lifecycle` to DEV only.
 4. Run automated regression suite.
 5. Validate the monthly flow manually in the DEV preview.
-6. Confirm registration behavior is unchanged.
-7. Review final diff and get explicit user approval before merging.
-8. Merge to `main` only after approval.
-9. Deploy production Edge Functions in a safe compatible order.
-10. Verify production versions/status and a post-deploy smoke test.
+6. Validate one PDF-pending → repair flow in the receipts history.
+7. Confirm registration behavior is unchanged.
+8. Review final diff and get explicit user approval before merging.
+9. Merge to `main` only after approval.
+10. Deploy production Edge Functions in a safe compatible order.
+11. Verify production versions/status and a post-deploy smoke test.
 
 ## 16. Success criteria
 
@@ -382,7 +464,8 @@ This stage is complete when:
 - monthly PDF failure cannot undo or misreport a valid payment;
 - WhatsApp payment confirmation is independent from PDF generation;
 - receipt-document delivery happens only after a valid PDF exists;
-- retry repairs the same receipt without duplication;
+- an active monthly receipt with missing PDF can be repaired explicitly without changing financial state;
+- repair reuses the same receipt and does not duplicate payment confirmation or document delivery;
 - tenant authorization is enforced independently by both Edge Functions;
 - enrollment/registration payment behavior is unchanged;
 - DEV and full regressions pass before any production merge/deploy.

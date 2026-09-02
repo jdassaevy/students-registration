@@ -57,10 +57,8 @@ Deno.serve(async (req: Request) => {
     if (membershipError) throw membershipError;
     if (!membership) return json({ error: "Forbidden" }, 403);
 
-    if (receipt.storage_path) return json({ receipt });
-
     const [{ data: student, error: studentError }, { data: academy, error: academyError }] = await Promise.all([
-      admin.from("students").select("id,person1,person2").eq("id", receipt.student_id).single(),
+      admin.from("students").select("id,person1,person2,academy_id").eq("id", receipt.student_id).single(),
       admin.from("academies")
         .select("name,display_name,responsible_name,support_phone")
         .eq("id", receipt.academy_id)
@@ -68,12 +66,16 @@ Deno.serve(async (req: Request) => {
     ]);
     if (studentError || !student) return json({ error: "Student not found" }, 404);
     if (academyError || !academy) return json({ error: "Academy not found" }, 404);
+    if (student.academy_id !== receipt.academy_id) return json({ error: "Receipt tenant mismatch" }, 409);
 
     let className = "Sem turma";
     if (receipt.class_id) {
-      const { data: classRow } = await admin.from("classes").select("name").eq("id", receipt.class_id).maybeSingle();
+      const { data: classRow } = await admin.from("classes").select("name,academy_id").eq("id", receipt.class_id).maybeSingle();
+      if (classRow && classRow.academy_id !== receipt.academy_id) return json({ error: "Receipt tenant mismatch" }, 409);
       if (classRow?.name) className = classRow.name;
     }
+
+    if (receipt.storage_path) return json({ receipt });
 
     const studentName = receipt.person === "person2" ? (student.person2 || student.person1) : student.person1;
     const paymentLabel = `${Number(receipt.installment || 0)}ª Mensalidade`;

@@ -1,0 +1,24 @@
+name: Final monthly receipt CI
+
+on:
+  push:
+    branches:
+      - test/separate-payment-receipts-final-ci
+
+permissions:
+  contents: read
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ea259e5dd28742e1283502b0189481b7a63f63a6
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run full Node suite
+        run: node --test app/js/tests/*.test.js app/js/tests/*.test.mjs

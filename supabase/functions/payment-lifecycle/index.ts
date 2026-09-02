@@ -60,10 +60,13 @@ Deno.serve(async (req: Request) => {
       if (!repairMembership) return json({ error: "Forbidden" }, 403);
 
       const { data: repairStudent, error: repairStudentError } = await admin.from("students")
-        .select("id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+        .select("id,class_id,academy_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
         .eq("id", receipt.student_id)
         .single();
       if (repairStudentError || !repairStudent) return json({ error: "Student not found" }, 404);
+      if (repairStudent.academy_id !== receipt.academy_id) {
+        return json({ error: "Receipt tenant mismatch" }, 409);
+      }
 
       const { data: repairSettingsRow, error: repairSettingsError } = await admin.from("automation_settings")
         .select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled")

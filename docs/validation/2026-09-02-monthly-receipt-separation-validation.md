@@ -1,6 +1,6 @@
 # Monthly Receipt Separation Validation
 
-Date: 2026-09-02
+Date: 2026-09-02 — final verification 2026-09-03
 Branch: `feat/separate-payment-receipts`
 Environment: Supabase DEV `lulvvkrrysfmiqtefwnf`
 
@@ -9,8 +9,9 @@ Environment: Supabase DEV `lulvvkrrysfmiqtefwnf`
 - [x] delegation client tests
 - [x] lifecycle partial-success/repair tests
 - [x] frontend repair tests
-- [x] full Node suite — 90 tests, 90 pass, 0 fail on implementation head `92dfabd07b5aa3f77493d9efbf6526dfe02909b1`
-- [x] validation-doc head CI passed after implementation (`497539f9eadadae2cbfcf676719df3e0da46a094`)
+- [x] implementation suite reached 90/90 before final security review
+- [x] security-review RED reproduced on `069f40be432cbda67bb5c3dc7ade553baf5cf161` — 92 tests, 90 pass, 2 expected tenant-isolation failures
+- [x] security-review GREEN on `5a2ef199403f68c2ec9c4ddc0ac652149c6d968e` — 92 tests, 92 pass, 0 fail
 
 ## TDD evidence
 - Task 1 RED: 80 total, 76 pass, 4 expected failures before `payment-receipt` implementation.
@@ -21,10 +22,12 @@ Environment: Supabase DEV `lulvvkrrysfmiqtefwnf`
 - Task 3 GREEN: 87/87 after narrowing one false-positive test assertion.
 - Task 4 RED: 5 expected frontend repair/feedback failures.
 - Task 4 GREEN: 90/90.
+- Final security RED: receipt worker and repair path lacked explicit referenced-student/class tenant consistency checks; 2 new tests failed as expected.
+- Final security GREEN: `payment-receipt` now validates student/class `academy_id` before PDF reuse/generation, and repair validates the receipt student `academy_id` before delegation; 92/92 passed.
 
 ## DEV Edge Functions
-- [x] `payment-receipt` deployed with `verify_jwt=true` — version 4, ACTIVE, hash `b389b327c7b7a02636cb208232f142c1b1e725cd3c61bbeb8316ed58a80e6cfd`.
-- [x] `payment-lifecycle` deployed with `verify_jwt=true` — version 6, ACTIVE, hash `4ba922829ea131aa0d3102fb8a14c31ea11c807701f9395e730478ccc9476749`.
+- [x] `payment-receipt` deployed with `verify_jwt=true` — version 5, ACTIVE, hash `1ca76f082fa987a096cefdecee928230b21fb64973a1ce39ebb2c3fae6d5ca9b`.
+- [x] `payment-lifecycle` deployed with `verify_jwt=true` — version 7, ACTIVE, hash `8263c1f3746e9a3613eef932bcc272e2969c02528c5c6c3587bf533de9fc925b`.
 - [x] Production Edge Functions were not changed during DEV validation.
 
 ### DEV divergence handled before deploy
@@ -99,19 +102,33 @@ This confirms registration stayed on the existing inline lifecycle path and was 
 - [x] repair does not duplicate payment confirmation — still exactly 1 row
 - [x] repair does not duplicate receipt document — still exactly 1 row
 - [x] repaired row returns to `Visualizar` in the preview
+- [x] repair repeated successfully after final tenant hardening on 2026-09-03
 
 Restored path: `cd63d9a2-c88c-4203-b19a-18d3e8271733/f7723db4-7462-46e5-94c7-a3a4b217b0af.pdf`.
+
+Final hardened repair verification:
+- receipt status: `active`
+- active receipt count for payment identity: 1
+- payment_event count for payment identity: 1
+- payment flag remained paid
+- payment confirmation rows for receipt: 1
+- receipt document rows for receipt: 1
+- Storage object exists as `application/pdf`, 1799 bytes
+- Storage object updated at `2026-09-03 13:04:52+00`
 
 ## Tenant and idempotency checks
 - [x] no duplicate active monthly receipts — global DEV duplicate query returned zero rows after repair
 - [x] no duplicate payment confirmation automation rows — global duplicate query returned zero rows
 - [x] no duplicate receipt document automation rows — global duplicate query returned zero rows
-- [ ] cross-tenant receipt generation runtime rejection — covered by automated source contract; no cross-tenant runtime mutation performed
-- [ ] cross-tenant repair runtime rejection — covered by automated source contract; no cross-tenant runtime mutation performed
+- [x] cross-tenant receipt generation fails closed by explicit student/class academy consistency checks, covered by automated security test
+- [x] cross-tenant repair fails closed by explicit receipt-student academy consistency check, covered by automated security test
+- [x] runtime hardened repair validated using a consistent same-tenant receipt after deploying DEV versions 5/7
 
 ## Final gate
-- [ ] final full Node suite on cleaned feature head
-- [ ] temporary CI workflow removed from feature branch
-- [x] preview manually approved after monthly, repair, and registration validation
-- [ ] branch diff reviewed
+- [x] final full Node suite on cleaned feature code head — 92/92 on `5a2ef199403f68c2ec9c4ddc0ac652149c6d968e`
+- [x] temporary CI workflow absent from feature branch
+- [x] preview manually approved after monthly, repair, registration, and hardened-repair validation
+- [x] branch diff reviewed against `main`; no DEV configuration or temporary workflow in feature diff
+- [x] frontend repair/payment integration reviewed after hardening
+- [ ] exact final documentation head CI
 - [ ] explicit merge approval received

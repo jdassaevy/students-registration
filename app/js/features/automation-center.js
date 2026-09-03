@@ -37,10 +37,10 @@
 
     const friendlyStatus = status => STATUS_LABELS[status] || 'Desconhecido';
     const friendlyType = type => TYPE_LABELS[type] || 'Automação';
-    const canRetry = message => message
+    const canRetry = (message, activeStudents) => Boolean(activeStudents) && message
         ?.status === 'failed' && RETRYABLE_TYPES.has(
             message?.automation_type
-        );
+        ) && activeStudents.has(message?.student_id);
     const metaConnectionState = messages => {
         const items = Array.isArray(messages) ? messages : [];
         const hasAcceptedMessage = items.some(
@@ -211,7 +211,7 @@
     async function loadMessages() {
         const [{data: messages, error: messageError}, {data: students, error: studentError}] = await Promise.all([
             db.from('automation_messages').select('id,student_id,person,automation_type,status,error_code,error_message,provider_message_id,created_at,executed_at,receipt_id').order('created_at', {ascending: false}).limit(50),
-            db.from('students').select('id,person1,person2')
+            db.from('students').select('id,person1,person2').is('archived_at', null)
         ]);
         if (messageError) throw messageError;
         if (studentError) throw studentError;
@@ -258,7 +258,7 @@
         holder.innerHTML = currentMessages.map(message => {
             const date = new Date(message.executed_at || message.created_at);
             const dateText = Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('pt-BR');
-            const retry = canRetry(message)
+            const retry = canRetry(message, studentsById)
                 ? `<button type="button" class="automation-retry" data-retry-message="${message.id}">Reenviar</button>`
                 : '<span></span>';
             const error = message.error_message ? `<span class="automation-error">${safeText(message.error_message)}</span>` : '';
@@ -277,7 +277,7 @@
         if (!userId) return;
         const [profileResult, studentsResult, receiptsResult, settingsResult, duplicatesResult] = await Promise.all([
             db.from('academy_profiles').select('academy_name,responsible_name,support_phone').eq('user_id', userId).maybeSingle(),
-            db.from('students').select('id,person1_phone,person2_phone').limit(500),
+            db.from('students').select('id,person1_phone,person2_phone').is('archived_at', null).limit(500),
             db.from('receipts').select('id,storage_path,status').limit(1),
             db.from('automation_settings').select('user_id').eq('user_id', userId).maybeSingle(),
             db.rpc('find_duplicate_active_receipts').then(result => result).catch(() => ({data: null, error: new Error('rpc unavailable')}))

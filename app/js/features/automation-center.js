@@ -20,6 +20,7 @@
     const RETRYABLE_TYPES = new Set(
         ['payment_confirmation', 'receipt_document', 'payment_voided']
     );
+    const META_SUCCESS_STATUSES = new Set(['sent', 'delivered', 'read']);
     const DEFAULT_SETTINGS = {
         reminders_enabled: true,
         payment_confirmation_enabled: true,
@@ -40,11 +41,43 @@
         ?.status === 'failed' && RETRYABLE_TYPES.has(
             message?.automation_type
         );
+    const metaConnectionState = messages => {
+        const items = Array.isArray(messages) ? messages : [];
+        const hasAcceptedMessage = items.some(
+            message => META_SUCCESS_STATUSES.has(message?.status) && Boolean(message?.provider_message_id)
+        );
+        if (hasAcceptedMessage) {
+            return {
+                key: 'connected',
+                ok: true,
+                title: 'Meta conectada',
+                detail: 'Há envio aceito pela API da Meta.'
+            };
+        }
+        const hasMetaFailure = items.some(
+            message => message?.status === 'failed' && Boolean(message?.error_code || message?.error_message)
+        );
+        if (hasMetaFailure) {
+            return {
+                key: 'problem',
+                ok: false,
+                title: 'Meta com problema',
+                detail: 'A Meta respondeu com erro. Verifique a integração antes de novos envios.'
+            };
+        }
+        return {
+            key: 'unvalidated',
+            ok: false,
+            title: 'Conexão ainda não validada',
+            detail: 'Faça um envio para validar a integração com a Meta.'
+        };
+    };
 
     window.AutomationCenterTest = {
         friendlyStatus,
         friendlyType,
-        canRetry
+        canRetry,
+        metaConnectionState
     };
 
     const nav = document.querySelector('.view-tabs');
@@ -71,7 +104,7 @@
             </div>
             <div class="automation-integration" id="automationIntegrationStatus">
                 <span class="automation-dot waiting"></span>
-                <div><small>WhatsApp Business</small><strong>Aguardando Meta</strong><span>Estrutura pronta para conexão</span></div>
+                <div><small>WhatsApp Business</small><strong>Verificando conexão</strong><span>Carregando histórico de envios</span></div>
             </div>
         </section>
 
@@ -111,7 +144,7 @@
     style.textContent = `
         .automation-view{display:grid;gap:18px}.automation-view[hidden]{display:none!important}
         .automation-hero{padding:23px 25px;display:flex;align-items:center;justify-content:space-between;gap:20px}.automation-hero h2,.automation-card h3{margin:0;color:var(--wine-dark);font-family:Georgia,serif}.automation-hero h2{font-size:clamp(25px,3vw,34px)}.automation-hero p{margin:7px 0 0;color:var(--muted)}
-        .automation-kicker{display:block;margin-bottom:5px;color:var(--terracotta);font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.12em}.automation-integration{display:flex;align-items:center;gap:11px;min-width:220px;padding:13px 15px;border:1px solid var(--line);border-radius:15px;background:rgba(250,247,242,.72)}.automation-integration div{display:grid;gap:2px}.automation-integration small,.automation-integration span{color:var(--muted);font-size:10px}.automation-integration strong{color:var(--wine-dark);font-size:13px}.automation-dot{width:11px;height:11px;border-radius:50%;background:#c99856;box-shadow:0 0 0 4px rgba(201,152,86,.15)}
+        .automation-kicker{display:block;margin-bottom:5px;color:var(--terracotta);font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.12em}.automation-integration{display:flex;align-items:center;gap:11px;min-width:220px;padding:13px 15px;border:1px solid var(--line);border-radius:15px;background:rgba(250,247,242,.72)}.automation-integration div{display:grid;gap:2px}.automation-integration small,.automation-integration span{color:var(--muted);font-size:10px}.automation-integration strong{color:var(--wine-dark);font-size:13px}.automation-dot{width:11px;height:11px;border-radius:50%;background:#c99856;box-shadow:0 0 0 4px rgba(201,152,86,.15)}.automation-dot.connected{background:#477153;box-shadow:0 0 0 4px rgba(71,113,83,.15)}.automation-dot.problem{background:#a13d32;box-shadow:0 0 0 4px rgba(161,61,50,.15)}
         .automation-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.automation-stat{padding:17px;border:1px solid rgba(255,255,255,.76);border-radius:18px;background:var(--surface-glass,rgba(255,253,248,.92));box-shadow:var(--shadow)}.automation-stat small{display:block;color:var(--muted);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}.automation-stat strong{display:block;margin-top:5px;color:var(--wine-dark);font-size:23px}.automation-stat span{display:block;margin-top:3px;color:var(--muted);font-size:10px}
         .automation-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.automation-card{padding:21px 23px}.automation-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;margin-bottom:15px}.automation-card h3{font-size:20px}.automation-fixed{padding:6px 9px;border-radius:999px;background:#f2e7dc;color:var(--wine);font-size:9px;font-weight:850;white-space:nowrap}.automation-setting-list{display:grid;gap:9px}.automation-setting{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:rgba(250,247,242,.6);cursor:pointer}.automation-setting div{display:grid;gap:3px}.automation-setting strong{color:var(--wine-dark);font-size:12px}.automation-setting span{color:var(--muted);font-size:10px}.automation-setting input{width:18px;height:18px;accent-color:var(--wine)}.automation-helper{min-height:16px;margin:10px 1px 0;color:var(--muted);font-size:10px}
         .automation-readiness{display:grid;gap:8px}.automation-check{display:flex;align-items:flex-start;gap:9px;padding:9px 10px;border-radius:11px;background:rgba(250,247,242,.58)}.automation-check b{display:grid;place-items:center;width:19px;height:19px;flex:0 0 19px;border-radius:50%;font-size:10px}.automation-check.ok b{background:#e3efe5;color:#3f6948}.automation-check.pending b{background:#f4e8d6;color:#946c37}.automation-check div{display:grid;gap:2px}.automation-check strong{color:var(--wine-dark);font-size:11px}.automation-check span{color:var(--muted);font-size:9px;line-height:1.35}
@@ -177,7 +210,7 @@
 
     async function loadMessages() {
         const [{data: messages, error: messageError}, {data: students, error: studentError}] = await Promise.all([
-            db.from('automation_messages').select('id,student_id,person,automation_type,status,error_message,created_at,executed_at,receipt_id').order('created_at', {ascending: false}).limit(50),
+            db.from('automation_messages').select('id,student_id,person,automation_type,status,error_code,error_message,provider_message_id,created_at,executed_at,receipt_id').order('created_at', {ascending: false}).limit(50),
             db.from('students').select('id,person1,person2')
         ]);
         if (messageError) throw messageError;
@@ -186,6 +219,7 @@
         studentsById = new Map((students || []).map(item => [item.id, item]));
         renderSummary();
         renderActivity();
+        renderIntegrationStatus();
     }
 
     function renderSummary() {
@@ -198,6 +232,15 @@
         document.getElementById('automationRead').textContent = counts.read || 0;
         document.getElementById('automationFailed').textContent = counts.failed || 0;
         document.getElementById('automationSkipped').textContent = counts.skipped || 0;
+    }
+
+    function renderIntegrationStatus() {
+        const holder = document.getElementById('automationIntegrationStatus');
+        if (!holder) return;
+        const state = metaConnectionState(currentMessages);
+        holder.innerHTML = `
+            <span class="automation-dot ${safeText(state.key)}"></span>
+            <div><small>WhatsApp Business</small><strong>${safeText(state.title)}</strong><span>${safeText(state.detail)}</span></div>`;
     }
 
     function studentNameFor(message) {
@@ -246,6 +289,7 @@
         const duplicateSafe = !duplicatesResult.error && Array.isArray(duplicatesResult.data)
             ? duplicatesResult.data.length === 0
             : true;
+        const metaState = metaConnectionState(currentMessages);
         const checks = [
             {ok: Boolean(profile.academy_name), title: 'Nome da academia', detail: 'Usado nas mensagens e recibos.'},
             {ok: Boolean(profile.responsible_name), title: 'Responsável cadastrado', detail: 'Contato humano para dúvidas do aluno.'},
@@ -255,7 +299,7 @@
             {ok: !receiptsResult.error, title: 'Fluxo de recibos', detail: 'Histórico de recibos acessível.'},
             {ok: Boolean(settingsResult.data), title: 'Preferências de automação', detail: 'Configurações individuais da academia criadas.'},
             {ok: duplicateSafe, title: 'Recibos sem duplicidade', detail: 'Proteção de recibo ativo permanece válida.'},
-            {ok: false, title: 'Conexão com a Meta', detail: 'Aguardando autenticação e credenciais de produção.'}
+            {ok: metaState.ok, title: 'Conexão com a Meta', detail: metaState.detail}
         ];
         document.getElementById('automationReadiness').innerHTML = checks.map(check => `
             <div class="automation-check ${check.ok ? 'ok' : 'pending'}"><b>${check.ok ? '✓' : '!'}</b><div><strong>${safeText(check.title)}</strong><span>${safeText(check.detail)}</span></div></div>`
@@ -266,7 +310,8 @@
         try {
             await ensureSettings();
             renderSettings();
-            await Promise.all([loadMessages(), loadReadiness()]);
+            await loadMessages();
+            await loadReadiness();
         } catch (error) {
             console.warn('automation center load failed', error.message);
             document.getElementById('automationActivity').innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação agora.</div>';

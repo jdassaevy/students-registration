@@ -15,79 +15,73 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply exact Task 2 patch
+      - name: Apply guarded Task 2 patch
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('app/js/core/script.js')
           source = path.read_text()
 
-          old_query = """        db
-              .from('students')
-              .select('*')
-              .order('created_at', {ascending: false})"""
-          new_query = """        db
-              .from('students')
-              .select('*')
-              .is('archived_at', null)
-              .order('created_at', {ascending: false})"""
+          loader_pattern = re.compile(
+              r"(?P<indent>\s*)\.from\('students'\)\n"
+              r"(?P=indent)\.select\('\*'\)\n"
+              r"(?P=indent)\.order\('created_at', \{ascending: false\}\)"
+          )
 
-          query_count = source.count(old_query)
-          if query_count != 2:
-              raise SystemExit(f'Expected exactly 2 unfiltered student loaders, found {query_count}')
-          source = source.replace(old_query, new_query)
+          def add_active_filter(match):
+              indent = match.group('indent')
+              return (
+                  f"{indent}.from('students')\n"
+                  f"{indent}.select('*')\n"
+                  f"{indent}.is('archived_at', null)\n"
+                  f"{indent}.order('created_at', {{ascending: false}})"
+              )
 
-          old_remove = """async function removeCouple(id) {
-              const c = couples.find(x => x.id === id);
-              if (!c || !confirm(
-                  `Excluir o cadastro de ${c.person1}${c.person2
-                      ? ` e ${c.person2}`
-                      : ''}?`
-              )) 
-                  return;
-              const {error} = await db
-                  .from('students')
-                  .delete()
-                  .eq('id', id);
-              if (error) 
-                  return toast('Erro ao excluir.');
-              couples = couples.filter(x => x.id !== id);
-              render();
-              toast('Cadastro excluído.');
-          }"""
+          source, loader_count = loader_pattern.subn(add_active_filter, source)
+          if loader_count != 2:
+              raise SystemExit(f'Expected exactly 2 unfiltered student loaders, found {loader_count}')
 
-          new_remove = """async function removeCouple(id) {
-              const c = couples.find(x => x.id === id);
-              if (!c || !confirm(
-                  `Excluir o cadastro de ${c.person1}${c.person2
-                      ? ` e ${c.person2}`
-                      : ''}?`
-              )) 
-                  return;
+          remove_pattern = re.compile(
+              r"async function removeCouple\(id\) \{[\s\S]*?\n\}(?=\nasync function removeClass\(id\))"
+          )
+          matches = list(remove_pattern.finditer(source))
+          if len(matches) != 1:
+              raise SystemExit(f'Expected exactly 1 removeCouple block, found {len(matches)}')
+          legacy_block = matches[0].group(0)
+          if ".from('students')" not in legacy_block or '.delete()' not in legacy_block:
+              raise SystemExit('removeCouple no longer matches the legacy hard-delete shape')
 
-              const {data, error} = await db.rpc('remove_student_from_operation', {
-                  p_student_id: id
-              });
-
-              if (error || !['archived', 'deleted'].includes(data)) {
-                  console.warn('student removal failed', error?.message || data);
-                  return toast('Não foi possível remover o cadastro.');
-              }
-
-              couples = couples.filter(x => x.id !== id);
-              render();
-              toast(
-                  data === 'archived'
-                      ? 'Cadastro removido. Histórico financeiro preservado.'
-                      : 'Cadastro excluído.'
-              );
-          }"""
-
-          remove_count = source.count(old_remove)
-          if remove_count != 1:
-              raise SystemExit(f'Expected exactly 1 legacy removeCouple block, found {remove_count}')
-          source = source.replace(old_remove, new_remove)
+          new_remove = "\n".join([
+              "async function removeCouple(id) {",
+              "    const c = couples.find(x => x.id === id);",
+              "    if (!c || !confirm(",
+              "        `Excluir o cadastro de ${c.person1}${c.person2",
+              "            ? ` e ${c.person2}`",
+              "            : ''}?`",
+              "    )) ",
+              "        return;",
+              "",
+              "    const {data, error} = await db.rpc('remove_student_from_operation', {",
+              "        p_student_id: id",
+              "    });",
+              "",
+              "    if (error || !['archived', 'deleted'].includes(data)) {",
+              "        console.warn('student removal failed', error?.message || data);",
+              "        return toast('Não foi possível remover o cadastro.');",
+              "    }",
+              "",
+              "    couples = couples.filter(x => x.id !== id);",
+              "    render();",
+              "    toast(",
+              "        data === 'archived'",
+              "            ? 'Cadastro removido. Histórico financeiro preservado.'",
+              "            : 'Cadastro excluído.'",
+              "    );",
+              "}"
+          ])
+          source = source[:matches[0].start()] + new_remove + source[matches[0].end():]
           path.write_text(source)
           PY
       - name: Commit Task 2 implementation when changed

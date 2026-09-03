@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
     { data: automationSettings, error: settingsError },
   ] = await Promise.all([
     admin.from("classes").select("id,user_id,name,start_date").not("start_date", "is", null),
-    admin.from("students").select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,fees,payments").not("class_id", "is", null),
+    admin.from("students").select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,fees,payments").is("archived_at", null).not("class_id", "is", null),
     admin.from("academy_profiles").select("user_id,academy_name,display_name,responsible_name,support_phone"),
     admin.from("automation_settings").select("user_id,reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled"),
   ]);

@@ -28,7 +28,6 @@ jobs:
                   raise SystemExit(f'{label}: expected exactly 1 occurrence, found {count}')
               path.write_text(source.replace(old, new, 1))
 
-          # process-reminders: current automation must never load archived students.
           replace_once(
               'supabase/functions/process-reminders/index.ts',
               'admin.from("students").select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,fees,payments").not("class_id", "is", null)',
@@ -36,7 +35,6 @@ jobs:
               'reminder active-student query'
           )
 
-          # payment-lifecycle: normal payment operations load active students only.
           replace_once(
               'supabase/functions/payment-lifecycle/index.ts',
               '.eq("id", studentId).single();',
@@ -44,7 +42,6 @@ jobs:
               'normal lifecycle active-student guard'
           )
 
-          # Historical receipt repair must still find the archived student, but know its state.
           replace_once(
               'supabase/functions/payment-lifecycle/index.ts',
               '.select("id,class_id,academy_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")',
@@ -52,60 +49,39 @@ jobs:
               'repair archived_at selection'
           )
 
+          old_tenant = '      if (repairStudent.academy_id !== receipt.academy_id) {\n        return json({ error: "Receipt tenant mismatch" }, 409);\n      }\n\n      const { data: repairSettingsRow, error: repairSettingsError }'
+          new_tenant = '      if (repairStudent.academy_id !== receipt.academy_id) {\n        return json({ error: "Receipt tenant mismatch" }, 409);\n      }\n      const repairStudentArchived = Boolean(repairStudent.archived_at);\n\n      const { data: repairSettingsRow, error: repairSettingsError }'
           replace_once(
               'supabase/functions/payment-lifecycle/index.ts',
-              '''      if (repairStudent.academy_id !== receipt.academy_id) {
-        return json({ error: "Receipt tenant mismatch" }, 409);
-      }
-
-      const { data: repairSettingsRow, error: repairSettingsError }''',
-              '''      if (repairStudent.academy_id !== receipt.academy_id) {
-        return json({ error: "Receipt tenant mismatch" }, 409);
-      }
-      const repairStudentArchived = Boolean(repairStudent.archived_at);
-
-      const { data: repairSettingsRow, error: repairSettingsError }''',
+              old_tenant,
+              new_tenant,
               'repair archived state resolution'
           )
 
+          old_status = '      const repairWhatsapp: Record<string, string> = {\n        receipt_document: repairSettings.receipt_delivery_enabled\n          ? (repairEligible ? (repairMetaReady ? "ready" : "not_configured") : "skipped")\n          : "disabled",\n      };'
+          new_status = '      const repairWhatsapp: Record<string, string> = {\n        receipt_document: repairStudentArchived\n          ? "skipped"\n          : repairSettings.receipt_delivery_enabled\n            ? (repairEligible ? (repairMetaReady ? "ready" : "not_configured") : "skipped")\n            : "disabled",\n      };'
           replace_once(
               'supabase/functions/payment-lifecycle/index.ts',
-              '''      const repairWhatsapp: Record<string, string> = {
-        receipt_document: repairSettings.receipt_delivery_enabled
-          ? (repairEligible ? (repairMetaReady ? "ready" : "not_configured") : "skipped")
-          : "disabled",
-      };''',
-              '''      const repairWhatsapp: Record<string, string> = {
-        receipt_document: repairStudentArchived
-          ? "skipped"
-          : repairSettings.receipt_delivery_enabled
-            ? (repairEligible ? (repairMetaReady ? "ready" : "not_configured") : "skipped")
-            : "disabled",
-      };''',
+              old_status,
+              new_status,
               'repair archived status response'
           )
 
+          old_send = '      if (\n        repairEligible && repairMetaReady && repairSettings.receipt_delivery_enabled &&\n        repairedReceipt.storage_path\n      ) {'
+          new_send = '      if (\n        repairEligible && repairMetaReady && repairSettings.receipt_delivery_enabled &&\n        !repairStudentArchived && repairedReceipt.storage_path\n      ) {'
           replace_once(
               'supabase/functions/payment-lifecycle/index.ts',
-              '''      if (
-        repairEligible && repairMetaReady && repairSettings.receipt_delivery_enabled &&
-        repairedReceipt.storage_path
-      ) {''',
-              '''      if (
-        repairEligible && repairMetaReady && repairSettings.receipt_delivery_enabled &&
-        !repairStudentArchived && repairedReceipt.storage_path
-      ) {''',
+              old_send,
+              new_send,
               'repair outbound archive guard'
           )
 
-          # Direct retries must fail before creating a new automation log.
+          old_retry = '    .eq("id", source.student_id)\n    .single();'
+          new_retry = '    .eq("id", source.student_id)\n    .is("archived_at", null)\n    .single();'
           replace_once(
               'supabase/functions/retry-automation-message/index.ts',
-              '''    .eq("id", source.student_id)
-    .single();''',
-              '''    .eq("id", source.student_id)
-    .is("archived_at", null)
-    .single();''',
+              old_retry,
+              new_retry,
               'retry active-student guard'
           )
           PY

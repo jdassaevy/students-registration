@@ -1,0 +1,20 @@
+name: Final WhatsApp Template CI
+
+on:
+  push:
+    branches:
+      - test/whatsapp-payment-confirmation-final-ci
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: df2970a4c5cac14a74cdf0001d9f239e0db6b04b
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run full Node suite
+        run: node --test app/js/tests/*.test.js app/js/tests/*.test.mjs

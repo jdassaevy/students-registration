@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const script = fs.readFileSync(new URL('../core/script.js', import.meta.url), 'utf8');
 const reports = fs.readFileSync(new URL('../features/reports.js', import.meta.url), 'utf8');
+const automation = fs.readFileSync(new URL('../features/automation-center.js', import.meta.url), 'utf8');
 
 test('current student loaders exclude archived rows', () => {
     const activeFilters = script.match(
@@ -34,4 +35,22 @@ test('current revenue history excludes events from archived students', () => {
         reports,
         /reportEvents = \(data \|\| \[\]\)\.filter\(event => activeStudentIds\.has\(event\.student_id\)\)/
     );
+});
+
+test('Automation Center loads active students only', () => {
+    const activeFilters = automation.match(
+        /from\(['"]students['"]\)[\s\S]{0,260}?\.is\(['"]archived_at['"],\s*null\)/g
+    ) || [];
+    assert.ok(
+        activeFilters.length >= 2,
+        'message name map and readiness query must exclude archived students'
+    );
+});
+
+test('Automation Center retry requires the student to still be active', () => {
+    assert.match(
+        automation,
+        /const canRetry = \(message, activeStudents\)[\s\S]{0,260}?activeStudents\.has\(message\?\.student_id\)/
+    );
+    assert.match(automation, /canRetry\(message,\s*studentsById\)/);
 });

@@ -1,0 +1,69 @@
+name: Apply Student Archive Task 4
+
+on:
+  push:
+    branches:
+      - fix/student-archive-removal
+
+permissions:
+  contents: write
+
+jobs:
+  apply-task4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply guarded Task 4 patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/js/features/automation-center.js')
+          source = path.read_text()
+
+          replacements = [
+              (
+                  """    const canRetry = message => message
+                      ?.status === 'failed' && RETRYABLE_TYPES.has(
+                          message?.automation_type
+                      );""",
+                  """    const canRetry = (message, activeStudents) => Boolean(activeStudents) && message
+                      ?.status === 'failed' && RETRYABLE_TYPES.has(
+                          message?.automation_type
+                      ) && activeStudents.has(message?.student_id);"""
+              ),
+              (
+                  "db.from('students').select('id,person1,person2')",
+                  "db.from('students').select('id,person1,person2').is('archived_at', null)"
+              ),
+              (
+                  "db.from('students').select('id,person1_phone,person2_phone').limit(500)",
+                  "db.from('students').select('id,person1_phone,person2_phone').is('archived_at', null).limit(500)"
+              ),
+              (
+                  "const retry = canRetry(message)",
+                  "const retry = canRetry(message, studentsById)"
+              )
+          ]
+
+          for old, new in replacements:
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly 1 occurrence for Task 4 patch, found {count}: {old[:80]!r}')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source)
+          PY
+      - name: Commit Task 4 implementation when changed
+        run: |
+          if git diff --quiet -- app/js/features/automation-center.js; then
+            echo 'Task 4 patch already applied; nothing to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/js/features/automation-center.js
+          git commit -m 'fix: keep archived students out of automation actions'
+          git push origin HEAD:fix/student-archive-removal

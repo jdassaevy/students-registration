@@ -7,6 +7,7 @@ const migrationUrl = new URL('../../../supabase/migrations/20260903203000_studen
 const migrationPath = fileURLToPath(migrationUrl);
 const migrationExists = fs.existsSync(migrationPath);
 const migration = migrationExists ? fs.readFileSync(migrationPath, 'utf8') : '';
+const beforeFunction = migration.split(/create or replace function/i)[0] || '';
 
 test('student archive migration exists', () => {
     assert.equal(migrationExists, true, 'student archive migration must exist');
@@ -15,9 +16,9 @@ test('student archive migration exists', () => {
 test('students gain a nullable archive marker without backfill', () => {
     assert.match(migration, /add column if not exists archived_at timestamptz/i);
     assert.doesNotMatch(
-        migration,
-        /update\s+public\.students\s+set\s+archived_at\s*=\s*(?!now\(\))/i,
-        'migration must not backfill existing students as archived'
+        beforeFunction,
+        /update\s+public\.students\s+set\s+archived_at/i,
+        'migration setup must not backfill existing students as archived'
     );
 });
 

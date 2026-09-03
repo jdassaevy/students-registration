@@ -14,5 +14,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Run payment lifecycle template test
-        run: node --test app/js/tests/payment-lifecycle-monthly-receipt.test.mjs
+      - name: Run full Node suite
+        run: node --test app/js/tests/*.test.js app/js/tests/*.test.mjs

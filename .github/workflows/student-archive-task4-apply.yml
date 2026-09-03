@@ -19,21 +19,27 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('app/js/features/automation-center.js')
           source = path.read_text()
 
+          retry_pattern = re.compile(
+              r"(?ms)^\s*const canRetry = message => message.*?(?=^\s*const metaConnectionState = messages =>)"
+          )
+          retry_matches = list(retry_pattern.finditer(source))
+          if len(retry_matches) != 1:
+              raise SystemExit(f'Expected exactly 1 legacy canRetry block, found {len(retry_matches)}')
+          match = retry_matches[0]
+          retry_block = "\n".join([
+              "    const canRetry = (message, activeStudents) => Boolean(activeStudents) && message",
+              "        ?.status === 'failed' && RETRYABLE_TYPES.has(",
+              "            message?.automation_type",
+              "        ) && activeStudents.has(message?.student_id);",
+          ]) + "\n"
+          source = source[:match.start()] + retry_block + source[match.end():]
+
           replacements = [
-              (
-                  """    const canRetry = message => message
-                      ?.status === 'failed' && RETRYABLE_TYPES.has(
-                          message?.automation_type
-                      );""",
-                  """    const canRetry = (message, activeStudents) => Boolean(activeStudents) && message
-                      ?.status === 'failed' && RETRYABLE_TYPES.has(
-                          message?.automation_type
-                      ) && activeStudents.has(message?.student_id);"""
-              ),
               (
                   "db.from('students').select('id,person1,person2')",
                   "db.from('students').select('id,person1,person2').is('archived_at', null)"

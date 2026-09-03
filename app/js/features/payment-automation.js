@@ -7,6 +7,32 @@ function paymentAutomationSummary(whatsapp) {
     return 'processed';
 }
 
+function paymentLifecycleMessage(data) {
+    if (!data) return null;
+
+    if (data.action === 'repair') return 'Recibo gerado com sucesso.';
+    if (data.action === 'repair_pending') {
+        return 'O pagamento continua registrado, mas o PDF ainda não pôde ser gerado.';
+    }
+
+    if (data.pdf_status === 'pending') {
+        const confirmation = data.whatsapp?.payment_confirmation;
+        const sent = ['sent', 'delivered', 'read'].includes(confirmation);
+        return sent
+            ? 'Pagamento registrado e confirmação enviada. O PDF do recibo ficou pendente e poderá ser gerado novamente.'
+            : 'Pagamento registrado. O PDF do recibo ficou pendente e poderá ser gerado novamente.';
+    }
+
+    if (data.action === 'create') {
+        const summary = paymentAutomationSummary(data.whatsapp);
+        return summary === 'processed'
+            ? 'Pagamento salvo, recibo gerado e automação processada.'
+            : 'Pagamento salvo e recibo PDF gerado.';
+    }
+    if (data.action === 'void') return 'Pagamento desmarcado e recibo estornado.';
+    return null;
+}
+
 function collectPaymentChanges(before, after) {
     if (!after) return [];
     const previous = before || {};
@@ -46,7 +72,12 @@ async function processSavedStudent(before, after, processor) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {collectPaymentChanges, paymentAutomationSummary, processSavedStudent};
+    module.exports = {
+        collectPaymentChanges,
+        paymentAutomationSummary,
+        paymentLifecycleMessage,
+        processSavedStudent
+    };
 }
 
 if (typeof window !== 'undefined') {
@@ -60,21 +91,30 @@ if (typeof window !== 'undefined') {
                 });
                 if (error) throw error;
                 if (window.Receipts?.load) await window.Receipts.load();
-                if (data?.action === 'create') {
-                    const summary = paymentAutomationSummary(data.whatsapp);
-                    toast(summary === 'processed'
-                        ? 'Pagamento salvo, recibo gerado e automação processada.'
-                        : 'Pagamento salvo e recibo PDF gerado.');
-                } else if (data?.action === 'repair') {
-                    toast('Recibo pendente recuperado e automação processada.');
-                } else if (data?.action === 'void') {
-                    toast('Pagamento desmarcado e recibo estornado.');
-                }
+                const message = paymentLifecycleMessage(data);
+                if (message) toast(message);
                 window.dispatchEvent(new CustomEvent('payment:lifecycle', {detail: data || {}}));
                 return data || {};
             } catch (error) {
                 console.error('payment lifecycle failed', error);
                 toast('Pagamento atualizado, mas a automação do recibo precisa ser verificada.');
+                return null;
+            }
+        }
+
+        async function repairMonthlyReceipt(receiptId) {
+            try {
+                const {data, error} = await db.functions.invoke('payment-lifecycle', {
+                    body: {operation: 'repair_monthly_receipt', receipt_id: receiptId}
+                });
+                if (error) throw error;
+                const message = paymentLifecycleMessage(data);
+                if (message) toast(message);
+                window.dispatchEvent(new CustomEvent('payment:lifecycle', {detail: data || {}}));
+                return data || {};
+            } catch (error) {
+                console.error('monthly receipt repair failed', error);
+                toast('O pagamento continua registrado, mas o PDF ainda não pôde ser gerado.');
                 return null;
             }
         }
@@ -102,11 +142,13 @@ if (typeof window !== 'undefined') {
         window.PaymentAutomation = {
             collectPaymentChanges,
             processLifecycle,
+            repairMonthlyReceipt,
             processSavedStudent: (before, after) => processSavedStudent(before, after, processLifecycle)
         };
         window.PaymentAutomationTest = {
             collectPaymentChanges,
             paymentAutomationSummary,
+            paymentLifecycleMessage,
             processSavedStudent
         };
     })();

@@ -1,7 +1,8 @@
 const assert = require('node:assert/strict');
 const {
     collectPaymentChanges,
-    processSavedStudent
+    processSavedStudent,
+    paymentLifecycleMessage
 } = require('../features/payment-automation.js');
 
 const unpaid = {
@@ -49,6 +50,34 @@ assert.deepEqual(
         {person: 'person2', kind: 'monthly', installment: 1, expectedPaid: false}
     ],
     'removing person2 must void their active payment records'
+);
+
+assert.equal(
+    paymentLifecycleMessage({
+        action: 'create',
+        pdf_status: 'pending',
+        whatsapp: {payment_confirmation: 'sent'}
+    }),
+    'Pagamento registrado e confirmação enviada. O PDF do recibo ficou pendente e poderá ser gerado novamente.'
+);
+
+assert.equal(
+    paymentLifecycleMessage({
+        action: 'create',
+        pdf_status: 'pending',
+        whatsapp: {payment_confirmation: 'skipped'}
+    }),
+    'Pagamento registrado. O PDF do recibo ficou pendente e poderá ser gerado novamente.'
+);
+
+assert.equal(
+    paymentLifecycleMessage({action: 'repair', pdf_status: 'ready'}),
+    'Recibo gerado com sucesso.'
+);
+
+assert.equal(
+    paymentLifecycleMessage({action: 'repair_pending', pdf_status: 'pending'}),
+    'O pagamento continua registrado, mas o PDF ainda não pôde ser gerado.'
 );
 
 (async () => {

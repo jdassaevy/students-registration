@@ -3,9 +3,9 @@
         kind,
         installment = 0
     } = {}) {
-        if (kind === 'entry') 
+        if (kind === 'entry')
             return 'Inscrição';
-        if (kind === 'monthly' && installment >= 1 && installment <= 3) 
+        if (kind === 'monthly' && installment >= 1 && installment <= 3)
             return `${installment}ª Mensalidade`;
         return 'Pagamento';
     }
@@ -18,6 +18,15 @@
 
     function canVoidReceipt(receipt) {
         return Boolean(receipt && receipt.status === 'active');
+    }
+
+    function canRepairReceipt(receipt) {
+        return Boolean(
+            receipt &&
+            receipt.kind === 'monthly' &&
+            receipt.status === 'active' &&
+            !receipt.storage_path
+        );
     }
 
     function buildReceiptIdentity({
@@ -42,9 +51,10 @@
         paymentLabel,
         receiptStatusLabel,
         canVoidReceipt,
+        canRepairReceipt,
         buildReceiptIdentity,
         async load() {
-            if (!client) 
+            if (!client)
                 return [];
             const {data, error} = await client
                 .from('receipts')
@@ -80,19 +90,13 @@
                 .find(item => item.status === 'active') || null;
         },
         async open(receipt) {
-            if (
-                !receipt
-                    ?.storage_path || !client
-            ) 
+            if (!receipt?.storage_path || !client)
                 return false;
             const {data, error} = await client
                 .storage
                 .from('receipts')
                 .createSignedUrl(receipt.storage_path, 60);
-            if (
-                error || !data
-                    ?.signedUrl
-            ) 
+            if (error || !data?.signedUrl)
                 return false;
             root.open(data.signedUrl, '_blank', 'noopener,noreferrer');
             return true;
@@ -104,12 +108,13 @@
             paymentLabel,
             receiptStatusLabel,
             canVoidReceipt,
+            canRepairReceipt,
             buildReceiptIdentity
         };
     }
 
     root.Receipts = api;
-    if (!root.document) 
+    if (!root.document)
         return;
     const document = root.document;
     const moneyText = value => Number(value || 0).toLocaleString('pt-BR', {
@@ -123,7 +128,7 @@
 
     function ensureHistoryPanel() {
         const financialView = document.getElementById('financialView');
-        if (!financialView || document.getElementById('receiptHistoryPanel')) 
+        if (!financialView || document.getElementById('receiptHistoryPanel'))
             return;
         const panel = document.createElement('section');
         panel.id = 'receiptHistoryPanel';
@@ -135,61 +140,85 @@
             .getElementById('refreshReceiptsBtn')
             .onclick = () => api.load();
         panel.addEventListener('click', async event => {
-            const button = event
-                .target
-                .closest('[data-open-receipt]');
-            if (!button) 
+            const button = event.target.closest('[data-repair-receipt]');
+            if (button) {
+                const receipt = api.items.find(
+                    item => item.id === button.dataset.repairReceipt
+                );
+                if (!receipt || !canRepairReceipt(receipt))
+                    return;
+                const repairMonthlyReceipt = root.PaymentAutomation?.repairMonthlyReceipt;
+                if (typeof repairMonthlyReceipt !== 'function') {
+                    if (typeof toast === 'function')
+                        toast('A geração do PDF ainda não está disponível.');
+                    return;
+                }
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                try {
+                    await repairMonthlyReceipt(receipt.id);
+                    await api.load();
+                } finally {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
                 return;
-            const receipt = api
-                .items
-                .find(item => item.id === button.dataset.openReceipt);
-            if (!receipt) 
+            }
+
+            const openButton = event.target.closest('[data-open-receipt]');
+            if (!openButton)
+                return;
+            const receipt = api.items.find(
+                item => item.id === openButton.dataset.openReceipt
+            );
+            if (!receipt)
                 return;
             const opened = await api.open(receipt);
-            if (!opened && typeof toast === 'function') 
+            if (!opened && typeof toast === 'function')
                 toast('PDF do recibo ainda não disponível.');
-            }
-        );
+        });
     }
 
     function renderHistory() {
         ensureHistoryPanel();
-            const list = document.getElementById('receiptHistoryList');
-            if (!list) 
-                return;
-            if (!api.items.length) {
-                list.innerHTML = '<div class="empty"><b>Nenhum recibo emitido ainda</b>Os recibos aparecerão aqu' +
-                        'i quando a automação de pagamentos for ativada.</div>';
-                return;
-            }
-            list.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Recibo</th><th>Referente</th><th>Valor</th><th>Data</th><th>Status</th><th>PDF</th></tr></thead><tbody>${api
-                .items
-                .map(item => {
-                    const status = receiptStatusLabel(item.status);
-                    const date = item.paid_at
-                        ? new Date(item.paid_at).toLocaleString('pt-BR')
-                        : '—';
-                    return `<tr><td><strong>${escape(item.receipt_number)}</strong></td><td>${escape(
-                        paymentLabel(item)
-                    )}</td><td>${moneyText(item.amount)}</td><td>${escape(date)}</td><td><span class="pill ${item.status === 'voided'
-                        ? 'pending'
-                        : 'paid'}">${status}</span></td><td>${item.storage_path
-                            ? `<button type="button" class="btn btn-light" data-open-receipt="${item.id}">Visualizar</button>`
-                            : '<span style="color:var(--muted);font-size:11px">PDF pendente</span>'}</td></tr>`;}).join('')}</tbody></table></div>`;
-                }
+        const list = document.getElementById('receiptHistoryList');
+        if (!list)
+            return;
+        if (!api.items.length) {
+            list.innerHTML = '<div class="empty"><b>Nenhum recibo emitido ainda</b>Os recibos aparecerão aqu' +
+                'i quando a automação de pagamentos for ativada.</div>';
+            return;
+        }
+        list.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Recibo</th><th>Referente</th><th>Valor</th><th>Data</th><th>Status</th><th>PDF</th></tr></thead><tbody>${api.items.map(item => {
+            const status = receiptStatusLabel(item.status);
+            const date = item.paid_at
+                ? new Date(item.paid_at).toLocaleString('pt-BR')
+                : '—';
+            const pdfAction = item.storage_path
+                ? `<button type="button" class="btn btn-light" data-open-receipt="${item.id}">Visualizar</button>`
+                : canRepairReceipt(item)
+                    ? `<button type="button" class="btn btn-light" data-repair-receipt="${item.id}">Gerar PDF</button>`
+                    : '<span style="color:var(--muted);font-size:11px">PDF pendente</span>';
+            return `<tr><td><strong>${escape(item.receipt_number)}</strong></td><td>${escape(
+                paymentLabel(item)
+            )}</td><td>${moneyText(item.amount)}</td><td>${escape(date)}</td><td><span class="pill ${item.status === 'voided'
+                ? 'pending'
+                : 'paid'}">${status}</span></td><td>${pdfAction}</td></tr>`;
+        }).join('')}</tbody></table></div>`;
+    }
 
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', () => {
-                        ensureHistoryPanel();
-                        api.load();
-                    }, {once: true});
-                } else {
-                    ensureHistoryPanel();
-                    api.load();
-                }
-            }
-    )(
-        typeof window !== 'undefined'
-            ? window
-            : globalThis
-    );
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            ensureHistoryPanel();
+            api.load();
+        }, {once: true});
+    } else {
+        ensureHistoryPanel();
+        api.load();
+    }
+})(
+    typeof window !== 'undefined'
+        ? window
+        : globalThis
+);

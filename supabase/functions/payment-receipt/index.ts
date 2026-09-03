@@ -43,41 +43,58 @@ Deno.serve(async (req: Request) => {
       .eq("id", receiptId)
       .single();
     if (receiptError || !receipt) return json({ error: "Receipt not found" }, 404);
-    if (receipt.user_id !== user.id) return json({ error: "Forbidden" }, 403);
+    if (receipt.kind !== "monthly") return json({ error: "Monthly receipt required" }, 400);
+    if (receipt.status !== "active") return json({ error: "Active receipt required" }, 400);
+    if (!receipt.academy_id) return json({ error: "Academy not resolved" }, 409);
+
+    const { data: membership, error: membershipError } = await admin
+      .from("academy_members")
+      .select("academy_id,is_active")
+      .eq("academy_id", receipt.academy_id)
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (membershipError) throw membershipError;
+    if (!membership) return json({ error: "Forbidden" }, 403);
 
     const [{ data: student, error: studentError }, { data: academy, error: academyError }] = await Promise.all([
-      admin.from("students").select("id, person1, person2").eq("id", receipt.student_id).single(),
-      admin.from("academy_profiles").select("academy_name, display_name, responsible_name, support_phone").eq("user_id", user.id).maybeSingle(),
+      admin.from("students").select("id,person1,person2,academy_id").eq("id", receipt.student_id).single(),
+      admin.from("academies")
+        .select("name,display_name,responsible_name,support_phone")
+        .eq("id", receipt.academy_id)
+        .single(),
     ]);
     if (studentError || !student) return json({ error: "Student not found" }, 404);
-    if (academyError) return json({ error: "Could not load academy profile" }, 500);
+    if (academyError || !academy) return json({ error: "Academy not found" }, 404);
+    if (student.academy_id !== receipt.academy_id) return json({ error: "Receipt tenant mismatch" }, 409);
 
     let className = "Sem turma";
     if (receipt.class_id) {
-      const { data: classRow } = await admin.from("classes").select("name").eq("id", receipt.class_id).maybeSingle();
+      const { data: classRow } = await admin.from("classes").select("name,academy_id").eq("id", receipt.class_id).maybeSingle();
+      if (classRow && classRow.academy_id !== receipt.academy_id) return json({ error: "Receipt tenant mismatch" }, 409);
       if (classRow?.name) className = classRow.name;
     }
 
+    if (receipt.storage_path) return json({ receipt });
+
     const studentName = receipt.person === "person2" ? (student.person2 || student.person1) : student.person1;
-    const paymentLabel = receipt.kind === "entry"
-      ? "Inscrição"
-      : `${Number(receipt.installment || 0)}ª Mensalidade`;
+    const paymentLabel = `${Number(receipt.installment || 0)}ª Mensalidade`;
 
     const pdfBytes = await generateReceiptPdf({
       receiptNumber: receipt.receipt_number,
-      academyName: academy?.academy_name || academy?.display_name || "Academia",
-      displayName: academy?.display_name,
-      responsibleName: academy?.responsible_name,
-      supportPhone: academy?.support_phone,
+      academyName: academy.name,
+      displayName: academy.display_name,
+      responsibleName: academy.responsible_name,
+      supportPhone: academy.support_phone,
       studentName,
       className,
       paymentLabel,
       amount: Number(receipt.amount || 0),
       paidAt: receipt.paid_at,
-      status: receipt.status,
+      status: "active",
     });
 
-    const storagePath = `${user.id}/${receipt.id}.pdf`;
+    const storagePath = `${receipt.user_id || user.id}/${receipt.id}.pdf`;
     const { error: uploadError } = await admin.storage
       .from("receipts")
       .upload(storagePath, pdfBytes, {
@@ -90,8 +107,8 @@ Deno.serve(async (req: Request) => {
       .from("receipts")
       .update({ storage_path: storagePath })
       .eq("id", receipt.id)
-      .eq("user_id", user.id)
-      .select("id, receipt_number, status, storage_path")
+      .eq("academy_id", receipt.academy_id)
+      .select("*")
       .single();
     if (updateError) throw updateError;
 

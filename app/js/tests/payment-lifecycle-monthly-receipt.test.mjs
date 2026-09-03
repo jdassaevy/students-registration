@@ -67,7 +67,7 @@ test('repair fails closed when receipt student belongs to another academy', () =
     const start = source.indexOf('operation === "repair_monthly_receipt"');
     const end = source.indexOf('const studentId =', start);
     const repairBlock = source.slice(start, end);
-    assert.match(repairBlock, /select\(["']id,class_id,academy_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent["']\)/);
+    assert.match(repairBlock, /select\(["']id,class_id,academy_id,archived_at,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent["']\)/);
     assert.match(repairBlock, /repairStudent\.academy_id\s*!==\s*receipt\.academy_id/);
 });
 

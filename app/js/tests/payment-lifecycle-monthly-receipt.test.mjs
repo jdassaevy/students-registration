@@ -32,6 +32,17 @@ test('monthly PDF failure becomes partial success instead of payment failure', (
     assert.match(source, /pdf_status:\s*pdfStatus/);
 });
 
+test('payment confirmation matches the four approved Meta template variables in order', () => {
+    assert.match(
+        source,
+        /templateName:\s*TEMPLATE_NAMES\.paymentConfirmation[\s\S]*?bodyParameters:\s*\[studentName,\s*label,\s*money\(notificationAmount\),\s*academyMessageName\]/
+    );
+    assert.doesNotMatch(
+        source,
+        /bodyParameters:\s*\[studentName,\s*academyMessageName,\s*label,\s*money\(notificationAmount\),\s*receipt\.receipt_number/
+    );
+});
+
 test('repair operation validates the receipt and never sends payment confirmation', () => {
     const start = source.indexOf('operation === "repair_monthly_receipt"');
     const end = source.indexOf('const studentId =', start);

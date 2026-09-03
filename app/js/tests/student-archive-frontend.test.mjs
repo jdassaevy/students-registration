@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const script = fs.readFileSync(new URL('../core/script.js', import.meta.url), 'utf8');
+const reports = fs.readFileSync(new URL('../features/reports.js', import.meta.url), 'utf8');
 
 test('current student loaders exclude archived rows', () => {
     const activeFilters = script.match(
@@ -25,4 +26,12 @@ test('removeCouple uses the archive-aware RPC', () => {
     );
     assert.match(script, /Cadastro removido\. Histórico financeiro preservado\./);
     assert.match(script, /Cadastro excluído\./);
+});
+
+test('current revenue history excludes events from archived students', () => {
+    assert.match(reports, /const activeStudentIds = new Set\(couples\.map\(c => c\.id\)\)/);
+    assert.match(
+        reports,
+        /reportEvents = \(data \|\| \[\]\)\.filter\(event => activeStudentIds\.has\(event\.student_id\)\)/
+    );
 });

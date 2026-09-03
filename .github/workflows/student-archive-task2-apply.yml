@@ -1,0 +1,103 @@
+name: Apply Student Archive Task 2
+
+on:
+  push:
+    branches:
+      - fix/student-archive-removal
+
+permissions:
+  contents: write
+
+jobs:
+  apply-task2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply exact Task 2 patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/js/core/script.js')
+          source = path.read_text()
+
+          old_query = """        db
+              .from('students')
+              .select('*')
+              .order('created_at', {ascending: false})"""
+          new_query = """        db
+              .from('students')
+              .select('*')
+              .is('archived_at', null)
+              .order('created_at', {ascending: false})"""
+
+          query_count = source.count(old_query)
+          if query_count != 2:
+              raise SystemExit(f'Expected exactly 2 unfiltered student loaders, found {query_count}')
+          source = source.replace(old_query, new_query)
+
+          old_remove = """async function removeCouple(id) {
+              const c = couples.find(x => x.id === id);
+              if (!c || !confirm(
+                  `Excluir o cadastro de ${c.person1}${c.person2
+                      ? ` e ${c.person2}`
+                      : ''}?`
+              )) 
+                  return;
+              const {error} = await db
+                  .from('students')
+                  .delete()
+                  .eq('id', id);
+              if (error) 
+                  return toast('Erro ao excluir.');
+              couples = couples.filter(x => x.id !== id);
+              render();
+              toast('Cadastro excluído.');
+          }"""
+
+          new_remove = """async function removeCouple(id) {
+              const c = couples.find(x => x.id === id);
+              if (!c || !confirm(
+                  `Excluir o cadastro de ${c.person1}${c.person2
+                      ? ` e ${c.person2}`
+                      : ''}?`
+              )) 
+                  return;
+
+              const {data, error} = await db.rpc('remove_student_from_operation', {
+                  p_student_id: id
+              });
+
+              if (error || !['archived', 'deleted'].includes(data)) {
+                  console.warn('student removal failed', error?.message || data);
+                  return toast('Não foi possível remover o cadastro.');
+              }
+
+              couples = couples.filter(x => x.id !== id);
+              render();
+              toast(
+                  data === 'archived'
+                      ? 'Cadastro removido. Histórico financeiro preservado.'
+                      : 'Cadastro excluído.'
+              );
+          }"""
+
+          remove_count = source.count(old_remove)
+          if remove_count != 1:
+              raise SystemExit(f'Expected exactly 1 legacy removeCouple block, found {remove_count}')
+          source = source.replace(old_remove, new_remove)
+          path.write_text(source)
+          PY
+      - name: Commit Task 2 implementation when changed
+        run: |
+          if git diff --quiet -- app/js/core/script.js; then
+            echo 'Task 2 patch already applied; nothing to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/js/core/script.js
+          git commit -m 'fix: remove students with archive-aware flow'
+          git push origin HEAD:fix/student-archive-removal

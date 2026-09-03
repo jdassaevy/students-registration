@@ -16,3 +16,10 @@ jobs:
           node-version: 22
       - name: Run archive schema contract
         run: node app/js/tests/student-archive-schema.test.mjs
+      - name: Run full JavaScript suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in app/js/tests/*.test.js app/js/tests/*.test.mjs; do
+            node "$file"
+          done

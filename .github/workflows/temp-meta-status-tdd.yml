@@ -1,0 +1,32 @@
+name: Temporary Meta status TDD
+
+on:
+  push:
+    branches:
+      - fix/meta-integration-status
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run Meta status contract
+        run: node app/js/tests/automation-meta-status.test.js
+
+      - name: Run frontend JavaScript suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in app/js/tests/*.test.js app/js/tests/*.test.mjs; do
+            node "$file"
+          done

@@ -1,0 +1,45 @@
+name: Apply Student Archive Task 3
+
+on:
+  push:
+    branches:
+      - fix/student-archive-removal
+
+permissions:
+  contents: write
+
+jobs:
+  apply-task3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply guarded Task 3 patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/js/features/reports.js')
+          source = path.read_text()
+          old = "            reportEvents = data || [];"
+          new = "\n".join([
+              "            const activeStudentIds = new Set(couples.map(c => c.id));",
+              "            reportEvents = (data || []).filter(event => activeStudentIds.has(event.student_id));"
+          ])
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly 1 unfiltered reportEvents assignment, found {count}')
+          path.write_text(source.replace(old, new, 1))
+          PY
+      - name: Commit Task 3 implementation when changed
+        run: |
+          if git diff --quiet -- app/js/features/reports.js; then
+            echo 'Task 3 patch already applied; nothing to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/js/features/reports.js
+          git commit -m 'fix: exclude archived students from current reports'
+          git push origin HEAD:fix/student-archive-removal

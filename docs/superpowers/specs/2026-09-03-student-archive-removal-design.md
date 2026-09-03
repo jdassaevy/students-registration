@@ -21,9 +21,10 @@ The desired product behavior is different from a destructive delete: when a stud
 
 1. Make the existing remove action work for students with receipts/history.
 2. Preserve immutable financial/audit evidence.
-3. Exclude archived students from current students, dashboard, class counts, finance totals, reports, due-date operations and future reminder automation.
+3. Exclude archived students from current students, dashboard, class counts, finance totals, reports, due-date operations and future outbound automation.
 4. Keep the user-facing action simple: the existing delete control remains the entry point.
 5. Preserve tenant isolation and existing multi-academy RLS behavior.
+6. Enforce the archived state in backend operations as well as in the UI.
 
 ## Non-goals
 
@@ -110,19 +111,33 @@ For current financial reporting, payment events belonging to archived students m
 
 Historical `payment_events` rows themselves remain in the database unchanged.
 
-## Automation behavior
+## Backend operational guards
+
+Archiving must be enforced server-side so a stale browser, direct function invocation or historical UI action cannot re-activate current operations for an archived student.
+
+### Payment lifecycle
+
+Normal payment lifecycle requests must load only active students. An archived student must not create or void current payment events, receipts or payment WhatsApp notifications through the normal payment-marking operation.
+
+The existing `repair_monthly_receipt` path is historical maintenance. It may continue to repair/generate the stored PDF for an archived student's existing receipt, but the archived student must not become eligible for a new outbound WhatsApp document as part of that repair.
+
+### Reminders
 
 `process-reminders` currently loads students directly from Supabase. It must explicitly exclude rows where `archived_at IS NOT NULL` so archived students never become D-3, D0 or D+3 candidates.
 
-Any current-readiness/student-eligibility query in the Automation Center should also use active students for operational checks.
+### Retry automation
 
-Existing `automation_messages` remain preserved as audit/history. The archive action must not delete historical automation logs.
+Historical `automation_messages` remain preserved for audit. However, an archived student must not be eligible for a new retry send. The Automation Center must not offer the `Reenviar` action when the referenced student is no longer active, and `retry-automation-message` must independently reject archived students as a backend guard.
+
+### Automation readiness/history
+
+Current-readiness and WhatsApp-eligibility checks must use active students only. Historical activity may remain visible as audit history, but it must not create a path back into current outbound automation for archived students.
 
 ## Receipts
 
 Receipts remain untouched and continue referencing the archived `students` row. Keeping the student row is intentional: it preserves referential integrity and historical context.
 
-Receipt history is not part of current financial totals. It may continue to expose historical receipts through the existing receipt-history flow.
+Receipt history is not part of current financial totals. It may continue to expose historical receipts through the existing receipt-history flow. Historical PDF maintenance is permitted, subject to the no-new-outbound-message rule for archived students.
 
 ## Security and tenant isolation
 
@@ -139,6 +154,7 @@ Expected outcomes:
 - `deleted`: no financial history, hard delete succeeded.
 - `archived`: financial history exists, archive succeeded.
 - not found/access denied: no mutation; show a controlled failure.
+- archived backend operation attempt: reject without creating payment/message side effects.
 - unexpected database failure: no local list mutation; log technical detail and show a generic failure.
 
 The frontend must not optimistically remove a student before the database confirms the result.
@@ -162,12 +178,16 @@ Frontend tests must cover:
 - removal result `archived` removes the item from `couples` and uses the archive-success message;
 - removal result `deleted` uses the delete-success message;
 - failed RPC leaves local data intact;
-- report event filtering excludes events whose `student_id` is not in the active student set.
+- report event filtering excludes events whose `student_id` is not in the active student set;
+- archived/historical automation rows do not expose a retry action.
 
-Automation tests must cover:
+Backend automation/payment tests must cover:
 
 - reminder processing query excludes archived students;
-- archived students cannot produce new reminder candidates.
+- archived students cannot produce new reminder candidates;
+- normal `payment-lifecycle` rejects archived students before creating side effects;
+- receipt PDF repair may retain historical maintenance but does not send a new WhatsApp document for an archived student;
+- retry automation rejects archived students even if invoked directly.
 
 The full existing JavaScript test suite must pass after the change.
 
@@ -176,16 +196,17 @@ The full existing JavaScript test suite must pass after the change.
 1. Implement tests first and confirm RED on the current behavior.
 2. Add the migration/RPC and code changes on `fix/student-archive-removal`.
 3. Apply the migration only to the DEV Supabase project first.
-4. Deploy the matching code only to `dev-preview`, preserving the DEV Supabase configuration.
-5. Create controlled DEV fixtures for both paths: one no-history student and one student with history.
-6. Validate hard delete, archive behavior, current financial exclusion and reminder exclusion.
-7. User manually validates DEV.
-8. Only after explicit approval: open/review PR to `main`.
-9. Only after separate explicit approval: merge and apply/deploy production changes.
+4. Deploy the matching Edge Functions only to DEV where required.
+5. Deploy the matching frontend code only to `dev-preview`, preserving the DEV Supabase configuration.
+6. Create controlled DEV fixtures for both paths: one no-history student and one student with history.
+7. Validate hard delete, archive behavior, current financial exclusion, payment guard, retry guard and reminder exclusion.
+8. User manually validates DEV.
+9. Only after explicit approval: open/review PR to `main`.
+10. Only after separate explicit approval: merge and apply/deploy production changes.
 
 ## Production rollout safeguards
 
-Production rollout is intentionally separate because the feature contains a database migration.
+Production rollout is intentionally separate because the feature contains a database migration and backend function changes.
 
 Before production migration/deploy:
 
@@ -193,7 +214,8 @@ Before production migration/deploy:
 - confirm DEV behavior passed;
 - confirm no code path still treats archived students as current operations;
 - take no destructive cleanup action on existing production students automatically;
-- add only the nullable column/function; do not backfill `archived_at` for existing rows.
+- add only the nullable column/function; do not backfill `archived_at` for existing rows;
+- deploy only the Edge Functions proven necessary by the final implementation, using their existing JWT/auth posture.
 
 After production rollout, existing students remain active until a user explicitly uses the remove action.
 
@@ -204,7 +226,8 @@ The feature is complete when:
 - a student with historical receipts can be removed without deleting those receipts;
 - a student with payment history disappears from current operational and financial views after removal;
 - a no-history student is hard-deleted;
-- archived students generate no future reminder candidates;
+- archived students cannot create new payment lifecycle effects, reminder candidates or retry sends;
+- historical receipt PDFs can remain maintainable without sending new outbound WhatsApp messages to archived students;
 - historical receipts, payment events and automation logs remain preserved;
 - there is no archived-students UI;
 - tenant isolation remains intact;

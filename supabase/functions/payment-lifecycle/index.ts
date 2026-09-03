@@ -369,7 +369,7 @@ Deno.serve(async (req: Request) => {
     ) {
       const confirmation = buildTemplatePayload({
         to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR",
-        bodyParameters: [studentName, academyMessageName, label, money(notificationAmount), receipt.receipt_number, academy.responsible_name || "responsável da academia", academy.support_phone || "contato da academia"],
+        bodyParameters: [studentName, label, money(notificationAmount), academyMessageName],
       });
       whatsapp.payment_confirmation = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
     }

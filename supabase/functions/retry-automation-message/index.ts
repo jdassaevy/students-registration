@@ -56,6 +56,7 @@ Deno.serve(async (req: Request) => {
   const { data: student, error: studentError } = await admin.from("students")
     .select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
     .eq("id", source.student_id)
+    .is("archived_at", null)
     .single();
   if (studentError || !student) return json({ error: "Student unavailable" }, 409);
 

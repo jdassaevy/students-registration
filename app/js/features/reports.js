@@ -272,7 +272,8 @@
             reportEvents = [];
             return false;
         }
-        reportEvents = data || [];
+        const activeStudentIds = new Set(couples.map(c => c.id));
+        reportEvents = (data || []).filter(event => activeStudentIds.has(event.student_id));
         return true;
     }
 

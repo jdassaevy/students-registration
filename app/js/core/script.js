@@ -310,6 +310,7 @@ async function loadData() {
         db
             .from('students')
             .select('*')
+            .is('archived_at', null)
             .order('created_at', {ascending: false})
     ]);
     if (classResult.error || studentResult.error) 
@@ -380,6 +381,7 @@ async function migrateLocalData() {
         db
             .from('students')
             .select('*')
+            .is('archived_at', null)
             .order('created_at', {ascending: false})
     ]);
     classes = cr
@@ -830,15 +832,23 @@ async function removeCouple(id) {
             : ''}?`
     )) 
         return;
-    const {error} = await db
-        .from('students')
-        .delete()
-        .eq('id', id);
-    if (error) 
-        return toast('Erro ao excluir.');
+
+    const {data, error} = await db.rpc('remove_student_from_operation', {
+        p_student_id: id
+    });
+
+    if (error || !['archived', 'deleted'].includes(data)) {
+        console.warn('student removal failed', error?.message || data);
+        return toast('Não foi possível remover o cadastro.');
+    }
+
     couples = couples.filter(x => x.id !== id);
     render();
-    toast('Cadastro excluído.');
+    toast(
+        data === 'archived'
+            ? 'Cadastro removido. Histórico financeiro preservado.'
+            : 'Cadastro excluído.'
+    );
 }
 async function removeClass(id) {
     const item = classById(id);

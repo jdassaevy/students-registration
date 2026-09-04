@@ -60,13 +60,14 @@ Deno.serve(async (req: Request) => {
       if (!repairMembership) return json({ error: "Forbidden" }, 403);
 
       const { data: repairStudent, error: repairStudentError } = await admin.from("students")
-        .select("id,class_id,academy_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+        .select("id,class_id,academy_id,archived_at,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
         .eq("id", receipt.student_id)
         .single();
       if (repairStudentError || !repairStudent) return json({ error: "Student not found" }, 404);
       if (repairStudent.academy_id !== receipt.academy_id) {
         return json({ error: "Receipt tenant mismatch" }, 409);
       }
+      const repairStudentArchived = Boolean(repairStudent.archived_at);
 
       const { data: repairSettingsRow, error: repairSettingsError } = await admin.from("automation_settings")
         .select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled")
@@ -83,9 +84,11 @@ Deno.serve(async (req: Request) => {
       const repairGraphVersion = Deno.env.get("META_GRAPH_VERSION") || "v25.0";
       const repairMetaReady = Boolean(repairAccessToken && repairPhoneNumberId);
       const repairWhatsapp: Record<string, string> = {
-        receipt_document: repairSettings.receipt_delivery_enabled
-          ? (repairEligible ? (repairMetaReady ? "ready" : "not_configured") : "skipped")
-          : "disabled",
+        receipt_document: repairStudentArchived
+          ? "skipped"
+          : repairSettings.receipt_delivery_enabled
+            ? (repairEligible ? (repairMetaReady ? "ready" : "not_configured") : "skipped")
+            : "disabled",
       };
 
       let repairedReceipt: any = receipt;
@@ -164,7 +167,7 @@ Deno.serve(async (req: Request) => {
 
       if (
         repairEligible && repairMetaReady && repairSettings.receipt_delivery_enabled &&
-        repairedReceipt.storage_path
+        !repairStudentArchived && repairedReceipt.storage_path
       ) {
         const to = normalizeRecipientPhone(repairPhone)!;
         const { data: signed } = await admin.storage.from("receipts")
@@ -203,7 +206,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: student, error: studentError } = await admin.from("students")
       .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
-      .eq("id", studentId).single();
+      .eq("id", studentId).is("archived_at", null).single();
     if (studentError || !student) return json({ error: "Student not found" }, 404);
     if (!student.academy_id) return json({ error: "Academy not resolved" }, 409);
 

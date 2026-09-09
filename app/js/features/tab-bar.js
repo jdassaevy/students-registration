@@ -3,6 +3,8 @@
     if (!nav || nav.dataset.animatedTabBar === 'true') return;
     nav.dataset.animatedTabBar = 'true';
 
+    const mobileNavQuery = window.matchMedia('(max-width: 768px)');
+
     const TAB_META = {
         dashboardTab: {
             label: 'Visão Geral',
@@ -102,6 +104,11 @@
         if (!animate) requestAnimationFrame(() => indicator.classList.remove('no-transition'));
     }
 
+    function syncOrientation() {
+        nav.dataset.navOrientation = mobileNavQuery.matches ? 'horizontal' : 'vertical';
+        requestAnimationFrame(() => syncIndicator(false));
+    }
+
     function decorateAll() {
         nav.querySelectorAll('.view-tab').forEach(decorateTab);
         requestAnimationFrame(() => syncIndicator(false));
@@ -124,6 +131,13 @@
     const resizeObserver = new ResizeObserver(() => syncIndicator(false));
     resizeObserver.observe(nav);
 
+    if (typeof mobileNavQuery.addEventListener === 'function') {
+        mobileNavQuery.addEventListener('change', syncOrientation);
+    } else {
+        mobileNavQuery.addListener(syncOrientation);
+    }
+
     window.addEventListener('resize', () => syncIndicator(false), {passive: true});
+    syncOrientation();
     decorateAll();
 })();

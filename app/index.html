@@ -8,7 +8,7 @@
                 document.documentElement.dataset.theme = saved === 'light' ? 'light' : 'dark';
             })();
         </script>
-        <link rel="stylesheet" href="./css/design-tokens.css"><link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/academy-onboarding.css"><link rel="stylesheet" href="./css/academy-profile.css"></head>
+        <link rel="stylesheet" href="./css/design-tokens.css"><link rel="stylesheet" href="./css/app-shell.css"><link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/academy-onboarding.css"><link rel="stylesheet" href="./css/academy-profile.css"></head>
     <body>
         <section class="auth-view" id="authView">
             <div class="auth-card">
@@ -27,27 +27,11 @@
                 </div>
                 <form id="authForm" class="auth-form">
                     <div class="field" id="emailField">
-                        <label for="authEmail">E-mail</label><input
-                            type="email"
-                            id="authEmail"
-                            autocomplete="email"
-                            required="required"
-                            placeholder="academia@email.com"></div>
+                        <label for="authEmail">E-mail</label><input type="email" id="authEmail" autocomplete="email" required="required" placeholder="academia@email.com"></div>
                     <div class="field" id="passwordField">
-                        <label for="authPassword">Senha</label><input
-                            type="password"
-                            id="authPassword"
-                            autocomplete="current-password"
-                            minlength="6"
-                            required="required"
-                            placeholder="Mínimo de 6 caracteres"></div>
+                        <label for="authPassword">Senha</label><input type="password" id="authPassword" autocomplete="current-password" minlength="6" required="required" placeholder="Mínimo de 6 caracteres"></div>
                     <div class="field" id="confirmPasswordField" hidden="hidden">
-                        <label for="authPasswordConfirmation">Confirme a nova senha</label><input
-                            type="password"
-                            id="authPasswordConfirmation"
-                            autocomplete="new-password"
-                            minlength="6"
-                            placeholder="Digite novamente a senha"></div>
+                        <label for="authPasswordConfirmation">Confirme a nova senha</label><input type="password" id="authPasswordConfirmation" autocomplete="new-password" minlength="6" placeholder="Digite novamente a senha"></div>
                     <button type="submit" class="btn btn-primary" id="authSubmit">Entrar</button>
                     <p class="auth-message" id="authMessage" role="status"></p>
                 </form>
@@ -58,63 +42,66 @@
             </div>
         </section>
         <div id="appView" hidden="hidden">
-            <header class="topbar">
-                <div class="brand">
-                    <div class="brand-mark"><img
-                        src="./assets/images/dassaevy-labs-mark-transparent.png"
-                        alt="Logotipo da Dassaevy Labs"></div>
-                    <div>
-                        <small>Tecnologia para academias</small>
-                        <strong>Dassaevy Labs</strong>
+            <div class="app-shell">
+                <aside class="app-sidebar" aria-label="Navegação principal">
+                    <div class="app-sidebar-brand">
+                        <div class="brand-mark"><img src="./assets/images/dassaevy-labs-mark-transparent.png" alt="Logotipo da Dassaevy Labs"></div>
+                        <div><small>Tecnologia para academias</small><strong>Dassaevy Labs</strong></div>
                     </div>
-                </div>
-                <div class="top-copy">
-                    <h1>Gestão de alunos</h1>
-                    <p>Inscrições e mensalidades dos casais em um só lugar.</p>
-                </div>
-                <div class="account-bar">
-                    <span id="userEmail"></span>
-                    <button type="button" class="btn btn-account" id="academyProfileBtn">Meu Perfil</button>
-                    <button type="button" class="btn btn-account" id="themeToggle" aria-pressed="false" aria-label="Ativar tema claro">Tema</button>
-                    <button type="button" class="btn btn-account" id="logoutBtn">Sair</button>
-                </div>
-            </header>
-            <main class="app">
-                <nav class="view-tabs" aria-label="Seções do sistema">
-                    <button type="button" class="view-tab active" id="studentsTab">Alunos</button>
-                    <button type="button" class="view-tab" id="financialTab">Financeiro</button>
-                </nav>
-                <div id="studentsView">
-                    <section class="stats" aria-label="Resumo">
-                        <article class="stat"><span>Casais inscritos</span><strong id="statTotal">0</strong></article>
-                        <article class="stat"><span>Inscrições pagas</span><strong id="statEntries">0</strong></article>
-                        <article class="stat"><span>Mensalidades pagas</span><strong id="statPayments">0</strong></article>
-                        <article class="stat"><span>Turmas ativas</span><strong id="statClasses">0</strong></article>
-                    </section>
-                    <section class="panel">
-                        <div class="toolbar">
-                            <div class="search"><input id="search" type="search" placeholder="Buscar pelo nome do casal..." aria-label="Buscar casais"></div>
-                            <div class="toolbar-actions">
-                                <select id="classFilter" class="class-filter" aria-label="Filtrar por turma"><option value="all">Todas as turmas</option><option value="none">Sem turma</option></select>
-                                <button class="btn btn-light" id="exportClassBtn" type="button">⇩ Lista DOCX</button>
-                                <button class="btn btn-light" id="newClassBtn">＋ Nova turma</button>
-                                <button class="btn btn-primary" id="newBtn">＋ Cadastrar casal</button>
-                            </div>
+                    <nav class="view-tabs app-sidebar-nav" aria-label="Seções do sistema">
+                        <button type="button" class="view-tab active" id="studentsTab">Alunos</button>
+                        <button type="button" class="view-tab" id="financialTab">Financeiro</button>
+                    </nav>
+                    <div class="app-sidebar-footer">
+                        <div class="account-bar">
+                            <span id="userEmail"></span>
+                            <button type="button" class="btn btn-account" id="academyProfileBtn">Meu Perfil</button>
+                            <button type="button" class="btn btn-account" id="themeToggle" aria-pressed="false" aria-label="Ativar tema claro">Tema</button>
+                            <button type="button" class="btn btn-account" id="logoutBtn">Sair</button>
                         </div>
-                        <div class="table-wrap"><table><thead><tr><th>Casal</th><th>Turma</th><th>Inscrição</th><th>Mensalidades</th><th>Progresso</th><th>Ações</th></tr></thead><tbody id="list"></tbody></table></div>
-                    </section>
+                    </div>
+                </aside>
+                <div class="app-main">
+                    <header class="app-topbar">
+                        <div class="top-copy">
+                            <h1>Gestão de alunos</h1>
+                            <p>Inscrições e mensalidades dos casais em um só lugar.</p>
+                        </div>
+                    </header>
+                    <main class="app">
+                        <div id="studentsView">
+                            <section class="stats" aria-label="Resumo">
+                                <article class="stat"><span>Casais inscritos</span><strong id="statTotal">0</strong></article>
+                                <article class="stat"><span>Inscrições pagas</span><strong id="statEntries">0</strong></article>
+                                <article class="stat"><span>Mensalidades pagas</span><strong id="statPayments">0</strong></article>
+                                <article class="stat"><span>Turmas ativas</span><strong id="statClasses">0</strong></article>
+                            </section>
+                            <section class="panel">
+                                <div class="toolbar">
+                                    <div class="search"><input id="search" type="search" placeholder="Buscar pelo nome do casal..." aria-label="Buscar casais"></div>
+                                    <div class="toolbar-actions">
+                                        <select id="classFilter" class="class-filter" aria-label="Filtrar por turma"><option value="all">Todas as turmas</option><option value="none">Sem turma</option></select>
+                                        <button class="btn btn-light" id="exportClassBtn" type="button">⇩ Lista DOCX</button>
+                                        <button class="btn btn-light" id="newClassBtn">＋ Nova turma</button>
+                                        <button class="btn btn-primary" id="newBtn">＋ Cadastrar casal</button>
+                                    </div>
+                                </div>
+                                <div class="table-wrap"><table><thead><tr><th>Casal</th><th>Turma</th><th>Inscrição</th><th>Mensalidades</th><th>Progresso</th><th>Ações</th></tr></thead><tbody id="list"></tbody></table></div>
+                            </section>
+                        </div>
+                        <section id="financialView" hidden="hidden">
+                            <div class="financial-head"><div><h2>Controle financeiro</h2><p>Somente pagamentos marcados como recebidos entram nos totais.</p></div><select id="financialClassFilter" class="class-filter" aria-label="Filtrar financeiro por turma"><option value="all">Todas as turmas</option><option value="none">Sem turma</option></select></div>
+                            <section class="stats financial-stats" aria-label="Resumo financeiro">
+                                <article class="stat featured"><span>Total recebido</span><strong id="financialTotal">R$ 0,00</strong></article>
+                                <article class="stat"><span>Inscrições recebidas</span><strong id="financialEntries">R$ 0,00</strong></article>
+                                <article class="stat"><span>Mensalidades recebidas</span><strong id="financialMonthly">R$ 0,00</strong></article>
+                                <article class="stat"><span>Pagamentos recebidos</span><strong id="financialPayments">0</strong></article>
+                            </section>
+                            <section class="panel financial-panel"><div class="table-wrap"><table class="financial-table"><thead><tr><th>Turma</th><th>Alunos</th><th>Inscrições</th><th>Mensalidades</th><th>Total recebido</th></tr></thead><tbody id="financialList"></tbody></table></div></section>
+                        </section>
+                    </main>
                 </div>
-                <section id="financialView" hidden="hidden">
-                    <div class="financial-head"><div><h2>Controle financeiro</h2><p>Somente pagamentos marcados como recebidos entram nos totais.</p></div><select id="financialClassFilter" class="class-filter" aria-label="Filtrar financeiro por turma"><option value="all">Todas as turmas</option><option value="none">Sem turma</option></select></div>
-                    <section class="stats financial-stats" aria-label="Resumo financeiro">
-                        <article class="stat featured"><span>Total recebido</span><strong id="financialTotal">R$ 0,00</strong></article>
-                        <article class="stat"><span>Inscrições recebidas</span><strong id="financialEntries">R$ 0,00</strong></article>
-                        <article class="stat"><span>Mensalidades recebidas</span><strong id="financialMonthly">R$ 0,00</strong></article>
-                        <article class="stat"><span>Pagamentos recebidos</span><strong id="financialPayments">0</strong></article>
-                    </section>
-                    <section class="panel financial-panel"><div class="table-wrap"><table class="financial-table"><thead><tr><th>Turma</th><th>Alunos</th><th>Inscrições</th><th>Mensalidades</th><th>Total recebido</th></tr></thead><tbody id="financialList"></tbody></table></div></section>
-                </section>
-            </main>
+            </div>
             <dialog id="modal">
                 <div class="modal-head"><div><h2 id="modalTitle">Cadastrar casal</h2><p>Preencha os nomes e a situação dos pagamentos.</p></div><button class="close" type="button" id="closeBtn" aria-label="Fechar">×</button></div>
                 <form id="form"><input type="hidden" id="editingId"><div class="grid">

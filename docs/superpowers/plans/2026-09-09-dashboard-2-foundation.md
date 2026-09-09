@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the current HTML/CSS/JavaScript application and existing business modules intact. Add a presentation-only layer around the current navigation and content, preserve the existing element IDs and `setView` event contracts, and introduce isolated UI modules for theme/navigation/loading behavior. The first phase must not change Supabase queries, RLS, calculations, receipt behavior, academy isolation, payment logic, or database schema.
 
-**Tech Stack:** HTML5, CSS3, vanilla JavaScript, Node.js built-in test runner/assertions, Supabase client already used by the application.
+**Tech Stack:** HTML5, CSS3, vanilla JavaScript loaded as classic scripts, Node.js built-in test runner/assertions, Supabase client already used by the application.
 
 **Spec:** `docs/superpowers/specs/2026-09-09-dashboard-2-ui-redesign-design.md`
 
@@ -23,6 +23,7 @@
 - Existing IDs and event contracts are preserved wherever practical.
 - `app/js/core/script.js` must not become the home for new presentation-only behavior.
 - Each task ends with automated checks and a small commit before moving forward.
+- The future `Turmas` sidebar destination is not introduced as a dead/duplicate button in this foundation phase. The current class management flow remains unchanged until the dedicated Students/Classes phase creates a real `Turmas` view.
 
 ---
 
@@ -32,10 +33,10 @@
 - `app/css/design-tokens.css` — shared Dark/Light design tokens only.
 - `app/css/app-shell.css` — desktop sidebar, mobile bottom bar, shell spacing, responsive layout.
 - `app/css/ui-states.css` — skeleton, loading, progress, generic motion primitives, reduced-motion fallbacks.
-- `app/js/features/theme-controller.js` — theme initialization, persistence, toggle behavior, `theme-color` synchronization.
+- `app/js/features/theme-controller.js` — classic-script theme initialization, persistence, toggle behavior, `theme-color` synchronization; exposes browser API and CommonJS exports for tests.
 - `app/js/features/ui-state.js` — presentation-only button/loading/progress helpers; no domain data.
-- `app/js/tests/dashboard-redesign-contract.test.mjs` — protects critical DOM IDs/scripts and forbidden database coupling.
-- `app/js/tests/theme-controller.test.mjs` — verifies theme resolution and persistence logic.
+- `app/js/tests/dashboard-redesign-contract.test.mjs` — protects critical DOM IDs/scripts and forbidden business coupling.
+- `app/js/tests/theme-controller.test.mjs` — verifies theme resolution and persistence helpers.
 - `app/js/tests/dashboard-shell-motion.test.mjs` — verifies shell, skeleton, and reduced-motion CSS contracts.
 
 **Modify**
@@ -44,6 +45,7 @@
 - `app/js/features/tab-bar.js` — adapt the existing visual navigator to work in vertical desktop and horizontal mobile modes without owning business navigation state.
 
 **Do not modify in this phase**
+- `app/js/core/script.js`
 - `app/js/core/academy-context.js`
 - `app/js/core/academy-data-context.js`
 - `app/js/core/academy-onboarding.js`
@@ -64,9 +66,9 @@
 - Consumes: current DOM IDs and script includes relied on by existing handlers.
 - Produces: a source-level safety net that fails if the redesign accidentally removes critical contracts.
 
-- [ ] **Step 1: Write the failing/guard test**
+- [ ] **Step 1: Write the guard test**
 
-Create `app/js/tests/dashboard-redesign-contract.test.mjs` with:
+Create `app/js/tests/dashboard-redesign-contract.test.mjs`:
 
 ```js
 import test from 'node:test';
@@ -110,7 +112,7 @@ test('redesign keeps existing functional module includes', () => {
   }
 });
 
-test('core still owns existing loading helper and view state', () => {
+test('core still owns current loading and view behavior', () => {
   const source = core();
   assert.match(source, /let activeView\s*=\s*['"]students['"]/);
   assert.match(source, /function setLoading\(/);
@@ -120,24 +122,20 @@ test('core still owns existing loading helper and view state', () => {
 
 - [ ] **Step 2: Run the guard test against the current branch**
 
-Run:
-
 ```bash
 node --test app/js/tests/dashboard-redesign-contract.test.mjs
 ```
 
 Expected: PASS. This establishes the baseline contract before visual changes.
 
-- [ ] **Step 3: Run existing JavaScript tests as baseline**
-
-Run:
+- [ ] **Step 3: Run the existing JavaScript tests as the baseline**
 
 ```bash
 node --test app/js/tests/*.test.mjs
 node app/js/tests/money-input.test.js
 ```
 
-Expected: all currently passing tests remain passing. Record any pre-existing failure before touching production code rather than hiding it inside the redesign.
+Expected: all tests that pass before production-code changes continue to pass. Record any pre-existing failure separately rather than hiding it inside the redesign.
 
 - [ ] **Step 4: Commit the guard**
 
@@ -158,16 +156,20 @@ git commit -m "test: guard dashboard redesign contracts"
 
 **Interfaces:**
 - Consumes: `document.documentElement`, `localStorage`, `<meta name="theme-color">`.
-- Produces: `window.DassaevyTheme.getTheme()`, `window.DassaevyTheme.setTheme(theme)`, `window.DassaevyTheme.toggleTheme()`, and a root `data-theme="dark|light"` attribute.
+- Produces in browser: `window.DassaevyTheme.getTheme()`, `window.DassaevyTheme.setTheme(theme)`, `window.DassaevyTheme.toggleTheme()` and root `data-theme="dark|light"`.
+- Produces in Node: CommonJS exports `normalizeTheme` and `resolveInitialTheme` for pure tests.
 
 - [ ] **Step 1: Write theme behavior tests first**
 
-Create `app/js/tests/theme-controller.test.mjs` to import exported pure helpers from `theme-controller.js`:
+Create `app/js/tests/theme-controller.test.mjs`:
 
 ```js
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeTheme, resolveInitialTheme} from '../features/theme-controller.js';
+import {createRequire} from 'node:module';
+
+const require = createRequire(import.meta.url);
+const {normalizeTheme, resolveInitialTheme} = require('../features/theme-controller.js');
 
 test('normalizes supported themes only', () => {
   assert.equal(normalizeTheme('dark'), 'dark');
@@ -191,11 +193,11 @@ test('dark is the product default when no stored theme exists', () => {
 node --test app/js/tests/theme-controller.test.mjs
 ```
 
-Expected: FAIL because the module/exports do not exist yet.
+Expected: FAIL because `theme-controller.js` does not exist.
 
-- [ ] **Step 3: Implement the minimal theme controller**
+- [ ] **Step 3: Implement a classic-script/CommonJS compatible controller**
 
-Create `app/js/features/theme-controller.js` so that it works both in Node tests and the browser. Required public behavior:
+Create `app/js/features/theme-controller.js`:
 
 ```js
 const THEME_KEY = 'dassaevy-theme';
@@ -209,15 +211,20 @@ function resolveInitialTheme(storedTheme) {
 }
 
 function applyTheme(theme) {
-  if (typeof document === 'undefined') return theme;
   const normalized = normalizeTheme(theme) || 'dark';
+  if (typeof document === 'undefined') return normalized;
+
   document.documentElement.dataset.theme = normalized;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = normalized === 'dark' ? '#171312' : '#f6f0e6';
+
   const button = document.getElementById('themeToggle');
   if (button) {
     button.setAttribute('aria-pressed', String(normalized === 'light'));
-    button.setAttribute('aria-label', normalized === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro');
+    button.setAttribute(
+      'aria-label',
+      normalized === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'
+    );
   }
   return normalized;
 }
@@ -240,23 +247,23 @@ function toggleTheme() {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {normalizeTheme, resolveInitialTheme};
 }
+
 if (typeof window !== 'undefined') {
   window.DassaevyTheme = {getTheme, setTheme, toggleTheme};
-  const stored = localStorage.getItem(THEME_KEY);
+  const stored = window.localStorage.getItem(THEME_KEY);
   applyTheme(resolveInitialTheme(stored));
   window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
     applyTheme(getTheme());
   }, {once: true});
 }
-export {normalizeTheme, resolveInitialTheme};
 ```
 
-Implementation note: if browser compatibility with `export` in a classic script is a problem during execution, split pure helpers into `theme-utils.mjs` for tests and keep `theme-controller.js` classic. Do not convert the whole app to modules just for this feature.
+Do not add ESM `export` syntax to this classic script and do not convert the existing application to ES modules in this redesign.
 
 - [ ] **Step 4: Add shared design tokens**
 
-Create `app/css/design-tokens.css` with semantic variables, not page-specific selectors. Minimum token groups:
+Create `app/css/design-tokens.css` with semantic tokens and compatibility aliases:
 
 ```css
 :root,
@@ -282,6 +289,17 @@ Create `app/css/design-tokens.css` with semantic variables, not page-specific se
   --motion-normal: 240ms;
   --motion-slow: 320ms;
   --motion-ease: cubic-bezier(.22, 1, .36, 1);
+
+  --wine: var(--brand-primary);
+  --wine-dark: var(--brand-primary-strong);
+  --terracotta: var(--brand-secondary);
+  --cream: var(--bg-app);
+  --paper: var(--bg-elevated);
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--border-subtle);
+  --green: var(--success);
+  --red: var(--danger);
 }
 
 :root[data-theme="light"] {
@@ -294,7 +312,7 @@ Create `app/css/design-tokens.css` with semantic variables, not page-specific se
   --text-secondary: #746b65;
   --border-subtle: #e7ddd0;
   --brand-primary: #5b2118;
-  --brand-primary-strong: #7a3022;
+  --brand-primary-strong: #34150f;
   --brand-secondary: #a64b35;
   --success: #2f7d58;
   --warning: #a56b21;
@@ -302,11 +320,20 @@ Create `app/css/design-tokens.css` with semantic variables, not page-specific se
 }
 ```
 
-Keep compatibility aliases such as `--wine`, `--wine-dark`, `--terracotta`, `--cream`, `--paper`, `--ink`, `--muted`, `--line`, `--green`, and `--red` mapped to the semantic variables so current components do not break while migration is incremental.
+- [ ] **Step 5: Wire theme assets without removing existing assets**
 
-- [ ] **Step 5: Wire theme assets into `app/index.html` without removing existing assets**
+In `<head>`, load `design-tokens.css` before `style.css`. Add this small early script before visible body content to prevent a light-theme flash:
 
-In `<head>`, load `design-tokens.css` before `style.css`. Add an early theme initialization script before body paint that reads `dassaevy-theme` and sets `data-theme`, defaulting to dark. At the end of body, load `theme-controller.js` before modules that may read theme state.
+```html
+<script>
+  (() => {
+    const saved = localStorage.getItem('dassaevy-theme');
+    document.documentElement.dataset.theme = saved === 'light' ? 'light' : 'dark';
+  })();
+</script>
+```
+
+At the end of the body, load `./js/features/theme-controller.js` as a normal classic `<script>` before redesign-only UI modules.
 
 Add a button with exact ID `themeToggle` in the secondary account/shell controls. Do not rename `academyProfileBtn` or `logoutBtn`.
 
@@ -338,14 +365,14 @@ git commit -m "feat: add dashboard theme foundation"
 
 **Interfaces:**
 - Consumes: existing `.view-tabs`, `.view-tab`, `#studentsTab`, `#financialTab`, and dynamically inserted dashboard/report/automation tabs.
-- Produces: `.app-shell`, `.app-sidebar`, `.app-main`, `.app-sidebar-nav`, `.app-sidebar-footer` presentation structure while retaining the existing `.view-tabs` element as the actual navigation host.
+- Produces: `.app-shell`, `.app-sidebar`, `.app-main`, `.app-sidebar-nav`, `.app-sidebar-footer` presentation structure while retaining the existing `.view-tabs` element as the navigation host.
 
 - [ ] **Step 1: Extend the contract test for shell structure**
 
-Add assertions:
+Add:
 
 ```js
-test('dashboard shell exposes presentation wrappers without replacing functional tabs', () => {
+test('dashboard shell adds wrappers without replacing functional tabs', () => {
   const html = index();
   assert.match(html, /class=["'][^"']*app-shell/);
   assert.match(html, /class=["'][^"']*app-sidebar/);
@@ -356,7 +383,7 @@ test('dashboard shell exposes presentation wrappers without replacing functional
 });
 ```
 
-- [ ] **Step 2: Run the contract test and verify it fails**
+- [ ] **Step 2: Run and verify the new assertion fails**
 
 ```bash
 node --test app/js/tests/dashboard-redesign-contract.test.mjs
@@ -364,33 +391,39 @@ node --test app/js/tests/dashboard-redesign-contract.test.mjs
 
 Expected: FAIL on missing shell wrappers.
 
-- [ ] **Step 3: Restructure only wrappers in `app/index.html`**
+- [ ] **Step 3: Restructure wrappers only in `app/index.html`**
 
-Inside `#appView`, create:
+Target structure:
 
 ```html
-<div class="app-shell">
-  <aside class="app-sidebar" aria-label="Navegação principal">
-    <div class="app-sidebar-brand">...</div>
-    <nav class="view-tabs app-sidebar-nav" aria-label="Seções do sistema">
-      <!-- keep studentsTab and financialTab with the same IDs -->
-    </nav>
-    <div class="app-sidebar-footer">
-      <!-- keep academyProfileBtn, themeToggle and logoutBtn with same IDs -->
+<div id="appView" hidden>
+  <div class="app-shell">
+    <aside class="app-sidebar" aria-label="Navegação principal">
+      <div class="app-sidebar-brand">...</div>
+      <nav class="view-tabs app-sidebar-nav" aria-label="Seções do sistema">
+        <button type="button" class="view-tab active" id="studentsTab">Alunos</button>
+        <button type="button" class="view-tab" id="financialTab">Financeiro</button>
+      </nav>
+      <div class="app-sidebar-footer">
+        <!-- keep academyProfileBtn, themeToggle and logoutBtn IDs -->
+      </div>
+    </aside>
+    <div class="app-main">
+      <header class="app-topbar">...</header>
+      <main class="app">
+        <!-- keep studentsView and financialView with current contents/IDs -->
+      </main>
     </div>
-  </aside>
-  <div class="app-main">
-    <header class="app-topbar">...</header>
-    <main class="app">...</main>
   </div>
+  <!-- keep current dialogs and toast inside appView -->
 </div>
 ```
 
-Do not move dialogs outside `#appView` unless a functional reason is found during implementation. Do not duplicate navigation buttons. The same `.view-tabs` must become vertical on desktop and fixed/contained at the bottom on mobile through CSS.
+Do not duplicate navigation buttons. The same `.view-tabs` becomes vertical on desktop and bottom-oriented on mobile. Dashboard, reports, and automation scripts must continue inserting their existing tabs into this same host.
 
 - [ ] **Step 4: Implement shell CSS**
 
-Create `app/css/app-shell.css` with these layout contracts:
+Create `app/css/app-shell.css`:
 
 ```css
 .app-shell {
@@ -419,13 +452,8 @@ Create `app/css/app-shell.css` with these layout contracts:
   gap: 6px;
 }
 
-.app-sidebar-footer {
-  margin-top: auto;
-}
-
-.app-main {
-  min-width: 0;
-}
+.app-sidebar-footer { margin-top: auto; }
+.app-main { min-width: 0; }
 
 @media (max-width: 768px) {
   .app-shell { display: block; }
@@ -436,8 +464,6 @@ Create `app/css/app-shell.css` with these layout contracts:
     border: 0;
     background: transparent;
   }
-  .app-sidebar-brand,
-  .app-sidebar-footer { /* footer actions move to top/mobile account surface */ }
   .app-sidebar-nav {
     position: fixed;
     z-index: 1000;
@@ -450,22 +476,19 @@ Create `app/css/app-shell.css` with these layout contracts:
     padding: 8px;
     border: 1px solid var(--border-subtle);
     border-radius: 18px;
-    background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
-    backdrop-filter: blur(18px);
+    background: var(--bg-elevated);
   }
   .app-main { padding-bottom: 88px; }
 }
 ```
 
-During implementation, avoid unsupported CSS if target browsers show issues; if `color-mix()` causes compatibility concerns, use explicit theme tokens instead.
+Add mobile account/profile/theme/logout access in the topbar so hiding/reformatting the desktop footer never makes those actions unreachable.
 
-- [ ] **Step 5: Remove only conflicting shell rules from `style.css`**
+- [ ] **Step 5: Remove only conflicting top-level rules from `style.css`**
 
-Move responsibility for `.view-tabs` positioning/layout, global body dashboard background, and top-level shell spacing to `app-shell.css`. Keep component rules that are still needed by current screens. Do not perform a broad cleanup in this task.
+Move responsibility for `.view-tabs` positioning/layout, dashboard body background, and top-level shell spacing to `app-shell.css`. Keep legacy component rules required by current screens. Do not broadly restyle dashboard cards, student tables, finance, reports, or automation here.
 
-- [ ] **Step 6: Wire `app-shell.css` after tokens and before `style.css`**
-
-Order:
+- [ ] **Step 6: Wire CSS in this order**
 
 ```html
 <link rel="stylesheet" href="./css/design-tokens.css">
@@ -473,7 +496,7 @@ Order:
 <link rel="stylesheet" href="./css/style.css">
 ```
 
-- [ ] **Step 7: Run contract tests**
+- [ ] **Step 7: Run the contract test**
 
 ```bash
 node --test app/js/tests/dashboard-redesign-contract.test.mjs
@@ -483,13 +506,13 @@ Expected: PASS.
 
 - [ ] **Step 8: Manual smoke check before commit**
 
-Open with Live Server and verify, without changing any records:
-- Login form still opens and submits.
-- Desktop shows vertical sidebar.
-- Existing Alunos and Financeiro buttons still change views.
+Using Live Server, without changing records:
+- Login form submits normally.
+- Desktop shows a vertical sidebar.
+- Alunos and Financeiro still change views.
 - Dynamically inserted Visão Geral, Relatórios, and Automação entries appear in the same navigation host.
-- Profile and logout buttons still respond.
-- At viewport <= 768px the same nav becomes the bottom bar.
+- Profile, theme, and logout actions remain reachable.
+- At viewport <= 768px the same nav becomes a bottom bar.
 
 - [ ] **Step 9: Commit**
 
@@ -508,8 +531,8 @@ git commit -m "feat: add responsive dashboard shell"
 - Modify: `app/css/app-shell.css`
 
 **Interfaces:**
-- Consumes: `.view-tabs`, `.view-tab.active`, dynamically inserted tabs, `ResizeObserver`.
-- Produces: purely visual active indicator positioning. It must not call Supabase, calculate domain state, or replace the existing `setView` behavior.
+- Consumes: `.view-tabs`, `.view-tab.active`, dynamically inserted tabs, `MutationObserver`, `ResizeObserver`.
+- Produces: presentation-only active indicator positioning. It must not call Supabase, calculate domain state, or replace existing `setView` behavior.
 
 - [ ] **Step 1: Write source contract tests**
 
@@ -529,8 +552,8 @@ test('navigation animation remains presentation-only', () => {
   const source = tabSource();
   assert.match(source, /MutationObserver/);
   assert.match(source, /ResizeObserver/);
-  assert.doesNotMatch(source, /\.from\s*\(/);
   assert.doesNotMatch(source, /supabase/i);
+  assert.doesNotMatch(source, /\.from\s*\(/);
 });
 
 test('shell supports desktop vertical and mobile horizontal navigation', () => {
@@ -547,28 +570,26 @@ test('shell supports desktop vertical and mobile horizontal navigation', () => {
 node --test app/js/tests/dashboard-shell-motion.test.mjs
 ```
 
-Expected: current presentation-only test may pass, but shell orientation assertions should enforce the new contract.
+Expected: shell orientation assertions enforce the new contract.
 
-- [ ] **Step 3: Refine `tab-bar.js` instead of replacing functional navigation**
+- [ ] **Step 3: Refine `tab-bar.js` rather than replacing navigation behavior**
 
 Keep:
 - Dynamic tab decoration.
-- `MutationObserver` for tabs inserted by dashboard/reports/automation modules.
+- `MutationObserver` for dashboard/reports/automation tabs.
 - `ResizeObserver` for indicator recalculation.
-- Existing fallback behavior for automation only if still necessary.
+- Existing automation fallback only if verification shows it is still necessary.
 
 Change only visual assumptions:
-- `syncIndicator()` must calculate both X and Y offsets as it already does.
-- Do not hardcode horizontal-only widths/tooltip positions.
-- Add a `data-nav-orientation` attribute (`vertical` or `horizontal`) based on the mobile media query so CSS can choose label treatment.
-- On desktop, show icon + label persistently.
-- On mobile, show compact icon and short label appropriate for bottom navigation.
+- `syncIndicator()` continues calculating both X and Y offsets from element rectangles.
+- Add `data-nav-orientation="vertical|horizontal"` to the navigation host based on `matchMedia('(max-width: 768px)')`.
+- Re-run indicator positioning when the media query changes.
+- Desktop shows icon + label persistently.
+- Mobile shows compact icon + short label.
 
-Do not add new `setView` wrappers in `tab-bar.js`.
+Do not add a new `setView` wrapper in `tab-bar.js`.
 
-- [ ] **Step 4: Motion behavior in CSS**
-
-Use transform/opacity for the active indicator and labels. Required pattern:
+- [ ] **Step 4: Use non-bouncy motion**
 
 ```css
 .tab-indicator {
@@ -580,7 +601,7 @@ Use transform/opacity for the active indicator and labels. Required pattern:
 }
 ```
 
-No bounce/elastic easing. No transition of `top`, `left`, `width` of page layout containers, margins, or padding for animation.
+Animate the indicator through transform/opacity. Do not animate layout margins, padding, `top`, or `left`.
 
 - [ ] **Step 5: Run tests**
 
@@ -593,7 +614,7 @@ Expected: PASS.
 
 - [ ] **Step 6: Manual navigation smoke check**
 
-Verify every currently available navigation item once on desktop and once on mobile. Confirm active state follows the actual current view rather than merely the last button clicked.
+Verify every currently available navigation destination once on desktop and once on mobile. Confirm active state follows the actual active view.
 
 - [ ] **Step 7: Commit**
 
@@ -614,7 +635,7 @@ git commit -m "feat: adapt navigation motion to dashboard shell"
 
 **Interfaces:**
 - Consumes: buttons/elements passed by presentation modules.
-- Produces: `window.DassaevyUI.setButtonState(element, state, options)`, `window.DassaevyUI.setProgress(element, value)`, standard CSS classes `.is-loading`, `.is-success`, `.is-error`, `.skeleton`, `.view-enter`.
+- Produces: `window.DassaevyUI.setButtonState(element, state, options)`, `window.DassaevyUI.setProgress(element, value)`, `.is-loading`, `.is-success`, `.is-error`, `.skeleton`, `.view-enter`.
 - Does not store or calculate business data.
 
 - [ ] **Step 1: Extend tests for loading/motion contracts**
@@ -645,19 +666,19 @@ Expected: FAIL because `ui-states.css` does not exist.
 
 - [ ] **Step 3: Create UI state CSS primitives**
 
-`app/css/ui-states.css` must include:
-- `.skeleton` with stable dimensions inherited from the host and a subtle shimmer.
-- `.skeleton-line`, `.skeleton-circle`, `.skeleton-card` helpers.
-- `.is-loading` and `[aria-busy="true"]` visual treatment.
-- `.ui-progress` / `.ui-progress-bar` with transform-based progress where practical.
-- `.view-enter` using opacity + translateY + optional subtle blur.
-- `.is-exiting` with shorter/subtler opacity + translateY than entry.
-- disabled/loading buttons preserve their width to prevent layout shift.
-- `@media (prefers-reduced-motion: reduce)` reduces animation/transition duration to `0.01ms` and removes transforms.
+`app/css/ui-states.css` must provide:
+- `.skeleton`, `.skeleton-line`, `.skeleton-circle`, `.skeleton-card`.
+- `@keyframes skeleton-shimmer` using background-position/transform-friendly animation.
+- `.is-loading`, `.is-success`, `.is-error`, `[aria-busy="true"]`.
+- `.ui-progress` and `.ui-progress-bar`.
+- `.view-enter` using opacity + translateY + subtle blur.
+- `.is-exiting` shorter and subtler than entry.
+- stable button width during loading.
+- `@media (prefers-reduced-motion: reduce)` reducing animations/transitions to `0.01ms` and removing transforms.
 
-- [ ] **Step 4: Create presentation-only state helper**
+- [ ] **Step 4: Create the presentation-only helper**
 
-Create `app/js/features/ui-state.js` with explicit state handling:
+Create `app/js/features/ui-state.js`:
 
 ```js
 (() => {
@@ -700,9 +721,9 @@ Create `app/js/features/ui-state.js` with explicit state handling:
 })();
 ```
 
-Do not replace existing `setLoading()` in `core/script.js` during this phase. New/refactored visual features may adopt `DassaevyUI` incrementally in later phases; this avoids changing proven business flows just to satisfy a visual abstraction.
+Do not replace the proven `setLoading()` implementation in `app/js/core/script.js` during this phase. New presentation modules adopt `DassaevyUI` incrementally later.
 
-- [ ] **Step 5: Load `ui-states.css` and `ui-state.js`**
+- [ ] **Step 5: Wire `ui-states.css` and `ui-state.js`**
 
 CSS order:
 
@@ -713,7 +734,7 @@ CSS order:
 <link rel="stylesheet" href="./css/style.css">
 ```
 
-JavaScript: load `ui-state.js` before new redesign feature modules, but do not move Supabase/bootstrap script order.
+Load `ui-state.js` as a classic script without changing the existing Supabase/bootstrap script order.
 
 - [ ] **Step 6: Run tests**
 
@@ -737,11 +758,11 @@ git commit -m "feat: add reusable dashboard ui states"
 
 **Files:**
 - No production files unless fixing a regression found by this gate.
-- Optional documentation update: append results to this plan under a `Foundation Verification` section during implementation.
+- Update this plan only to append actual verification results during execution.
 
 **Interfaces:**
 - Consumes: completed Tasks 1–5.
-- Produces: verified foundation branch safe enough to begin the Overview redesign plan.
+- Produces: a foundation branch safe enough to begin the separate Overview plan.
 
 - [ ] **Step 1: Run the complete automated JavaScript suite available in the repository**
 
@@ -750,9 +771,11 @@ node --test app/js/tests/*.test.mjs
 node app/js/tests/money-input.test.js
 ```
 
-Expected: all tests pass. Any failing pre-existing test must be distinguished from a redesign regression using the baseline recorded in Task 1.
+Expected: tests match or improve on the Task 1 baseline; no new redesign regression is accepted.
 
-- [ ] **Step 2: Verify no database files changed in this phase**
+- [ ] **Step 2: Verify no database files changed**
+
+Use the design-spec commit as the phase baseline:
 
 ```bash
 git diff --name-only 252ab6d8072d38e16ec4c4997752170ac531cf81...HEAD
@@ -760,17 +783,17 @@ git diff --name-only 252ab6d8072d38e16ec4c4997752170ac531cf81...HEAD
 
 Expected: no path under `supabase/` and no `app/database/` file appears.
 
-- [ ] **Step 3: Verify core business modules were not unintentionally changed**
+- [ ] **Step 3: Verify business modules were not unintentionally changed**
 
 ```bash
 git diff --name-only 252ab6d8072d38e16ec4c4997752170ac531cf81...HEAD -- app/js/core app/js/features
 ```
 
-Expected changes under `app/js/features/` are limited to presentation files planned here (`theme-controller.js`, `ui-state.js`, `tab-bar.js`). `app/js/core/script.js`, academy context/data modules, payment/receipt/report/automation logic should remain unchanged.
+Expected planned feature changes are limited to `theme-controller.js`, `ui-state.js`, and `tab-bar.js`. `app/js/core/script.js`, academy context/data modules, payment, receipt, reports, and automation business logic remain unchanged.
 
-- [ ] **Step 4: Manual functional smoke test using a safe test account/data set**
+- [ ] **Step 4: Manual read-only smoke test**
 
-Check each flow without redesign-specific assumptions:
+Using Live Server:
 1. Login.
 2. Sign out and login again.
 3. Open Profile and close it.
@@ -782,41 +805,42 @@ Check each flow without redesign-specific assumptions:
 9. Toggle Dark → Light → Dark and reload; persisted theme must remain.
 10. Resize desktop → mobile; navigation changes to bottom bar and all visible views remain reachable.
 
-Expected: no business behavior changes and no console errors introduced by the foundation.
+Expected: no behavior changes and no new console errors.
 
-- [ ] **Step 5: Functional write smoke test on disposable data**
+- [ ] **Step 5: Functional write smoke test using disposable data only**
 
-Using a disposable/test record only:
 1. Create a temporary student/couple.
 2. Edit the record.
 3. Toggle one payment state and verify totals update as before.
 4. Delete the temporary record.
-5. Confirm no unrelated record changes.
+5. Confirm no unrelated record changed.
 
 Expected: behavior matches pre-redesign main.
 
 - [ ] **Step 6: Commit only if verification required a fix**
 
-If no fix was needed, do not create an empty commit. If a foundation regression was corrected:
+If a regression is found, fix only that regression, rerun Steps 1–5, then commit:
 
 ```bash
-git add <only-the-files-needed-for-the-fix>
+git add <files-that-fixed-the-regression>
 git commit -m "fix: preserve dashboard foundation behavior"
 ```
 
+If no fix is needed, do not create an empty commit.
+
 - [ ] **Step 7: Stop before Phase 2**
 
-Do not redesign Dashboard/Overview content, student rows, finance tables, reports, or automation cards as part of this plan. Once this gate passes, create/execute the separate Overview implementation plan.
+Do not redesign Overview content, student rows, class management, finance tables, reports, or automation cards as part of this plan. Once this gate passes, create/execute the separate Overview implementation plan.
 
 ---
 
 ## Self-Review
 
 ### Spec coverage
-- Dark + Light themes: Tasks 2 and 6.
-- Dark default: Task 2.
+- Dark + Light themes and Dark default: Task 2.
 - Desktop sidebar/mobile bottom bar: Tasks 3 and 4.
-- Existing navigation contracts preserved: Tasks 1, 3, 4, and 6.
+- Current navigation contracts preserved: Tasks 1, 3, 4, and 6.
+- Future Turmas destination handled without a dead navigation item: Global Constraints and completion boundary.
 - Motion principles/reduced motion: Tasks 4 and 5.
 - Skeleton/loading/progress primitives: Task 5.
 - Separation from business logic: Global Constraints, Tasks 1, 4, 5, and 6.
@@ -824,15 +848,16 @@ Do not redesign Dashboard/Overview content, student rows, finance tables, report
 - Regression checks before next phase: Task 6.
 
 ### Placeholder scan
-No `TBD`, `TODO`, "implement later", generic error-handling placeholders, or undefined follow-up steps are used.
+No `TBD`, `TODO`, "implement later", conditional module-syntax workaround, generic error-handling placeholder, or undefined follow-up step remains.
 
 ### Type/interface consistency
-- Theme public values are exactly `dark | light`.
-- Root state is `data-theme`.
-- Navigation host remains `.view-tabs` and tab state remains `.view-tab.active`.
+- Themes are exactly `dark | light`.
+- Root theme state is `data-theme`.
+- `theme-controller.js` remains a classic browser script and exposes only CommonJS exports under Node.
+- Navigation host remains `.view-tabs`; current state remains `.view-tab.active`.
 - Existing IDs `studentsTab` and `financialTab` remain unchanged.
 - UI presentation helper is `window.DassaevyUI`; it does not become a source of truth for students, payments, academy, or finance data.
 
 ## Completion Boundary
 
-This plan is complete when the application has a safe modern shell, two themes, responsive sidebar/bottom navigation, reusable motion/loading primitives, and all foundation regression checks pass. The Overview dashboard redesign is intentionally a separate plan so it can be reviewed and tested independently.
+This plan is complete when the application has a safe modern shell, Dark/Light themes, responsive sidebar/bottom navigation for currently implemented views, reusable motion/loading primitives, and all foundation regression checks pass. A real `Turmas` destination and the redesigned Overview/Students/Finance/Reports/Automation surfaces remain separate implementation plans so each can be reviewed and tested independently.

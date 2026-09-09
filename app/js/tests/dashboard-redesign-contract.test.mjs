@@ -45,3 +45,13 @@ test('core still owns current loading and view behavior', () => {
   assert.match(source, /function setLoading\(/);
   assert.match(source, /function animateView\(/);
 });
+
+test('dashboard shell adds wrappers without replacing functional tabs', () => {
+  const html = index();
+  assert.match(html, /class=["'][^"']*app-shell/);
+  assert.match(html, /class=["'][^"']*app-sidebar/);
+  assert.match(html, /class=["'][^"']*app-main/);
+  assert.match(html, /class=["'][^"']*view-tabs/);
+  assert.match(html, /id=["']studentsTab["']/);
+  assert.match(html, /id=["']financialTab["']/);
+});

@@ -1,6 +1,34 @@
 (() => {
     const $ = id => document.getElementById(id);
 
+    // DIALOG_LIFECYCLE_GUARD_START
+    const dialogCloseSessions = new WeakMap();
+    const coreOpenDialog = openDialog;
+
+    openDialog = function (dialog) {
+        const session = (dialogCloseSessions.get(dialog) || 0) + 1;
+        dialogCloseSessions.set(dialog, session);
+        coreOpenDialog(dialog);
+    };
+
+    closeDialog = function (dialog) {
+        if (!dialog.open || dialog.classList.contains('is-closing')) return;
+
+        const session = (dialogCloseSessions.get(dialog) || 0) + 1;
+        dialogCloseSessions.set(dialog, session);
+        dialog.classList.add('is-closing');
+
+        const finish = () => {
+            if (dialogCloseSessions.get(dialog) !== session) return;
+            dialog.classList.remove('is-closing');
+            if (dialog.open) dialog.close();
+        };
+
+        dialog.addEventListener('transitionend', finish, {once: true});
+        setTimeout(finish, 280);
+    };
+    // DIALOG_LIFECYCLE_GUARD_END
+
     function paymentButtons(couple, person, name) {
         return `<div class="student-card-person">
             <span class="student-card-person-name">${escapeHtml(name)}</span>

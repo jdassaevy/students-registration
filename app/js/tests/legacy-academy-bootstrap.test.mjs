@@ -118,7 +118,10 @@ function createHarness({ resolvedAcademyId = null, bootstrapError = null } = {})
         auth: {
             signUp() { return Promise.resolve({ error: null }); },
             onAuthStateChange(callback) {
-                authCallbacks.push(callback);
+                authCallbacks.push(async (...args) => {
+                    callback(...args);
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                });
                 return { data: { subscription: {} } };
             }
         }

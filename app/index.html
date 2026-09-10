@@ -104,7 +104,6 @@
                                 <h2>Cadastros e pagamentos</h2>
                                 <p>Gerencie alunos, turmas, inscrições e mensalidades em uma única visão.</p>
                             </div>
-                            <button class="btn btn-primary" id="newBtn" type="button">＋ Cadastrar casal</button>
                         </header>
 
                         <section class="stats students-stats" aria-label="Resumo">
@@ -125,7 +124,7 @@
                                         <option value="none">Sem turma</option>
                                     </select>
                                     <button class="btn btn-light" id="exportClassBtn" type="button">⇩ Lista DOCX</button>
-                                    <button class="btn btn-light" id="newClassBtn" type="button">＋ Nova turma</button>
+                                    <button class="btn btn-primary" id="newBtn" type="button">＋ Cadastrar casal</button>
                                 </div>
                             </div>
                             <div class="table-wrap students-table-wrap">
@@ -246,6 +245,8 @@
             </form>
         </dialog>
 
+        <button type="button" id="newClassBtn" hidden aria-hidden="true" tabindex="-1"></button>
+
         <dialog id="classModal">
             <div class="modal-head">
                 <div>
@@ -269,7 +270,7 @@
                         <input id="classSchedule" placeholder="Ex.: Segunda, 20h">
                     </div>
                 </div>
-                <div id="classList" class="class-list"></div>
+                <div id="classList" class="class-list" hidden></div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-light" id="cancelClassBtn">Fechar</button>
                     <button class="btn btn-primary" type="submit">Criar turma</button>

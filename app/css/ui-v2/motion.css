@@ -106,6 +106,22 @@
     transform var(--motion-normal) var(--motion-ease);
 }
 
+.toast,
+.ui-toast {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+
+.toast.show,
+.ui-toast.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .ui-toast-motion {
   opacity: 0;
   transform: translateY(8px);

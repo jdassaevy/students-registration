@@ -14,7 +14,12 @@ test('theme exposes Narvik and Sorrell Brown as the primary palette', () => {
 
 test('desktop sidebar hover never repositions icon or label', () => {
   assert.match(shell, /\.app-sidebar[\s\S]*\.view-tab:hover\s+\.view-tab-icon\s*\{[^}]*transform:\s*none/s);
-  assert.match(shell, /\.app-sidebar[\s\S]*\.view-tab:hover\s+\.view-tab-label\s*\{[^}]*transform:\s*none/s);
+
+  const labelHoverBlock = shell.match(
+    /\.app-sidebar\s+\.app-sidebar-nav\.view-tabs\s+\.view-tab:hover\s+\.view-tab-label,\s*\.app-sidebar\s+\.app-sidebar-nav\.view-tabs\s+\.view-tab:focus-visible\s+\.view-tab-label\s*\{([^}]*)\}/s
+  );
+  assert.ok(labelHoverBlock, 'missing stable sidebar hover/focus label rule');
+  assert.match(labelHoverBlock[1], /transform:\s*none/);
 });
 
 test('dashboard students icon is rendered as a monochrome theme icon', () => {

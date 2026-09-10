@@ -65,6 +65,14 @@ test('mobile students layout swaps the desktop table for record cards', () => {
   assert.match(css, /@media[^\{]*max-width:\s*768px[\s\S]*\.student-cards[\s\S]*display:\s*grid/s);
 });
 
+test('students search icon is vertically centered instead of inheriting the legacy offset', () => {
+  assert.match(css, /\.students-toolbar \.search::before\s*\{[^}]*top:\s*50%[^}]*transform:\s*translateY\(-50%\)/s);
+});
+
+test('students counters suppress the legacy white diagonal glare', () => {
+  assert.match(css, /\.students-stats \.stat::after\s*\{[^}]*content:\s*none/s);
+});
+
 test('students page owns a semantic UI v2 visual layer loaded after the dashboard page', () => {
   const dashboard = index.indexOf('./css/ui-v2/pages/dashboard.css');
   const students = index.indexOf('./css/ui-v2/pages/students.css');

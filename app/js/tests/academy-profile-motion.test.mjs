@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const cssUrl = new URL('../../css/academy-profile.css', import.meta.url);
+const cssUrl = new URL('../../css/ui-v2/pages/profile.css', import.meta.url);
 const jsUrl = new URL('../features/academy-profile.js', import.meta.url);
 
 test('academy profile uses real loading skeleton and reduced motion support', () => {

@@ -2,7 +2,7 @@
     const dashboardMarkup = `
         <section id="dashboardView" class="dashboard-view" hidden aria-busy="true">
             <div id="dashboardSkeleton" class="dashboard-skeleton" aria-hidden="true">
-                <div class="dashboard-skeleton-hero">
+                <div class="dashboard-skeleton-headline">
                     <div class="dashboard-skeleton-copy">
                         <span class="ui-skeleton ui-skeleton-line"></span>
                         <span class="ui-skeleton ui-skeleton-line"></span>
@@ -10,31 +10,85 @@
                     </div>
                     <span class="ui-skeleton dashboard-skeleton-date"></span>
                 </div>
-                <section class="dashboard-stats" aria-hidden="true">
-                    <span class="ui-skeleton dashboard-skeleton-card"></span>
-                    <span class="ui-skeleton dashboard-skeleton-card"></span>
-                    <span class="ui-skeleton dashboard-skeleton-card"></span>
-                    <span class="ui-skeleton dashboard-skeleton-card"></span>
-                </section>
-                <div class="dashboard-skeleton-grid">
-                    <span class="ui-skeleton dashboard-skeleton-panel"></span>
-                    <span class="ui-skeleton dashboard-skeleton-panel"></span>
+                <div class="dashboard-skeleton-command">
+                    <span class="ui-skeleton dashboard-skeleton-revenue"></span>
+                    <div class="dashboard-skeleton-kpis">
+                        <div class="dashboard-skeleton-kpi-row">
+                            <span class="ui-skeleton dashboard-skeleton-kpi"></span>
+                            <span class="ui-skeleton dashboard-skeleton-kpi"></span>
+                        </div>
+                        <span class="ui-skeleton dashboard-skeleton-pending"></span>
+                    </div>
                 </div>
                 <span class="ui-skeleton dashboard-skeleton-classes"></span>
             </div>
             <div id="dashboardContent" class="dashboard-content" hidden>
-                <div class="dashboard-hero panel"><div><span class="dashboard-kicker">Visão geral</span><h2 id="dashboardGreeting">Resumo da sua academia</h2><p>Acompanhe alunos, turmas, recebimentos e pendências em um só lugar.</p></div><div class="dashboard-date" id="dashboardDate"></div></div>
-                <section class="dashboard-stats" aria-label="Resumo da academia">
-                    <article class="dashboard-stat-card"><span class="dashboard-stat-icon dashboard-stat-icon--students" aria-hidden="true"></span><div><small>Alunos</small><strong id="dashboardStudents">0</strong><p id="dashboardCouples">0 cadastros</p></div></article>
-                    <article class="dashboard-stat-card"><span class="dashboard-stat-icon dashboard-stat-icon--classes" aria-hidden="true"></span><div><small>Turmas ativas</small><strong id="dashboardClasses">0</strong><p>Turmas cadastradas</p></div></article>
-                    <article class="dashboard-stat-card dashboard-stat-featured"><span class="dashboard-stat-icon dashboard-stat-icon--money" aria-hidden="true"></span><div><small>Total recebido</small><strong id="dashboardReceived">R$ 0,00</strong><p>Inscrições + mensalidades</p></div></article>
-                    <article class="dashboard-stat-card"><span class="dashboard-stat-icon dashboard-stat-icon--pending" aria-hidden="true"></span><div><small>Pendências</small><strong id="dashboardPending">0</strong><p>Pagamentos em aberto</p></div></article>
+                <header class="dashboard-headline">
+                    <div>
+                        <span class="dashboard-kicker">Visão geral</span>
+                        <h2 id="dashboardGreeting">Resumo da sua academia</h2>
+                        <p>Acompanhe alunos, turmas, recebimentos e pendências em um só lugar.</p>
+                    </div>
+                    <div class="dashboard-date" id="dashboardDate"></div>
+                </header>
+
+                <section class="dashboard-command-grid" aria-label="Resumo da academia">
+                    <article class="dashboard-revenue-card dashboard-section">
+                        <div class="dashboard-section-head">
+                            <div>
+                                <span class="dashboard-kicker">Financeiro</span>
+                                <h3>Recebimentos</h3>
+                            </div>
+                            <button type="button" class="dashboard-link" id="dashboardFinancialLink">Ver financeiro →</button>
+                        </div>
+                        <div class="dashboard-revenue-total">
+                            <span>Total recebido</span>
+                            <strong id="dashboardReceived">R$ 0,00</strong>
+                            <p>Inscrições + mensalidades</p>
+                        </div>
+                        <div class="dashboard-money-grid">
+                            <div><span>Inscrições</span><strong id="dashboardEntriesReceived">R$ 0,00</strong></div>
+                            <div><span>Mensalidades</span><strong id="dashboardMonthlyReceived">R$ 0,00</strong></div>
+                        </div>
+                        <div class="dashboard-progress-block">
+                            <div class="dashboard-progress-label"><span>Pagamentos concluídos</span><strong id="dashboardPaymentRate">0%</strong></div>
+                            <div class="dashboard-progress"><span id="dashboardPaymentBar"></span></div>
+                        </div>
+                    </article>
+
+                    <div class="dashboard-kpi-stack">
+                        <div class="dashboard-kpi-grid">
+                            <article class="dashboard-stat-card">
+                                <span class="dashboard-stat-icon dashboard-stat-icon--students" aria-hidden="true"></span>
+                                <div><small>Alunos</small><strong id="dashboardStudents">0</strong><p id="dashboardCouples">0 cadastros</p></div>
+                            </article>
+                            <article class="dashboard-stat-card">
+                                <span class="dashboard-stat-icon dashboard-stat-icon--classes" aria-hidden="true"></span>
+                                <div><small>Turmas ativas</small><strong id="dashboardClasses">0</strong><p>Turmas cadastradas</p></div>
+                            </article>
+                        </div>
+
+                        <article class="dashboard-pending-card dashboard-section">
+                            <div class="dashboard-pending-summary">
+                                <div><span class="dashboard-kicker">Atenção</span><h3>Pendências</h3></div>
+                                <strong id="dashboardPending">0</strong>
+                            </div>
+                            <div class="dashboard-pending-grid">
+                                <div><span>Inscrições</span><strong id="dashboardPendingEntries">0</strong></div>
+                                <div><span>Mensalidades</span><strong id="dashboardPendingMonthly">0</strong></div>
+                            </div>
+                            <p class="dashboard-helper" id="dashboardPendingHelper">Nenhuma pendência no momento.</p>
+                        </article>
+                    </div>
                 </section>
-                <div class="dashboard-grid">
-                    <section class="dashboard-section panel"><div class="dashboard-section-head"><div><span class="dashboard-kicker">Financeiro</span><h3>Recebimentos</h3></div><button type="button" class="dashboard-link" id="dashboardFinancialLink">Ver financeiro →</button></div><div class="dashboard-money-grid"><div><span>Inscrições</span><strong id="dashboardEntriesReceived">R$ 0,00</strong></div><div><span>Mensalidades</span><strong id="dashboardMonthlyReceived">R$ 0,00</strong></div></div><div class="dashboard-progress-block"><div class="dashboard-progress-label"><span>Pagamentos concluídos</span><strong id="dashboardPaymentRate">0%</strong></div><div class="dashboard-progress"><span id="dashboardPaymentBar"></span></div></div></section>
-                    <section class="dashboard-section panel"><div class="dashboard-section-head"><div><span class="dashboard-kicker">Atenção</span><h3>Pendências</h3></div></div><div class="dashboard-pending-grid"><div><span>Inscrições pendentes</span><strong id="dashboardPendingEntries">0</strong></div><div><span>Mensalidades pendentes</span><strong id="dashboardPendingMonthly">0</strong></div></div><p class="dashboard-helper" id="dashboardPendingHelper">Nenhuma pendência no momento.</p></section>
-                </div>
-                <section class="dashboard-section panel dashboard-classes-panel"><div class="dashboard-section-head"><div><span class="dashboard-kicker">Turmas</span><h3>Resumo por turma</h3></div><button type="button" class="dashboard-link" id="dashboardStudentsLink">Gerenciar alunos →</button></div><div id="dashboardClassList" class="dashboard-class-list"></div></section>
+
+                <section class="dashboard-section dashboard-classes-panel">
+                    <div class="dashboard-section-head">
+                        <div><span class="dashboard-kicker">Turmas</span><h3>Desempenho por turma</h3></div>
+                        <button type="button" class="dashboard-link" id="dashboardStudentsLink">Gerenciar alunos →</button>
+                    </div>
+                    <div id="dashboardClassList" class="dashboard-class-list"></div>
+                </section>
             </div>
         </section>`;
 

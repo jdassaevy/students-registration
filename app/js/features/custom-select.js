@@ -1,14 +1,4 @@
 (() => {
-    if (!document.querySelector('link[data-custom-select-fix]')) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = './css/custom-select-fix.css?v=1';
-        link.dataset.customSelectFix = 'true';
-        document
-            .head
-            .appendChild(link);
-    }
-
     const SELECTORS = 'select.class-filter, #coupleClass';
     const registry = new Map();
 
@@ -53,8 +43,7 @@
         trigger.className = 'custom-select-trigger';
         trigger.setAttribute('aria-haspopup', 'listbox');
         trigger.setAttribute('aria-expanded', 'false');
-        trigger.innerHTML = '<span class="custom-select-value"></span><span class="custom-select-chevron" a' +
-                'ria-hidden="true">⌄</span>';
+        trigger.innerHTML = '<span class="custom-select-value"></span><span class="custom-select-chevron" aria-hidden="true">⌄</span>';
 
         const menu = document.createElement('div');
         menu.className = 'custom-select-menu';
@@ -115,8 +104,7 @@
         trigger.addEventListener('keydown', event => {
             if (event.key === 'Escape') 
                 setOpenState(entry, false);
-            }
-        );
+        });
 
         select.addEventListener('change', renderOptions);
         const observer = new MutationObserver(renderOptions);
@@ -139,14 +127,12 @@
     document.addEventListener('click', event => {
         if (!event.target.closest('.custom-select')) 
             closeAll();
-        }
-    );
+    });
 
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') 
             closeAll();
-        }
-    );
+    });
 
     const pageObserver = new MutationObserver(scan);
     pageObserver.observe(document.body, {

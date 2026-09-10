@@ -21,9 +21,10 @@ test('dashboard no longer injects page CSS', () => {
 });
 
 test('dashboard uses semantic UI v2 surfaces without a large accent slab', () => {
-  assert.match(css, /\.dashboard-revenue-card[\s\S]*background:\s*var\(--surface-card\)/s);
-  assert.match(css, /\.dashboard-revenue-card::before[\s\S]*background:\s*var\(--accent-primary\)/s);
-  assert.doesNotMatch(css, /\.dashboard-revenue-card[\s\S]*background:\s*var\(--accent-primary\)/s);
+  const revenueCardRule = css.match(/\.dashboard-revenue-card\s*\{([^}]*)\}/s)?.[1] ?? '';
+  assert.match(revenueCardRule, /background:\s*var\(--surface-card\)/);
+  assert.doesNotMatch(revenueCardRule, /background:\s*var\(--accent-primary\)/);
+  assert.match(css, /\.dashboard-revenue-card::before\s*\{[^}]*background:\s*var\(--accent-primary\)/s);
   assert.doesNotMatch(css, /font-family:\s*Georgia/i);
   assert.doesNotMatch(css, /border-color:\s*#fff/i);
 });

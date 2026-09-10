@@ -1,0 +1,131 @@
+.ui-enter {
+  opacity: 0;
+  transform: translateY(6px);
+  filter: blur(3px);
+  animation: ui-enter var(--motion-normal) var(--motion-ease) forwards;
+}
+
+.ui-exit {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+  animation: ui-exit var(--motion-fast) ease forwards;
+}
+
+.ui-stagger-item {
+  opacity: 0;
+  transform: translateY(5px);
+  animation: ui-enter var(--motion-normal) var(--motion-ease) forwards;
+  animation-delay: calc(var(--ui-stagger-index, 0) * 45ms);
+}
+
+.ui-dropdown {
+  transform-origin: top center;
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-normal) var(--motion-ease),
+    visibility 0s linear var(--motion-normal);
+}
+
+.ui-dropdown[aria-hidden="true"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-5px) scale(.99);
+}
+
+.ui-dropdown[aria-hidden="false"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
+}
+
+.ui-modal-motion {
+  opacity: 0;
+  transform: translateY(6px) scale(.992);
+  transition:
+    opacity var(--motion-normal) ease,
+    transform var(--motion-normal) var(--motion-ease);
+}
+
+.ui-modal-motion[open] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.ui-toast-motion {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-normal) var(--motion-ease);
+}
+
+.ui-toast-motion.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ui-progress > span {
+  transition: width var(--motion-slow) var(--motion-ease);
+}
+
+@keyframes ui-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes ui-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(3px);
+    filter: blur(1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .ui-enter,
+  .ui-exit,
+  .ui-stagger-item,
+  .ui-dropdown,
+  .ui-modal-motion,
+  .ui-toast-motion,
+  .ui-progress > span,
+  .ui-skeleton::after {
+    animation-duration: .01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .ui-enter,
+  .ui-exit,
+  .ui-stagger-item,
+  .ui-dropdown,
+  .ui-modal-motion,
+  .ui-toast-motion {
+    filter: none !important;
+    transform: none !important;
+  }
+}

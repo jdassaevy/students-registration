@@ -25,6 +25,7 @@
     <link rel="stylesheet" href="./css/ui-v2/layout.css?v=1">
     <link rel="stylesheet" href="./css/ui-v2/pages/auth.css?v=1">
     <link rel="stylesheet" href="./css/ui-v2/pages/dashboard.css?v=1">
+    <link rel="stylesheet" href="./css/ui-v2/pages/students.css?v=1">
 </head>
 <body>
     <section class="auth-view" id="authView">
@@ -97,15 +98,25 @@
                     </div>
                 </header>
                 <main class="app">
-                    <div id="studentsView">
-                        <section class="stats" aria-label="Resumo">
+                    <div id="studentsView" class="students-page">
+                        <header class="students-page-head">
+                            <div class="students-page-head-copy">
+                                <span class="students-kicker">Alunos</span>
+                                <h2>Cadastros e pagamentos</h2>
+                                <p>Gerencie alunos, turmas, inscrições e mensalidades em uma única visão.</p>
+                            </div>
+                            <button class="btn btn-primary" id="newBtn" type="button">＋ Cadastrar casal</button>
+                        </header>
+
+                        <section class="stats students-stats" aria-label="Resumo">
                             <article class="stat"><span>Casais inscritos</span><strong id="statTotal">0</strong></article>
                             <article class="stat"><span>Inscrições pagas</span><strong id="statEntries">0</strong></article>
                             <article class="stat"><span>Mensalidades pagas</span><strong id="statPayments">0</strong></article>
                             <article class="stat"><span>Turmas ativas</span><strong id="statClasses">0</strong></article>
                         </section>
-                        <section class="panel">
-                            <div class="toolbar">
+
+                        <section class="panel students-directory" aria-label="Cadastros de alunos">
+                            <div class="toolbar students-toolbar">
                                 <div class="search">
                                     <input id="search" type="search" placeholder="Buscar pelo nome do casal..." aria-label="Buscar casais">
                                 </div>
@@ -115,11 +126,10 @@
                                         <option value="none">Sem turma</option>
                                     </select>
                                     <button class="btn btn-light" id="exportClassBtn" type="button">⇩ Lista DOCX</button>
-                                    <button class="btn btn-light" id="newClassBtn">＋ Nova turma</button>
-                                    <button class="btn btn-primary" id="newBtn">＋ Cadastrar casal</button>
+                                    <button class="btn btn-light" id="newClassBtn" type="button">＋ Nova turma</button>
                                 </div>
                             </div>
-                            <div class="table-wrap">
+                            <div class="table-wrap students-table-wrap">
                                 <table>
                                     <thead>
                                         <tr><th>Casal</th><th>Turma</th><th>Inscrição</th><th>Mensalidades</th><th>Progresso</th><th>Ações</th></tr>
@@ -127,6 +137,7 @@
                                     <tbody id="list"></tbody>
                                 </table>
                             </div>
+                            <div id="studentCards" class="student-cards" aria-live="polite"></div>
                         </section>
                     </div>
 
@@ -271,6 +282,7 @@
     <script src="./js/core/academy-onboarding.js?v=1"></script>
     <script src="./js/core/academy-data-context.js?v=1"></script>
     <script src="./js/core/script.js?v=6"></script>
+    <script src="./js/features/students-ui.js?v=1"></script>
     <script src="./js/features/academy-profile.js?v=1"></script>
     <script data-payment-automation src="./js/features/payment-automation.js?v=2"></script>
     <script src="./js/features/dashboard.js?v=1"></script>

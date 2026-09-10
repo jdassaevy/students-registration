@@ -73,7 +73,13 @@ function harness({ title = 'Entrar na sua conta', academyName = '' } = {}) {
     const client = {
         auth: {
             signUp(payload) { signupCalls.push(payload); return Promise.resolve({ error: null }); },
-            onAuthStateChange(callback) { authCallbacks.push(callback); return { data: { subscription: {} } }; }
+            onAuthStateChange(callback) {
+                authCallbacks.push(async (...args) => {
+                    callback(...args);
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                });
+                return { data: { subscription: {} } };
+            }
         }
     };
 

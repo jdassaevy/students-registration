@@ -41,10 +41,17 @@ function setProgress(element, value) {
   element.setAttribute('aria-valuenow', String(normalized));
 }
 
+function setLoadingState(container, loading) {
+  if (!container) return;
+  const active = Boolean(loading);
+  container.classList.toggle('is-loading', active);
+  container.setAttribute('aria-busy', String(active));
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {normalizeProgress};
 }
 
 if (typeof window !== 'undefined') {
-  window.DassaevyUI = {setButtonState, setProgress};
+  window.DassaevyUI = {setButtonState, setProgress, setLoadingState};
 }

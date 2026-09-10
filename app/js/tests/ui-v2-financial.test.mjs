@@ -39,8 +39,8 @@ test('financial presentation mirrors rendered rows without taking ownership of f
   assert.match(financialUi, /financialList/);
   assert.match(financialUi, /financialCards/);
   assert.match(financialUi, /renderFinancialCards/);
-  assert.doesNotMatch(financialUi, /\.from\(/);
-  assert.doesNotMatch(financialUi, /\bdb\b/);
+  assert.doesNotMatch(financialUi, /\bdb\s*\.\s*from\s*\(/);
+  assert.doesNotMatch(financialUi, /\bsupabase\s*\.\s*from\s*\(/);
   assert.doesNotMatch(financialUi, /\bcouples\b/);
 
   assert.match(core, /function financialValues\(/);

@@ -36,6 +36,7 @@ app/css/ui-v2/
     ├── auth.css
     ├── dashboard.css
     ├── students.css
+    ├── classes.css
     ├── financial.css
     ├── reports.css
     └── automation.css
@@ -64,12 +65,12 @@ Primary palette:
 - Cinnamon accent: `#D47E30`
 - Dark brown: `#6D3B07`
 
-Surfaces should stay warm and cream-based rather than pure white. The current light-theme direction that the user approved should be preserved conceptually while replacing legacy implementation details.
+Surfaces should stay warm and cream-based rather than pure white. Preserve the light-theme direction already approved by the user while replacing legacy implementation details.
 
 Expected atmosphere: warm, sophisticated, mocha + cream + cinnamon.
 
 ### Semantic tokens
-Components must consume semantic tokens instead of hardcoded colors. The final naming may evolve slightly during implementation, but must include equivalents of:
+Components consume semantic tokens instead of hardcoded colors. The final naming may evolve slightly during implementation, but must include equivalents of:
 
 ```css
 --surface-page;
@@ -109,16 +110,17 @@ Desktop uses a vertical sidebar. Mobile uses a bottom tab bar.
 Primary destinations:
 - Visão Geral
 - Alunos
+- Turmas
 - Financeiro
 - Relatórios
 - Automação
 
-Turmas remain reachable through the student-management flow unless implementation reveals a clear existing dedicated route. Profile, theme toggle, and logout remain secondary controls.
+Turmas becomes a dedicated UI destination while continuing to use the existing class data and business operations. This is a navigation/presentation change, not a new data subsystem. Profile, theme toggle, and logout remain secondary controls.
 
-The active indicator should animate smoothly between items without moving labels or icons. Hover changes surface/border/color only; it must not cause layout movement.
+The active indicator animates smoothly between items without moving labels or icons. Hover changes surface/border/color only; it must not cause layout movement.
 
 ## Motion system
-Motion follows the principles requested by the user: subtle, functional, polished, and unobtrusive.
+Motion follows the Motion Principles workflow requested by the user (the kylezantos design-motion-principles guidance): subtle, functional, polished, and unobtrusive.
 
 ### Rules
 - Repeated enterprise interactions must avoid elastic/bouncy motion.
@@ -141,26 +143,27 @@ Motion is centralized in `ui-v2/motion.css`; page JavaScript toggles state/class
 ## Loading, skeleton, and async-state system
 No major screen should appear blank while waiting for data.
 
-Skeletons must match the final content geometry rather than use generic placeholder rectangles.
+Skeletons match the final content geometry rather than use generic placeholder rectangles.
 
 Expected loading behavior:
 - Dashboard: metric-card and content skeletons.
 - Students: table-row skeletons on desktop and card skeletons on mobile.
+- Classes: class-card/list skeletons and contextual busy states.
 - Finance: metric and table skeletons.
 - Reports: chart skeletons while data/Chart.js loads.
 - Automation: settings, status, and activity skeletons.
 - Profile/dialogs: contextual skeleton or busy state when async data is required.
 
-Async actions should expose a consistent state model:
+Async actions expose a consistent state model:
 
 `idle -> loading -> success | error`
 
-Buttons must prevent accidental duplicate submission while loading. Use determinate progress only when real progress data exists; otherwise use an indeterminate but restrained indicator.
+Buttons prevent accidental duplicate submission while loading. Use determinate progress only when real progress data exists; otherwise use an indeterminate but restrained indicator.
 
-Lazy loading should defer heavy modules/resources until needed where safe, without changing business behavior.
+Lazy loading defers heavy modules/resources until needed where safe, without changing business behavior.
 
 ## Shared component system
-The UI v2 must provide reusable visual contracts for:
+The UI v2 provides reusable visual contracts for:
 - Buttons
 - Inputs
 - Selects/custom dropdowns
@@ -186,7 +189,7 @@ The same component must look coherent in every page and theme. Page-specific CSS
 ## Screen designs
 
 ### Authentication
-Rebuild the login/register/recovery/update-password surface from scratch while preserving existing auth IDs and behavior.
+Rebuild login/register/recovery/update-password from scratch while preserving existing auth IDs and behavior.
 
 Design:
 - Simple centered composition.
@@ -207,11 +210,9 @@ Structure:
 - Pending-payment summary.
 - Class summary.
 
-Only one primary metric card should receive strong accent fill at a time (recommended: total received). Other cards remain neutral.
+Only one primary metric card receives strong accent fill at a time (recommended: total received). Other cards remain neutral. Metrics and progress animate subtly after data loads.
 
-Metrics and progress should animate subtly after data loads.
-
-### Alunos / Turmas
+### Alunos
 Desktop:
 - Premium data table.
 - Unified toolbar for search, class filter, export, new class, and new student/couple.
@@ -224,6 +225,16 @@ Mobile:
 
 Class selectors use the shared UI v2 dropdown component.
 
+### Turmas
+Dedicated management destination using existing class data/operations.
+
+Structure:
+- Page header with new-class action.
+- Responsive class cards/list showing name, location, schedule, student count, and relevant actions.
+- Empty state when no class exists.
+- Skeletons while class/student aggregates are loading.
+- Existing create/edit/delete class behavior is reused rather than reimplemented unless a missing operation is separately approved.
+
 ### Financeiro
 The page should feel analytical rather than like a legacy table.
 
@@ -233,7 +244,7 @@ Structure:
 - Clear financial table below.
 - Strong alignment of amounts and hierarchy of labels.
 
-Dark mode must use deep charcoal surfaces, not large medium-gray containers.
+Dark mode uses deep charcoal surfaces, not large medium-gray containers.
 
 ### Relatórios
 Use a fintech-inspired visual hierarchy without copying the reference brand.
@@ -244,7 +255,7 @@ Structure:
 - Secondary paid-vs-pending chart.
 - Class performance chart/table.
 
-Chart colors must come from semantic theme tokens. Chart.js loading displays chart-shaped skeletons. Remove page CSS currently injected by `reports.js`.
+Chart colors come from semantic theme tokens. Chart.js loading displays chart-shaped skeletons. Remove page CSS currently injected by `reports.js`.
 
 ### Automação
 Rebuild this page strongly; the current page has the most visible legacy-surface mismatch.
@@ -270,15 +281,15 @@ Profile, student/couple creation, class creation, confirmations, and other dialo
 Toasts, badges, switches, empty states, errors, and progress indicators are shared components, not page inventions.
 
 ## JavaScript presentation cleanup
-The migration must remove page-level CSS injection from JavaScript. Known examples include:
+The migration removes page-level CSS injection from JavaScript. Known examples include:
 - `app/js/features/dashboard.js`
 - `app/js/features/reports.js`
 - `app/js/features/automation-center.js`
 
-These modules may continue generating markup and handling behavior/data, but their visual rules must move to `app/css/ui-v2/pages/` or reusable component CSS.
+These modules may continue generating markup and handling behavior/data, but visual rules move to `app/css/ui-v2/pages/` or reusable component CSS.
 
 ## Functional contract preservation
-Preserve existing IDs and integration points used by business logic, including the current auth, students, finance, class, modal, profile, reports, automation, receipt, and payment flows.
+Preserve existing IDs and integration points used by business logic, including current auth, students, classes, finance, modal, profile, reports, automation, receipt, and payment flows.
 
 The redesign must not modify functional code merely to make CSS easier.
 
@@ -300,8 +311,8 @@ Migrate authentication, sidebar, top-level layout, theme toggle, and mobile navi
 ### Phase 3 — Dashboard
 Migrate Visão Geral and remove its injected legacy CSS.
 
-### Phase 4 — Students/classes
-Migrate student/class table, toolbar, forms, filters, progress, and mobile card layout.
+### Phase 4 — Students + classes
+Migrate Students and the dedicated Classes destination, including table/cards, toolbar, forms, filters, progress, and mobile layout while reusing existing class operations.
 
 ### Phase 5 — Finance
 Migrate finance metrics, filter, and table using shared components.
@@ -329,7 +340,7 @@ Do not remove a legacy stylesheet merely because a new equivalent exists; remove
 The branch keeps automated protection for both functional and visual contracts.
 
 ### Functional regression gates
-Must continue covering, at minimum:
+Continue covering, at minimum:
 - authentication contracts,
 - active academy resolution and isolation,
 - students/classes CRUD contracts,
@@ -357,7 +368,7 @@ Add tests that prevent reintroduction of:
 Tests should validate intent and contracts rather than overspecify exact CSS implementation details.
 
 ## Manual validation checkpoints
-After each migrated screen, perform a short manual browser pass before continuing. The user will review screenshots during the migration.
+After each migrated screen, perform a short manual browser pass before continuing. The user reviews screenshots during the migration.
 
 Final browser gate uses a disposable test record and covers:
 1. login,
@@ -380,7 +391,7 @@ The redesign is not merge-ready until automated checks and this final manual flo
 - Preserve labels and accessible names.
 - Theme contrast must remain readable in both modes.
 - Interactive elements must remain usable at mobile sizes.
-- Respect safe-area insets for the bottom navigation.
+- Respect safe-area insets for bottom navigation.
 - Respect `prefers-reduced-motion`.
 - Avoid relying on color alone for critical status meaning.
 

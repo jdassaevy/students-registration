@@ -8,22 +8,23 @@
             .classList
             .toggle('is-open', open);
         trigger.setAttribute('aria-expanded', String(open));
-        host
-            ?
+        if (host) {
+            host
                 .classList
                 .toggle('custom-select-host-open', open);
+        }
     }
 
     function closeAll(except = null) {
         registry.forEach(entry => {
-            if (entry.root === except) 
+            if (entry.root === except)
                 return;
             setOpenState(entry, false);
         });
     }
 
     function enhance(select) {
-        if (!select || registry.has(select) || select.dataset.customSelect === 'true') 
+        if (!select || registry.has(select) || select.dataset.customSelect === 'true')
             return;
         select.dataset.customSelect = 'true';
         select
@@ -61,8 +62,7 @@
             const selected = select.options[select.selectedIndex];
             trigger
                 .querySelector('.custom-select-value')
-                .textContent = selected
-                    ?.textContent || 'Selecione';
+                .textContent = selected ? selected.textContent : 'Selecione';
             trigger.disabled = select.disabled;
             menu.innerHTML = '';
             [...select.options].forEach(option => {
@@ -74,7 +74,7 @@
                 item.dataset.value = option.value;
                 item.textContent = option.textContent;
                 item.disabled = option.disabled;
-                if (option.selected) 
+                if (option.selected)
                     item
                         .classList
                         .add('is-selected');
@@ -102,7 +102,7 @@
         });
 
         trigger.addEventListener('keydown', event => {
-            if (event.key === 'Escape') 
+            if (event.key === 'Escape')
                 setOpenState(entry, false);
         });
 
@@ -125,12 +125,12 @@
     }
 
     document.addEventListener('click', event => {
-        if (!event.target.closest('.custom-select')) 
+        if (!event.target.closest('.custom-select'))
             closeAll();
     });
 
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape') 
+        if (event.key === 'Escape')
             closeAll();
     });
 

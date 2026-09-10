@@ -115,7 +115,7 @@
 }
 
 .app-sidebar .app-sidebar-nav.view-tabs .view-tab.active {
-  color: var(--text-primary);
+  color: var(--text-on-brand);
 }
 
 .app-sidebar .app-sidebar-nav.view-tabs .view-tab-label {
@@ -163,7 +163,13 @@
 .app-sidebar-footer .btn-account {
   width: 100%;
   min-height: 40px;
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-soft);
+  box-shadow: none;
 }
 
 .app-main {
@@ -199,6 +205,13 @@
   width: min(1500px, 100%);
   margin: 0 auto;
   padding: 18px clamp(22px, 4vw, 44px) 44px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-sidebar-footer .btn-account:hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 24%, var(--border-subtle));
+    background: color-mix(in srgb, var(--bg-soft) 86%, var(--brand-primary));
+  }
 }
 
 @media (max-width: 768px) {

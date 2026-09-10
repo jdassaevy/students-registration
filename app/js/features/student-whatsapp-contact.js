@@ -54,6 +54,11 @@
       </div>`;
   }
 
+  function keepSecondPersonFieldsVisible() {
+    const block = byId('person2Payments');
+    if (block) block.hidden = false;
+  }
+
   function syncConsent(phoneId, consentId) {
     const phone = byId(phoneId);
     const consent = byId(consentId);
@@ -206,17 +211,22 @@
   function wireUi() {
     injectStyles();
     injectStudentContactFields();
+    keepSecondPersonFieldsVisible();
+
+    byId('person2')?.addEventListener('input', keepSecondPersonFieldsVisible);
 
     byId('newBtn')?.addEventListener('click', () => {
       clearContactFields();
       syncConsent('p1Phone', 'p1WhatsappConsent');
       syncConsent('p2Phone', 'p2WhatsappConsent');
+      keepSecondPersonFieldsVisible();
     });
 
     if (typeof root.editCouple === 'function') {
       const originalEditCouple = root.editCouple;
       root.editCouple = function (id) {
         originalEditCouple(id);
+        keepSecondPersonFieldsVisible();
         void populateStudentContactFields(id);
       };
     }

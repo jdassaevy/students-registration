@@ -14,6 +14,7 @@ const readMaybe = path => {
 const index = read('../../index.html');
 const core = read('../core/script.js');
 const studentsUi = readMaybe('../features/students-ui.js');
+const whatsappContact = readMaybe('../features/student-whatsapp-contact.js');
 const css = readMaybe('../../css/ui-v2/pages/students.css');
 
 test('students keeps current functional targets and adds the mobile cards surface', () => {
@@ -88,4 +89,17 @@ test('students page owns a semantic UI v2 visual layer loaded after the dashboar
   assert.match(css, /var\(--surface-card\)/);
   assert.match(css, /var\(--accent-primary\)/);
   assert.doesNotMatch(css, /background:\s*(?:#fff(?:fff)?|white)\b/i);
+});
+
+test('couple form keeps the second-person payment section visible', () => {
+  assert.match(index, /id=["']person2Payments["']/);
+
+  const coreHidesSecondPerson = /person2Payments['"]\)\.hidden\s*=\s*!\$\(['"]person2['"]\)/s.test(core);
+  const uiRestoresSecondPerson = /function keepSecondPersonFieldsVisible\([\s\S]*person2Payments[\s\S]*hidden\s*=\s*false/s.test(whatsappContact);
+
+  assert.equal(
+    coreHidesSecondPerson && !uiRestoresSecondPerson,
+    false,
+    'the second-person section must remain visible in the couple registration modal'
+  );
 });

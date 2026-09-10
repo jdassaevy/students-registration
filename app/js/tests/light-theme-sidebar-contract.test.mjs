@@ -7,12 +7,13 @@ const shellUrl = new URL('../../css/app-shell.css', import.meta.url);
 const tokens = () => fs.readFileSync(tokensUrl, 'utf8');
 const shell = () => fs.readFileSync(shellUrl, 'utf8');
 
-test('light theme uses warmer darker neutral surfaces', () => {
+test('light theme uses Narvik canvas with Sorrell Brown branding', () => {
   const css = tokens();
-  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--bg-app:\s*#e8dfd5/i);
-  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--bg-elevated:\s*#f2ebe3/i);
-  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--bg-panel:\s*#f7f2ec/i);
-  assert.match(css, /--text-on-brand:\s*#f7f1eb/i);
+  assert.match(css, /--narvik:\s*#EAE7DD/i);
+  assert.match(css, /--sorrell-brown:\s*#99775C/i);
+  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--bg-app:\s*var\(--narvik\)/i);
+  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--brand-primary:\s*var\(--sorrell-brown\)/i);
+  assert.match(css, /--text-on-brand:\s*var\(--narvik\)/i);
 });
 
 test('selected sidebar item uses a light on-brand foreground', () => {

@@ -19,7 +19,8 @@
   animation-delay: calc(var(--ui-stagger-index, 0) * 45ms);
 }
 
-.ui-dropdown {
+.ui-dropdown,
+#appView .custom-select-menu {
   transform-origin: top center;
   transition:
     opacity var(--motion-fast) ease,
@@ -42,12 +43,53 @@
   transition-delay: 0s;
 }
 
-.ui-modal-motion {
-  opacity: 0;
-  transform: translateY(6px) scale(.992);
+#appView .custom-select.is-open .custom-select-menu {
+  transition-delay: 0s;
+}
+
+#appView .custom-select-chevron {
+  transition: transform var(--motion-fast) var(--motion-ease);
+}
+
+#appView .custom-select.is-open .custom-select-chevron {
+  transform: rotate(180deg);
+}
+
+.ui-button,
+.btn,
+#appView .custom-select-trigger,
+#appView .custom-select-option,
+.month,
+.icon-btn,
+.pill,
+.ui-badge,
+.badge {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
+}
+
+.ui-switch-track,
+.ui-switch-track::after {
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    transform var(--motion-normal) var(--motion-ease);
+}
+
+.ui-modal-motion,
+#appView dialog {
   transition:
     opacity var(--motion-normal) ease,
     transform var(--motion-normal) var(--motion-ease);
+}
+
+.ui-modal-motion {
+  opacity: 0;
+  transform: translateY(6px) scale(.992);
 }
 
 .ui-modal-motion[open] {
@@ -55,12 +97,17 @@
   transform: translateY(0) scale(1);
 }
 
-.ui-toast-motion {
-  opacity: 0;
-  transform: translateY(8px);
+.ui-toast-motion,
+.toast,
+.ui-toast {
   transition:
     opacity var(--motion-fast) ease,
     transform var(--motion-normal) var(--motion-ease);
+}
+
+.ui-toast-motion {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 .ui-toast-motion.is-visible {
@@ -68,7 +115,9 @@
   transform: translateY(0);
 }
 
-.ui-progress > span {
+.ui-progress > span,
+.progress > span,
+.progress > i {
   transition: width var(--motion-slow) var(--motion-ease);
 }
 
@@ -112,7 +161,18 @@
   .ui-modal-motion,
   .ui-toast-motion,
   .ui-progress > span,
-  .ui-skeleton::after {
+  .progress > span,
+  .progress > i,
+  .ui-skeleton::after,
+  #appView .custom-select-menu,
+  #appView .custom-select-chevron,
+  .ui-button,
+  .btn,
+  .ui-switch-track,
+  .ui-switch-track::after,
+  #appView dialog,
+  .toast,
+  .ui-toast {
     animation-duration: .01ms !important;
     animation-delay: 0ms !important;
     transition-duration: .01ms !important;
@@ -124,7 +184,9 @@
   .ui-stagger-item,
   .ui-dropdown,
   .ui-modal-motion,
-  .ui-toast-motion {
+  .ui-toast-motion,
+  #appView .custom-select-menu,
+  #appView .custom-select-chevron {
     filter: none !important;
     transform: none !important;
   }

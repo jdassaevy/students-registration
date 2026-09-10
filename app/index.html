@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="./css/ui-v2/pages/auth.css?v=1">
     <link rel="stylesheet" href="./css/ui-v2/pages/dashboard.css?v=1">
     <link rel="stylesheet" href="./css/ui-v2/pages/students.css?v=1">
+    <link rel="stylesheet" href="./css/ui-v2/pages/financial.css?v=1">
 </head>
 <body>
     <section class="auth-view" id="authView">
@@ -141,25 +142,29 @@
                         </section>
                     </div>
 
-                    <section id="financialView" hidden="hidden">
-                        <div class="financial-head">
-                            <div>
+                    <section id="financialView" class="financial-page" hidden="hidden">
+                        <header class="financial-head financial-page-head">
+                            <div class="financial-page-head-copy">
+                                <span class="financial-kicker">Financeiro</span>
                                 <h2>Controle financeiro</h2>
                                 <p>Somente pagamentos marcados como recebidos entram nos totais.</p>
                             </div>
-                            <select id="financialClassFilter" class="class-filter" aria-label="Filtrar financeiro por turma">
-                                <option value="all">Todas as turmas</option>
-                                <option value="none">Sem turma</option>
-                            </select>
-                        </div>
+                            <div class="financial-filter-control">
+                                <span>Visualizar</span>
+                                <select id="financialClassFilter" class="class-filter" aria-label="Filtrar financeiro por turma">
+                                    <option value="all">Todas as turmas</option>
+                                    <option value="none">Sem turma</option>
+                                </select>
+                            </div>
+                        </header>
                         <section class="stats financial-stats" aria-label="Resumo financeiro">
                             <article class="stat featured"><span>Total recebido</span><strong id="financialTotal">R$ 0,00</strong></article>
                             <article class="stat"><span>Inscrições recebidas</span><strong id="financialEntries">R$ 0,00</strong></article>
                             <article class="stat"><span>Mensalidades recebidas</span><strong id="financialMonthly">R$ 0,00</strong></article>
                             <article class="stat"><span>Pagamentos recebidos</span><strong id="financialPayments">0</strong></article>
                         </section>
-                        <section class="panel financial-panel">
-                            <div class="table-wrap">
+                        <section class="panel financial-panel" aria-label="Recebimentos por turma">
+                            <div class="table-wrap financial-table-wrap">
                                 <table class="financial-table">
                                     <thead>
                                         <tr><th>Turma</th><th>Alunos</th><th>Inscrições</th><th>Mensalidades</th><th>Total recebido</th></tr>
@@ -167,6 +172,7 @@
                                     <tbody id="financialList"></tbody>
                                 </table>
                             </div>
+                            <div id="financialCards" class="financial-cards" aria-live="polite"></div>
                         </section>
                     </section>
                 </main>
@@ -283,6 +289,7 @@
     <script src="./js/core/academy-data-context.js?v=1"></script>
     <script src="./js/core/script.js?v=6"></script>
     <script src="./js/features/students-ui.js?v=1"></script>
+    <script src="./js/features/financial-ui.js?v=1"></script>
     <script src="./js/features/academy-profile.js?v=1"></script>
     <script data-payment-automation src="./js/features/payment-automation.js?v=2"></script>
     <script src="./js/features/dashboard.js?v=1"></script>

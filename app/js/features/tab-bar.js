@@ -14,6 +14,10 @@
             label: 'Alunos',
             icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6.5-1a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20v-2.2c0-3.1 2.9-5.3 6.5-5.3s6.5 2.2 6.5 5.3V20h-13Zm13.7 0v-2.2c0-1.7-.7-3.2-1.9-4.3.4-.1.8-.1 1.2-.1 3.3 0 6 2 6 4.8V20h-5.3Z"/></svg>'
         },
+        classesTab: {
+            label: 'Turmas',
+            icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v5H4V4Zm0 7h16v4H4v-4Zm0 6h16v3H4v-3Z"/></svg>'
+        },
         financialTab: {
             label: 'Financeiro',
             icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 3v10h16v-7h-5a3 3 0 0 1 0-6H4v3Zm11-1a1 1 0 1 0 0 2h5V7h-5Z"/></svg>'

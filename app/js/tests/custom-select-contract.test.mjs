@@ -10,14 +10,11 @@ const dashboardCss = fs.readFileSync(
     'utf8'
 );
 const css = fs.readFileSync(
-    new URL('../../css/style.css', import.meta.url),
-    'utf8'
-) + '\n' + fs.readFileSync(
-    new URL('../../css/custom-select-fix.css', import.meta.url),
+    new URL('../../css/ui-v2/components.css', import.meta.url),
     'utf8'
 );
 
-for (const selector of['select.class-filter', '#coupleClass']) {
+for (const selector of ['select.class-filter', '#coupleClass']) {
     assert.ok(
         customSelect.includes(selector),
         `custom select must enhance ${selector}`
@@ -50,7 +47,7 @@ assert.match(
 );
 assert.ok(
     css.includes('.custom-select-menu'),
-    'animated dropdown menu styles must exist'
+    'UI v2 dropdown menu styles must exist'
 );
 assert.ok(
     css.includes('.custom-select-host-open'),

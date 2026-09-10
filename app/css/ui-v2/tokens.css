@@ -1,0 +1,93 @@
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Urban Loft — approved source palette */
+  --urban-black: #000000;
+  --urban-industrial-gray: #464646;
+  --urban-brick: #A35E47;
+  --urban-neutral: #9C9A9A;
+  --urban-cream: #F5F5DC;
+
+  /* Semantic surfaces */
+  --surface-page: #000000;
+  --surface-sidebar: #11100f;
+  --surface-card: #171615;
+  --surface-elevated: #1e1c1b;
+  --surface-input: #24211f;
+
+  /* Semantic text */
+  --text-primary: #F5F5DC;
+  --text-secondary: #c5c0b6;
+  --text-muted: #9C9A9A;
+  --text-on-accent: #F5F5DC;
+
+  /* Semantic accent */
+  --accent-primary: #A35E47;
+  --accent-hover: #b86a51;
+  --accent-soft: color-mix(in srgb, #A35E47 16%, transparent);
+
+  /* Semantic borders */
+  --border-default: rgba(245, 245, 220, .10);
+  --border-strong: rgba(245, 245, 220, .18);
+
+  /* Semantic state colors */
+  --status-success: #6f9d7f;
+  --status-warning: #c4a16f;
+  --status-danger: #c27468;
+
+  /* Shape */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+
+  /* Motion */
+  --motion-fast: 160ms;
+  --motion-normal: 240ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(.22, 1, .36, 1);
+
+  /* Elevation */
+  --shadow-card: 0 12px 30px rgba(0, 0, 0, .22);
+  --shadow-elevated: 0 20px 48px rgba(0, 0, 0, .32);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Spiced Mocha — approved source palette */
+  --spiced-cream: #F5F5DC;
+  --spiced-mocha: #6F4E37;
+  --spiced-cinnamon: #D47E30;
+  --spiced-brown: #6D3B07;
+
+  /* Semantic surfaces */
+  --surface-page: #F5F5DC;
+  --surface-sidebar: #eadfca;
+  --surface-card: #fbf5e8;
+  --surface-elevated: #fffaf0;
+  --surface-input: #efe3cf;
+
+  /* Semantic text */
+  --text-primary: #6D3B07;
+  --text-secondary: #6F4E37;
+  --text-muted: #876d59;
+  --text-on-accent: #fff8e8;
+
+  /* Semantic accent */
+  --accent-primary: #D47E30;
+  --accent-hover: #bd6c26;
+  --accent-soft: color-mix(in srgb, #D47E30 14%, transparent);
+
+  /* Semantic borders */
+  --border-default: rgba(111, 78, 55, .18);
+  --border-strong: rgba(111, 78, 55, .30);
+
+  /* Semantic state colors */
+  --status-success: #557962;
+  --status-warning: #9a7339;
+  --status-danger: #9a554b;
+
+  --shadow-card: 0 12px 28px rgba(109, 59, 7, .08);
+  --shadow-elevated: 0 18px 40px rgba(109, 59, 7, .12);
+}

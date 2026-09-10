@@ -88,10 +88,10 @@
         const startField = document.createElement('div');
         startField.className = 'field';
         startField.innerHTML = `<label for="classStartDate">Data de início da turma</label><input id="classStartDate" type="date" required><p class="class-start-helper">Define os vencimentos da 1ª, 2ª e 3ª mensalidades.</p>`;
-        classSchedule
-                .closest('.field')
-                ?
-                .insertAdjacentElement('afterend', startField);
+        const scheduleField = classSchedule.closest('.field');
+        if (scheduleField) {
+            scheduleField.insertAdjacentElement('afterend', startField);
+        }
     }
 
     async function loadClassStarts() {
@@ -116,10 +116,10 @@
     function decorateClassList() {
         const items = [...document.querySelectorAll('#classList .class-item')];
         items.forEach((element, index) => {
-            element
-                    .querySelector('.class-due-info')
-                    ?
-                    .remove();
+            const existingInfo = element.querySelector('.class-due-info');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
             const classItem = typeof classes !== 'undefined'
                 ? classes[index]
                 : null;
@@ -139,10 +139,10 @@
                     formatDate
                 )
                 .join(' • ')}`;
-            element
-                    .querySelector('div')
-                    ?
-                    .appendChild(info);
+            const infoTarget = element.querySelector('div');
+            if (infoTarget) {
+                infoTarget.appendChild(info);
+            }
         });
     }
 
@@ -221,10 +221,10 @@
         const content = document.getElementById('financialDetailContent');
         if (!content || !activeFinancialClassId) 
             return;
-        content
-                .querySelector('.financial-due-banner')
-                ?
-                .remove();
+        const existingBanner = content.querySelector('.financial-due-banner');
+        if (existingBanner) {
+            existingBanner.remove();
+        }
         const start = starts.get(activeFinancialClassId);
         if (!start) 
             return;
@@ -240,10 +240,10 @@
 
         [...content.querySelectorAll('.financial-month-statuses')].forEach(group => {
             [...group.querySelectorAll('.financial-month-chip')].forEach((chip, index) => {
-                chip
-                        .querySelector('.due-date-caption')
-                        ?
-                        .remove();
+                const existingCaption = chip.querySelector('.due-date-caption');
+                if (existingCaption) {
+                    existingCaption.remove();
+                }
                 const caption = document.createElement('span');
                 caption.className = 'due-date-caption';
                 caption.textContent = formatDate(dueDates[index]);

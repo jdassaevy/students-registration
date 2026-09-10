@@ -1,0 +1,317 @@
+.academy-profile-dialog {
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(88vh, 860px);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+}
+
+.academy-profile-dialog::backdrop {
+  background: color-mix(in srgb, var(--surface-page) 78%, transparent);
+  backdrop-filter: blur(5px);
+}
+
+.academy-profile-shell {
+  padding: 26px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.academy-profile-dialog[open] .academy-profile-shell {
+  animation: academy-profile-enter var(--motion-normal) var(--motion-ease) both;
+}
+
+.academy-profile-dialog.is-closing .academy-profile-shell {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity var(--motion-fast) ease-out,
+    transform var(--motion-fast) ease-out;
+}
+
+.academy-profile-head,
+.academy-profile-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.academy-profile-head {
+  margin-bottom: 22px;
+}
+
+.academy-profile-head h2,
+.academy-profile-section h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.academy-profile-head h2 {
+  margin-top: 5px;
+  font-size: clamp(1.65rem, 4vw, 2.05rem);
+  letter-spacing: -.035em;
+}
+
+.academy-profile-head p,
+.academy-profile-section-head p {
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.academy-profile-eyebrow {
+  color: var(--accent-primary);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.academy-profile-form {
+  display: grid;
+  gap: 16px;
+}
+
+.academy-profile-section {
+  padding: 20px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+.academy-profile-section-head {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.academy-profile-section-head h3 {
+  font-size: .98rem;
+}
+
+.academy-profile-section-head p {
+  max-width: 620px;
+  font-size: .76rem;
+}
+
+.academy-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.academy-profile-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.academy-profile-account {
+  background: color-mix(in srgb, var(--surface-card) 76%, var(--surface-page));
+}
+
+.academy-profile-account .field {
+  margin: 0;
+}
+
+#academyProfileEmail[readonly] {
+  color: var(--text-muted);
+  background: var(--surface-input);
+  border-color: var(--border-default);
+  cursor: default;
+}
+
+.academy-profile-message {
+  min-height: 20px;
+  margin: 0;
+  color: var(--status-success);
+  font-size: .76rem;
+  font-weight: 750;
+}
+
+.academy-profile-message.is-error {
+  color: var(--status-danger);
+}
+
+.academy-profile-form[aria-busy="true"] {
+  opacity: .76;
+}
+
+.academy-profile-form[aria-busy="true"] input {
+  pointer-events: none;
+}
+
+.academy-profile-skeleton {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  overflow: hidden;
+}
+
+.academy-profile-skeleton[hidden] {
+  display: none;
+}
+
+.academy-profile-skeleton span {
+  position: relative;
+  display: block;
+  height: 46px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-input) 84%, var(--border-default));
+}
+
+.academy-profile-skeleton span:first-child {
+  height: 68px;
+}
+
+.academy-profile-skeleton span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 18%,
+    color-mix(in srgb, var(--text-primary) 8%, transparent) 48%,
+    transparent 78%
+  );
+  transform: translateX(-115%);
+  animation: academy-profile-skeleton 1.15s linear infinite;
+}
+
+#academyProfileSave[aria-busy="true"] {
+  cursor: progress;
+}
+
+#academyProfileSave[aria-busy="true"]::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: academy-profile-spin 700ms linear infinite;
+}
+
+@keyframes academy-profile-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes academy-profile-skeleton {
+  to { transform: translateX(115%); }
+}
+
+@keyframes academy-profile-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Final shared dialog polish for the current student/class flows. */
+#appView #modal,
+#appView #classModal {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+#appView #modal .grid,
+#appView #classModal .grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+#appView #modal .wide,
+#appView #classModal .wide {
+  grid-column: 1 / -1;
+}
+
+#appView #modal .checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#appView #modal .check {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: var(--surface-elevated);
+}
+
+#appView #classModal .class-list {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+@media (max-width: 650px) {
+  .academy-profile-shell {
+    padding: 20px;
+  }
+
+  .academy-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .academy-profile-grid .wide {
+    grid-column: auto;
+  }
+
+  .academy-profile-head {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  #appView #modal,
+  #appView #classModal {
+    width: min(100% - 16px, 720px);
+    max-height: calc(100dvh - 16px);
+    border-radius: var(--radius-md);
+  }
+
+  #appView #modal .grid,
+  #appView #classModal .grid {
+    grid-template-columns: 1fr;
+  }
+
+  #appView #modal .wide,
+  #appView #classModal .wide {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .academy-profile-dialog[open] .academy-profile-shell,
+  .academy-profile-dialog.is-closing .academy-profile-shell,
+  .academy-profile-skeleton span::after,
+  #academyProfileSave[aria-busy="true"]::before {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}

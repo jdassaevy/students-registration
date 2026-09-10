@@ -5,19 +5,16 @@ const customSelect = fs.readFileSync(
     new URL('../features/custom-select.js', import.meta.url),
     'utf8'
 );
-const dashboard = fs.readFileSync(
-    new URL('../features/dashboard.js', import.meta.url),
+const dashboardCss = fs.readFileSync(
+    new URL('../../css/ui-v2/pages/dashboard.css', import.meta.url),
     'utf8'
 );
 const css = fs.readFileSync(
-    new URL('../../css/style.css', import.meta.url),
-    'utf8'
-) + '\n' + fs.readFileSync(
-    new URL('../../css/custom-select-fix.css', import.meta.url),
+    new URL('../../css/ui-v2/components.css', import.meta.url),
     'utf8'
 );
 
-for (const selector of['select.class-filter', '#coupleClass']) {
+for (const selector of ['select.class-filter', '#coupleClass']) {
     assert.ok(
         customSelect.includes(selector),
         `custom select must enhance ${selector}`
@@ -50,7 +47,7 @@ assert.match(
 );
 assert.ok(
     css.includes('.custom-select-menu'),
-    'animated dropdown menu styles must exist'
+    'UI v2 dropdown menu styles must exist'
 );
 assert.ok(
     css.includes('.custom-select-host-open'),
@@ -67,15 +64,15 @@ assert.match(
     'open dropdown must slide into place'
 );
 assert.ok(
-    dashboard.includes('.dashboard-stat-card:hover'),
+    dashboardCss.includes('.dashboard-stat-card:hover'),
     'dashboard stat cards need hover motion'
 );
 assert.ok(
-    dashboard.includes('.dashboard-section:hover'),
+    dashboardCss.includes('.dashboard-section:hover'),
     'dashboard sections need hover motion'
 );
 assert.ok(
-    dashboard.includes('.dashboard-class-card:hover'),
+    dashboardCss.includes('.dashboard-class-card:hover'),
     'dashboard class cards need hover motion'
 );
 

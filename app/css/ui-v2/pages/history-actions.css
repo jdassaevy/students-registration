@@ -1,0 +1,71 @@
+.history-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.history-clear-action {
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+  background: var(--surface-elevated);
+}
+
+.history-clear-action:disabled {
+  opacity: .48;
+  cursor: default;
+}
+
+.history-local-empty {
+  margin: 14px 0 0;
+  padding: 22px 18px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+#receiptHistoryPanel > div > div:first-child {
+  flex-wrap: wrap;
+}
+
+#receiptHistoryPanel .history-actions .btn,
+.automation-card--activity .history-actions .btn {
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .history-clear-action:not(:disabled):hover {
+    border-color: var(--status-danger);
+    color: var(--status-danger);
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 640px) {
+  .history-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .history-actions .btn {
+    flex: 1 1 140px;
+  }
+
+  .automation-card--activity .automation-card-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-clear-action {
+    transition: none;
+  }
+}

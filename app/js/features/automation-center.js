@@ -95,63 +95,102 @@
     section.id = 'automationView';
     section.className = 'automation-view';
     section.hidden = true;
+    section.setAttribute('aria-busy', 'false');
     section.innerHTML = `
-        <section class="automation-hero panel">
-            <div>
-                <span class="automation-kicker">Etapa 5</span>
-                <h2>Central de Automações</h2>
-                <p>Controle lembretes, confirmações e recibos sem alterar as regras financeiras da academia.</p>
-            </div>
-            <div class="automation-integration" id="automationIntegrationStatus">
-                <span class="automation-dot waiting"></span>
-                <div><small>WhatsApp Business</small><strong>Verificando conexão</strong><span>Carregando histórico de envios</span></div>
-            </div>
-        </section>
-
-        <section class="automation-stats" aria-label="Resumo das automações">
-            <article class="automation-stat"><small>Enviadas</small><strong id="automationSent">0</strong><span>aceitas pela API</span></article>
-            <article class="automation-stat"><small>Entregues</small><strong id="automationDelivered">0</strong><span>chegaram ao WhatsApp</span></article>
-            <article class="automation-stat"><small>Lidas</small><strong id="automationRead">0</strong><span>confirmadas pelo aluno</span></article>
-            <article class="automation-stat"><small>Falhas</small><strong id="automationFailed">0</strong><span>precisam de atenção</span></article>
-            <article class="automation-stat"><small>Não enviadas</small><strong id="automationSkipped">0</strong><span>sem elegibilidade</span></article>
-        </section>
-
-        <div class="automation-grid">
-            <section class="automation-card panel">
-                <div class="automation-card-head"><div><span class="automation-kicker">Preferências</span><h3>Automações da academia</h3></div><span class="automation-fixed">D-3 • D0 • D+3 fixos</span></div>
-                <div class="automation-setting-list" id="automationSettingsList">
-                    <label class="automation-setting"><div><strong>Lembretes de mensalidade</strong><span>Antes, no dia e após o vencimento.</span></div><input type="checkbox" data-automation-setting="reminders_enabled"></label>
-                    <label class="automation-setting"><div><strong>Confirmação de pagamento</strong><span>Mensagem automática após marcar como pago.</span></div><input type="checkbox" data-automation-setting="payment_confirmation_enabled"></label>
-                    <label class="automation-setting"><div><strong>Enviar recibo em PDF</strong><span>O PDF continua sendo gerado mesmo se desligado.</span></div><input type="checkbox" data-automation-setting="receipt_delivery_enabled"></label>
-                    <label class="automation-setting"><div><strong>Aviso de estorno</strong><span>Notifica quando um pagamento é desmarcado.</span></div><input type="checkbox" data-automation-setting="void_notification_enabled"></label>
+        <div id="automationSkeleton" class="automation-skeleton" hidden aria-hidden="true">
+            <div class="automation-skeleton-head">
+                <div class="automation-skeleton-copy">
+                    <span class="ui-skeleton automation-skeleton-line automation-skeleton-line--short"></span>
+                    <span class="ui-skeleton automation-skeleton-line automation-skeleton-line--title"></span>
+                    <span class="ui-skeleton automation-skeleton-line"></span>
                 </div>
-                <p class="automation-helper" id="automationSettingsMessage"></p>
-            </section>
-
-            <section class="automation-card panel">
-                <div class="automation-card-head"><div><span class="automation-kicker">Pré-Meta</span><h3>Checklist de prontidão</h3></div></div>
-                <div id="automationReadiness" class="automation-readiness"></div>
-            </section>
+                <span class="ui-skeleton automation-skeleton-integration"></span>
+            </div>
+            <div class="automation-skeleton-stats" aria-hidden="true">
+                ${Array.from({length: 5}, () => '<span class="ui-skeleton automation-skeleton-stat"></span>').join('')}
+            </div>
+            <div class="automation-skeleton-grid">
+                <div class="automation-skeleton-card">
+                    <span class="ui-skeleton automation-skeleton-line automation-skeleton-line--title"></span>
+                    ${Array.from({length: 4}, () => '<span class="ui-skeleton automation-skeleton-setting"></span>').join('')}
+                </div>
+                <div class="automation-skeleton-card">
+                    <span class="ui-skeleton automation-skeleton-line automation-skeleton-line--title"></span>
+                    ${Array.from({length: 5}, () => '<span class="ui-skeleton automation-skeleton-check"></span>').join('')}
+                </div>
+            </div>
+            <div class="automation-skeleton-activity">
+                <span class="ui-skeleton automation-skeleton-line automation-skeleton-line--title"></span>
+                ${Array.from({length: 4}, () => '<span class="ui-skeleton automation-skeleton-row"></span>').join('')}
+            </div>
         </div>
 
-        <section class="automation-card panel">
-            <div class="automation-card-head"><div><span class="automation-kicker">Histórico</span><h3>Atividade recente</h3></div><button type="button" class="btn btn-light" id="automationRefresh">Atualizar</button></div>
-            <div class="automation-activity" id="automationActivity"><div class="automation-empty">Carregando histórico...</div></div>
-        </section>`;
+        <div id="automationContent" class="automation-content">
+            <header class="automation-page-head">
+                <div class="automation-head-copy">
+                    <span class="automation-kicker">Automações</span>
+                    <h2>Central de Automações</h2>
+                    <p>Controle lembretes, confirmações e recibos sem alterar as regras financeiras da academia.</p>
+                </div>
+                <div class="automation-integration" id="automationIntegrationStatus">
+                    <span class="automation-dot waiting"></span>
+                    <div><small>WhatsApp Business</small><strong>Verificando conexão</strong><span>Carregando histórico de envios</span></div>
+                </div>
+            </header>
+
+            <section class="automation-stats" aria-label="Resumo das automações">
+                <article class="automation-stat automation-stat--sent"><small>Enviadas</small><strong id="automationSent">0</strong><span>aceitas pela API</span></article>
+                <article class="automation-stat automation-stat--delivered"><small>Entregues</small><strong id="automationDelivered">0</strong><span>chegaram ao WhatsApp</span></article>
+                <article class="automation-stat automation-stat--read"><small>Lidas</small><strong id="automationRead">0</strong><span>confirmadas pelo aluno</span></article>
+                <article class="automation-stat automation-stat--failed"><small>Falhas</small><strong id="automationFailed">0</strong><span>precisam de atenção</span></article>
+                <article class="automation-stat automation-stat--skipped"><small>Não enviadas</small><strong id="automationSkipped">0</strong><span>sem elegibilidade</span></article>
+            </section>
+
+            <div class="automation-grid">
+                <section class="automation-card automation-card--settings panel">
+                    <div class="automation-card-head"><div><span class="automation-kicker">Preferências</span><h3>Automações da academia</h3></div><span class="automation-fixed">D-3 • D0 • D+3 fixos</span></div>
+                    <div class="automation-setting-list" id="automationSettingsList">
+                        <label class="automation-setting"><div><strong>Lembretes de mensalidade</strong><span>Antes, no dia e após o vencimento.</span></div><input type="checkbox" data-automation-setting="reminders_enabled"></label>
+                        <label class="automation-setting"><div><strong>Confirmação de pagamento</strong><span>Mensagem automática após marcar como pago.</span></div><input type="checkbox" data-automation-setting="payment_confirmation_enabled"></label>
+                        <label class="automation-setting"><div><strong>Enviar recibo em PDF</strong><span>O PDF continua sendo gerado mesmo se desligado.</span></div><input type="checkbox" data-automation-setting="receipt_delivery_enabled"></label>
+                        <label class="automation-setting"><div><strong>Aviso de estorno</strong><span>Notifica quando um pagamento é desmarcado.</span></div><input type="checkbox" data-automation-setting="void_notification_enabled"></label>
+                    </div>
+                    <p class="automation-helper" id="automationSettingsMessage" role="status"></p>
+                </section>
+
+                <section class="automation-card automation-card--readiness panel">
+                    <div class="automation-card-head"><div><span class="automation-kicker">Prontidão</span><h3>Checklist de integração</h3></div></div>
+                    <div id="automationReadiness" class="automation-readiness"></div>
+                </section>
+            </div>
+
+            <section class="automation-card automation-card--activity panel">
+                <div class="automation-card-head"><div><span class="automation-kicker">Histórico</span><h3>Atividade recente</h3></div><button type="button" class="btn btn-light" id="automationRefresh" aria-busy="false">Atualizar</button></div>
+                <div class="automation-activity" id="automationActivity" aria-live="polite"><div class="automation-empty">Carregando histórico...</div></div>
+            </section>
+        </div>`;
     main.appendChild(section);
 
-    const style = document.createElement('style');
-    style.textContent = `
-        .automation-view{display:grid;gap:18px}.automation-view[hidden]{display:none!important}
-        .automation-hero{padding:23px 25px;display:flex;align-items:center;justify-content:space-between;gap:20px}.automation-hero h2,.automation-card h3{margin:0;color:var(--wine-dark);font-family:Georgia,serif}.automation-hero h2{font-size:clamp(25px,3vw,34px)}.automation-hero p{margin:7px 0 0;color:var(--muted)}
-        .automation-kicker{display:block;margin-bottom:5px;color:var(--terracotta);font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.12em}.automation-integration{display:flex;align-items:center;gap:11px;min-width:220px;padding:13px 15px;border:1px solid var(--line);border-radius:15px;background:rgba(250,247,242,.72)}.automation-integration div{display:grid;gap:2px}.automation-integration small,.automation-integration span{color:var(--muted);font-size:10px}.automation-integration strong{color:var(--wine-dark);font-size:13px}.automation-dot{width:11px;height:11px;border-radius:50%;background:#c99856;box-shadow:0 0 0 4px rgba(201,152,86,.15)}.automation-dot.connected{background:#477153;box-shadow:0 0 0 4px rgba(71,113,83,.15)}.automation-dot.problem{background:#a13d32;box-shadow:0 0 0 4px rgba(161,61,50,.15)}
-        .automation-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.automation-stat{padding:17px;border:1px solid rgba(255,255,255,.76);border-radius:18px;background:var(--surface-glass,rgba(255,253,248,.92));box-shadow:var(--shadow)}.automation-stat small{display:block;color:var(--muted);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}.automation-stat strong{display:block;margin-top:5px;color:var(--wine-dark);font-size:23px}.automation-stat span{display:block;margin-top:3px;color:var(--muted);font-size:10px}
-        .automation-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.automation-card{padding:21px 23px}.automation-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;margin-bottom:15px}.automation-card h3{font-size:20px}.automation-fixed{padding:6px 9px;border-radius:999px;background:#f2e7dc;color:var(--wine);font-size:9px;font-weight:850;white-space:nowrap}.automation-setting-list{display:grid;gap:9px}.automation-setting{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:rgba(250,247,242,.6);cursor:pointer}.automation-setting div{display:grid;gap:3px}.automation-setting strong{color:var(--wine-dark);font-size:12px}.automation-setting span{color:var(--muted);font-size:10px}.automation-setting input{width:18px;height:18px;accent-color:var(--wine)}.automation-helper{min-height:16px;margin:10px 1px 0;color:var(--muted);font-size:10px}
-        .automation-readiness{display:grid;gap:8px}.automation-check{display:flex;align-items:flex-start;gap:9px;padding:9px 10px;border-radius:11px;background:rgba(250,247,242,.58)}.automation-check b{display:grid;place-items:center;width:19px;height:19px;flex:0 0 19px;border-radius:50%;font-size:10px}.automation-check.ok b{background:#e3efe5;color:#3f6948}.automation-check.pending b{background:#f4e8d6;color:#946c37}.automation-check div{display:grid;gap:2px}.automation-check strong{color:var(--wine-dark);font-size:11px}.automation-check span{color:var(--muted);font-size:9px;line-height:1.35}
-        .automation-activity{display:grid;gap:8px}.automation-row{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(160px,1.25fr) 110px 130px auto;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(250,247,242,.55)}.automation-row strong{color:var(--wine-dark);font-size:11px}.automation-row span{color:var(--muted);font-size:10px}.automation-row .automation-status{font-weight:800}.automation-row .automation-status.failed{color:#a13d32}.automation-row .automation-status.read,.automation-row .automation-status.delivered{color:#477153}.automation-error{grid-column:1/-1;padding-top:7px;border-top:1px dashed var(--line);color:#9a4a40!important}.automation-retry{padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:white;color:var(--wine);font-size:9px;font-weight:800;cursor:pointer}.automation-retry:disabled{opacity:.55;cursor:wait}.automation-empty{padding:25px;text-align:center;color:var(--muted);font-size:11px}
-        @media(max-width:1000px){.automation-stats{grid-template-columns:repeat(3,1fr)}.automation-grid{grid-template-columns:1fr}}@media(max-width:700px){.automation-hero{align-items:flex-start;flex-direction:column}.automation-integration{width:100%}.automation-stats{grid-template-columns:1fr 1fr}.automation-row{grid-template-columns:1fr auto}.automation-row span:nth-child(2),.automation-row span:nth-child(4){display:none}}
-    `;
-    document.head.appendChild(style);
+    const automationSkeleton = document.getElementById('automationSkeleton');
+    const automationContent = document.getElementById('automationContent');
+    let automationReady = false;
+
+    function setAutomationLoading(loading) {
+        section.setAttribute('aria-busy', String(loading));
+        const firstLoad = loading && !automationReady;
+        if (automationSkeleton) {
+            automationSkeleton.hidden = !firstLoad;
+            automationSkeleton.setAttribute('aria-hidden', String(!firstLoad));
+        }
+        if (automationContent) automationContent.hidden = firstLoad;
+
+        const refreshButton = document.getElementById('automationRefresh');
+        if (refreshButton) {
+            refreshButton.disabled = loading;
+            refreshButton.setAttribute('aria-busy', String(loading));
+            refreshButton.textContent = loading ? 'Atualizando...' : 'Atualizar';
+        }
+    }
 
     let currentSettings = {...DEFAULT_SETTINGS};
     let currentMessages = [];
@@ -191,6 +230,7 @@
         const previous = currentSettings[key];
         currentSettings[key] = input.checked;
         input.disabled = true;
+        input.setAttribute('aria-busy', 'true');
         const message = document.getElementById('automationSettingsMessage');
         message.textContent = 'Salvando preferência...';
         try {
@@ -205,6 +245,7 @@
             console.warn('automation setting update failed', error.message);
         } finally {
             input.disabled = false;
+            input.setAttribute('aria-busy', 'false');
         }
     }
 
@@ -259,7 +300,7 @@
             const date = new Date(message.executed_at || message.created_at);
             const dateText = Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('pt-BR');
             const retry = canRetry(message)
-                ? `<button type="button" class="automation-retry" data-retry-message="${message.id}">Reenviar</button>`
+                ? `<button type="button" class="automation-retry" data-retry-message="${message.id}" aria-busy="false">Reenviar</button>`
                 : '<span></span>';
             const error = message.error_message ? `<span class="automation-error">${safeText(message.error_message)}</span>` : '';
             return `<div class="automation-row">
@@ -307,6 +348,7 @@
     }
 
     async function refreshAll() {
+        setAutomationLoading(true);
         try {
             await ensureSettings();
             renderSettings();
@@ -315,6 +357,9 @@
         } catch (error) {
             console.warn('automation center load failed', error.message);
             document.getElementById('automationActivity').innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação agora.</div>';
+        } finally {
+            automationReady = true;
+            setAutomationLoading(false);
         }
     }
 
@@ -322,6 +367,7 @@
         const sourceMessageId = button.dataset.retryMessage;
         if (!sourceMessageId || button.disabled) return;
         button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
         button.textContent = 'Enviando...';
         const requestId = button.dataset.retryRequestId || crypto.randomUUID();
         button.dataset.retryRequestId = requestId;
@@ -343,6 +389,7 @@
             console.warn('automation retry failed', error.message);
         } finally {
             button.disabled = false;
+            button.setAttribute('aria-busy', 'false');
             button.textContent = 'Reenviar';
         }
     }

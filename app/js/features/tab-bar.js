@@ -3,6 +3,8 @@
     if (!nav || nav.dataset.animatedTabBar === 'true') return;
     nav.dataset.animatedTabBar = 'true';
 
+    const mobileNavQuery = window.matchMedia('(max-width: 768px)');
+
     const TAB_META = {
         dashboardTab: {
             label: 'Visão Geral',
@@ -11,6 +13,10 @@
         studentsTab: {
             label: 'Alunos',
             icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6.5-1a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20v-2.2c0-3.1 2.9-5.3 6.5-5.3s6.5 2.2 6.5 5.3V20h-13Zm13.7 0v-2.2c0-1.7-.7-3.2-1.9-4.3.4-.1.8-.1 1.2-.1 3.3 0 6 2 6 4.8V20h-5.3Z"/></svg>'
+        },
+        classesTab: {
+            label: 'Turmas',
+            icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v5H4V4Zm0 7h16v4H4v-4Zm0 6h16v3H4v-3Z"/></svg>'
         },
         financialTab: {
             label: 'Financeiro',
@@ -102,6 +108,11 @@
         if (!animate) requestAnimationFrame(() => indicator.classList.remove('no-transition'));
     }
 
+    function syncOrientation() {
+        nav.dataset.navOrientation = mobileNavQuery.matches ? 'horizontal' : 'vertical';
+        requestAnimationFrame(() => syncIndicator(false));
+    }
+
     function decorateAll() {
         nav.querySelectorAll('.view-tab').forEach(decorateTab);
         requestAnimationFrame(() => syncIndicator(false));
@@ -124,6 +135,13 @@
     const resizeObserver = new ResizeObserver(() => syncIndicator(false));
     resizeObserver.observe(nav);
 
+    if (typeof mobileNavQuery.addEventListener === 'function') {
+        mobileNavQuery.addEventListener('change', syncOrientation);
+    } else {
+        mobileNavQuery.addListener(syncOrientation);
+    }
+
     window.addEventListener('resize', () => syncIndicator(false), {passive: true});
+    syncOrientation();
     decorateAll();
 })();

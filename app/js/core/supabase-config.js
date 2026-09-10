@@ -105,9 +105,54 @@ window.addEventListener('load', () => {
             .appendChild(receiptScript);
     };
 
+    const loadHistoryActionsStyles = () => {
+        if (document.querySelector('link[data-history-actions-style]')) return;
+        const stylesheet = document.createElement('link');
+        stylesheet.rel = 'stylesheet';
+        stylesheet.href = './css/ui-v2/pages/history-actions.css?v=1';
+        stylesheet.dataset.historyActionsStyle = 'true';
+        document.head.appendChild(stylesheet);
+    };
+
+    const loadHistoryControls = () => {
+        if (document.querySelector('script[data-history-controls]')) return;
+        const script = document.createElement('script');
+        script.src = './js/features/history-controls.js?v=1';
+        script.dataset.historyControls = 'true';
+        document.body.appendChild(script);
+    };
+
+    const loadHistoryVisibility = () => {
+        if (window.DassaevyHistoryVisibility) {
+            loadHistoryControls();
+            return;
+        }
+        const existing = document.querySelector('script[data-history-visibility]');
+        if (existing) {
+            existing.addEventListener('load', loadHistoryControls, {once: true});
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = './js/features/history-visibility.js?v=1';
+        script.dataset.historyVisibility = 'true';
+        script.addEventListener('load', loadHistoryControls, {once: true});
+        document.body.appendChild(script);
+    };
+
+    const loadClassDelete = () => {
+        if (document.querySelector('script[data-class-delete]')) return;
+        const script = document.createElement('script');
+        script.src = './js/features/class-delete.js?v=1';
+        script.dataset.classDelete = 'true';
+        document.body.appendChild(script);
+    };
+
     loadStudentWhatsappContact();
     loadPaymentAutomation();
     loadAutomationCenter();
+    loadHistoryActionsStyles();
+    loadHistoryVisibility();
+    loadClassDelete();
 
     if (document.querySelector('script[data-money-input]')) {
         loadReceipts();

@@ -65,9 +65,9 @@ test('mobile students layout swaps the desktop table for record cards', () => {
   assert.match(css, /@media[^\{]*max-width:\s*768px[\s\S]*\.student-cards[\s\S]*display:\s*grid/s);
 });
 
-test('students search uses a geometry-built magnifier instead of a font glyph', () => {
-  assert.match(css, /\.students-toolbar \.search::before\s*\{[^}]*content:\s*["']{2}[^}]*width:\s*14px[^}]*height:\s*14px[^}]*border:\s*2px\s+solid\s+var\(--text-muted\)[^}]*border-radius:\s*50%[^}]*top:\s*50%[^}]*transform:\s*translateY\(-50%\)/s);
-  assert.match(css, /\.students-toolbar \.search::after\s*\{[^}]*content:\s*["']{2}[^}]*width:\s*6px[^}]*height:\s*2px[^}]*top:\s*50%[^}]*transform:\s*translateY\(4px\)\s+rotate\(45deg\)/s);
+test('students search uses a centered vector mask instead of a font glyph', () => {
+  assert.match(css, /\.students-toolbar \.search::before\s*\{[^}]*content:\s*["']{2}[^}]*width:\s*16px[^}]*height:\s*16px[^}]*top:\s*50%[^}]*mask:[^}]*svg\+xml[^}]*transform:\s*translateY\(-50%\)/s);
+  assert.doesNotMatch(css, /\.students-toolbar \.search::before\s*\{[^}]*content:\s*["']⌕["']/s);
 });
 
 test('students counters suppress the legacy white diagonal glare', () => {

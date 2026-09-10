@@ -42,10 +42,11 @@
   background: var(--accent-primary);
 }
 
-.btn-light {
+#appView .btn-light {
   color: var(--text-primary);
   border-color: var(--border-default);
   background: var(--surface-elevated);
+  box-shadow: none;
 }
 
 .btn-account {
@@ -121,6 +122,7 @@ select.class-filter {
   outline: none;
   color: var(--text-primary);
   background: var(--surface-input);
+  box-shadow: none;
   font: inherit;
   caret-color: var(--accent-primary);
 }
@@ -209,6 +211,7 @@ input[type="radio"] {
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   background: var(--surface-input);
+  box-shadow: none;
   font: inherit;
   font-size: .82rem;
   font-weight: 700;
@@ -244,6 +247,11 @@ input[type="radio"] {
   color: var(--text-muted);
   font-size: 1rem;
   line-height: 1;
+  transition: transform 260ms var(--motion-ease), color var(--motion-fast) ease;
+}
+
+#appView .custom-select.is-open .custom-select-chevron {
+  transform: rotate(180deg);
 }
 
 #appView .custom-select-menu {
@@ -263,8 +271,15 @@ input[type="radio"] {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(-5px) scale(.99);
+  transform: translateY(-10px) scale(.99);
   transform-origin: top center;
+  clip-path: inset(0 0 100% 0);
+  transition:
+    opacity 180ms ease,
+    transform 280ms var(--motion-ease),
+    clip-path 280ms var(--motion-ease),
+    visibility 0s linear 280ms;
+  will-change: opacity, transform, clip-path;
 }
 
 #appView .custom-select.is-open .custom-select-menu {
@@ -272,6 +287,8 @@ input[type="radio"] {
   visibility: visible;
   pointer-events: auto;
   transform: translateY(0) scale(1);
+  clip-path: inset(0);
+  transition-delay: 0s;
 }
 
 #appView .custom-select-option {
@@ -455,6 +472,7 @@ tbody tr:hover td {
   border: 1px solid var(--border-default);
   color: var(--text-secondary);
   background: var(--surface-elevated);
+  box-shadow: none;
   font: inherit;
   cursor: pointer;
 }
@@ -605,6 +623,38 @@ tbody tr:hover td {
 
 #appView dialog form {
   padding: 20px;
+}
+
+#appView .financial-person-block {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+#appView .financial-person-block h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: .9rem;
+}
+
+#appView .financial-person-block .check {
+  border-color: var(--border-default);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+#appView .financial-person-block input,
+#appView .financial-person-block select,
+#appView .month,
+#appView .icon-btn {
+  box-shadow: none;
 }
 
 #appView .modal-actions {
@@ -769,5 +819,17 @@ tbody tr:hover td {
   .ui-toast {
     right: 16px;
     bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #appView .custom-select-menu,
+  #appView .custom-select-chevron {
+    transition-duration: .01ms !important;
+  }
+
+  #appView .custom-select-menu {
+    transform: none;
+    clip-path: inset(0);
   }
 }

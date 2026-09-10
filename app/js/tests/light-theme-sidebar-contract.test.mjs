@@ -2,28 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const tokensUrl = new URL('../../css/design-tokens.css', import.meta.url);
-const shellUrl = new URL('../../css/app-shell.css', import.meta.url);
+const tokensUrl = new URL('../../css/ui-v2/tokens.css', import.meta.url);
+const layoutUrl = new URL('../../css/ui-v2/layout.css', import.meta.url);
 const tokens = () => fs.readFileSync(tokensUrl, 'utf8');
-const shell = () => fs.readFileSync(shellUrl, 'utf8');
+const layout = () => fs.readFileSync(layoutUrl, 'utf8');
 
-test('light theme uses Narvik canvas with Sorrell Brown branding', () => {
+test('light theme uses Spiced Mocha semantic palette', () => {
   const css = tokens();
-  assert.match(css, /--narvik:\s*#EAE7DD/i);
-  assert.match(css, /--sorrell-brown:\s*#99775C/i);
-  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--bg-app:\s*var\(--narvik\)/i);
-  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--brand-primary:\s*var\(--sorrell-brown\)/i);
-  assert.match(css, /--text-on-brand:\s*var\(--narvik\)/i);
+  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--surface-page:\s*#F5F5DC/i);
+  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--surface-sidebar:\s*#eadfca/i);
+  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--accent-primary:\s*#D47E30/i);
+  assert.match(css, /:root\[data-theme=["']light["']\][\s\S]*--text-primary:\s*#6D3B07/i);
 });
 
-test('selected sidebar item uses a light on-brand foreground', () => {
-  const css = shell();
-  assert.match(css, /\.app-sidebar\s+\.app-sidebar-nav\.view-tabs\s+\.view-tab\.active\s*\{[^}]*color:\s*var\(--text-on-brand\)/s);
+test('selected sidebar item uses semantic on-accent foreground', () => {
+  const css = layout();
+  assert.match(css, /\.app-sidebar \.app-sidebar-nav\.view-tabs \.view-tab\.active\s*\{[^}]*color:\s*var\(--text-on-accent\)/s);
 });
 
-test('sidebar account controls are theme-aware instead of inheriting white legacy styles', () => {
-  const css = shell();
-  assert.match(css, /\.app-sidebar-footer\s+\.btn-account\s*\{[^}]*color:\s*var\(--text-primary\)/s);
-  assert.match(css, /\.app-sidebar-footer\s+\.btn-account\s*\{[^}]*background:\s*var\(--bg-soft\)/s);
-  assert.match(css, /\.app-sidebar-footer\s+\.btn-account\s*\{[^}]*border:\s*1px solid var\(--border-subtle\)/s);
+test('sidebar account controls are theme-aware UI v2 surfaces', () => {
+  const css = layout();
+  assert.match(css, /\.app-sidebar-footer \.btn-account\s*\{[^}]*color:\s*var\(--text-secondary\)/s);
+  assert.match(css, /\.app-sidebar-footer \.btn-account\s*\{[^}]*background:\s*var\(--surface-card\)/s);
+  assert.match(css, /\.app-sidebar-footer \.btn-account\s*\{[^}]*border:\s*1px solid var\(--border-default\)/s);
 });

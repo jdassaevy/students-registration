@@ -307,41 +307,47 @@
             });
         };
 
-        client.auth.onAuthStateChange = callback => originalOnAuthStateChange(
-            async (event, session) => {
-                if (!session?.user) {
-                    window.currentAcademyId = null;
-                    pendingLegacyAuth = null;
-                    await hideLegacyView();
-                    return callback(event, session);
-                }
-
-                if (event !== 'PASSWORD_RECOVERY') {
-                    try {
-                        const resolved = await academyContext.resolve(client, session.user);
-                        let academyId = resolved.academyId;
-                        const academyName = String(
-                            session.user.user_metadata?.academy_name || ''
-                        ).trim();
-
-                        if (!academyId && academyName) {
-                            academyId = await academyContext.bootstrap(client, academyName);
-                        }
-
-                        window.currentAcademyId = academyId || null;
-
-                        if (!academyId && !academyName) {
-                            if (showLegacyView(client, event, session, callback)) {
-                                return;
-                            }
-                        }
-                    } catch (error) {
-                        window.currentAcademyId = null;
-                        console.error('Não foi possível resolver a academia ativa.', error);
-                    }
-                }
-
+        const processAuthStateChange = async (event, session, callback) => {
+            if (!session?.user) {
+                window.currentAcademyId = null;
+                pendingLegacyAuth = null;
+                await hideLegacyView();
                 return callback(event, session);
+            }
+
+            if (event !== 'PASSWORD_RECOVERY') {
+                try {
+                    const resolved = await academyContext.resolve(client, session.user);
+                    let academyId = resolved.academyId;
+                    const academyName = String(
+                        session.user.user_metadata?.academy_name || ''
+                    ).trim();
+
+                    if (!academyId && academyName) {
+                        academyId = await academyContext.bootstrap(client, academyName);
+                    }
+
+                    window.currentAcademyId = academyId || null;
+
+                    if (!academyId && !academyName) {
+                        if (showLegacyView(client, event, session, callback)) {
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    window.currentAcademyId = null;
+                    console.error('Não foi possível resolver a academia ativa.', error);
+                }
+            }
+
+            return callback(event, session);
+        };
+
+        client.auth.onAuthStateChange = callback => originalOnAuthStateChange(
+            (event, session) => {
+                setTimeout(() => {
+                    void processAuthStateChange(event, session, callback);
+                }, 0);
             }
         );
 

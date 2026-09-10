@@ -150,10 +150,10 @@ test('profile source is tenant-owned and account email is read-only', () => {
     assert.match(source, /readOnly\s*=\s*true|readonly/i);
 });
 
-test('index exposes Meu Perfil and loads profile assets after core script', () => {
+test('index exposes Meu Perfil and loads profile UI v2 assets after core script', () => {
     const html = fs.readFileSync(indexUrl, 'utf8');
     assert.match(html, /id="academyProfileBtn"[^>]*>Meu Perfil<\/button>/);
-    assert.match(html, /\.\/css\/academy-profile\.css/);
+    assert.match(html, /\.\/css\/ui-v2\/pages\/profile\.css\?v=\d+/);
     assert.match(html, /\.\/js\/features\/academy-profile\.js\?v=\d+/);
     assert.ok(
         html.indexOf('./js/features/academy-profile.js') > html.indexOf('./js/core/script.js'),

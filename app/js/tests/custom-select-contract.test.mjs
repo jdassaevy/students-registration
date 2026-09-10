@@ -5,8 +5,8 @@ const customSelect = fs.readFileSync(
     new URL('../features/custom-select.js', import.meta.url),
     'utf8'
 );
-const dashboard = fs.readFileSync(
-    new URL('../features/dashboard.js', import.meta.url),
+const dashboardCss = fs.readFileSync(
+    new URL('../../css/ui-v2/pages/dashboard.css', import.meta.url),
     'utf8'
 );
 const css = fs.readFileSync(
@@ -67,15 +67,15 @@ assert.match(
     'open dropdown must slide into place'
 );
 assert.ok(
-    dashboard.includes('.dashboard-stat-card:hover'),
+    dashboardCss.includes('.dashboard-stat-card:hover'),
     'dashboard stat cards need hover motion'
 );
 assert.ok(
-    dashboard.includes('.dashboard-section:hover'),
+    dashboardCss.includes('.dashboard-section:hover'),
     'dashboard sections need hover motion'
 );
 assert.ok(
-    dashboard.includes('.dashboard-class-card:hover'),
+    dashboardCss.includes('.dashboard-class-card:hover'),
     'dashboard class cards need hover motion'
 );
 

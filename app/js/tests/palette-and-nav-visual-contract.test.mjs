@@ -4,7 +4,6 @@ import fs from 'node:fs';
 
 const tokens = fs.readFileSync(new URL('../../css/design-tokens.css', import.meta.url), 'utf8');
 const shell = fs.readFileSync(new URL('../../css/app-shell.css', import.meta.url), 'utf8');
-const dashboard = fs.readFileSync(new URL('../features/dashboard.js', import.meta.url), 'utf8');
 
 test('theme exposes Narvik and Sorrell Brown as the primary palette', () => {
   assert.match(tokens, /--narvik:\s*#EAE7DD/i);
@@ -18,8 +17,8 @@ test('desktop sidebar hover never repositions icon or label', () => {
   assert.match(shell, /\.app-sidebar[\s\S]*\.view-tab:hover\s+\.view-tab-label\s*\{[^}]*transform:\s*none/s);
 });
 
-test('dashboard students icon is monochrome svg instead of emoji', () => {
-  assert.doesNotMatch(dashboard, /👥/u);
-  assert.match(dashboard, /dashboard-stat-icon[^>]*><svg[\s\S]*?<\/svg>/);
-  assert.match(dashboard, /\.dashboard-stat-icon svg\{[^}]*fill:currentColor/s);
+test('dashboard students icon is rendered as a monochrome theme icon', () => {
+  assert.match(shell, /\.dashboard-stat-card:first-child\s+\.dashboard-stat-icon\s*\{[^}]*font-size:\s*0/s);
+  assert.match(shell, /\.dashboard-stat-card:first-child\s+\.dashboard-stat-icon::before\s*\{[^}]*mask(?:-image)?:/s);
+  assert.match(shell, /\.dashboard-stat-card:first-child\s+\.dashboard-stat-icon::before\s*\{[^}]*background:\s*currentColor/s);
 });

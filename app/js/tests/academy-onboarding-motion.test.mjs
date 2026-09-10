@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const cssUrl = new URL('../../css/academy-onboarding.css', import.meta.url);
+const cssUrl = new URL('../../css/ui-v2/pages/onboarding.css', import.meta.url);
 const css = () => fs.readFileSync(cssUrl, 'utf8');
 
 test('academy field uses subtle enter motion without layout-property animation', () => {
@@ -23,5 +23,5 @@ test('auth loading state exposes an indeterminate spinner', () => {
 test('academy onboarding motion respects reduced motion preference', () => {
     const source = css();
     assert.match(source, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
-    assert.match(source, /animation-duration:\s*0\.01ms\s*!important/);
+    assert.match(source, /animation-duration:\s*0?\.01ms\s*!important/);
 });

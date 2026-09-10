@@ -1,0 +1,116 @@
+.ui-card {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card);
+}
+
+.ui-elevated {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+}
+
+.ui-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  cursor: pointer;
+}
+
+.ui-button--primary {
+  color: var(--text-on-accent);
+  border-color: transparent;
+  background: var(--accent-primary);
+}
+
+.ui-button:disabled,
+.ui-button[aria-busy="true"] {
+  cursor: wait;
+  opacity: .68;
+}
+
+.ui-field {
+  display: grid;
+  gap: 7px;
+}
+
+.ui-field input,
+.ui-field select,
+.ui-field textarea,
+.ui-input {
+  min-height: 42px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-input);
+}
+
+.ui-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.ui-progress > span {
+  display: block;
+  width: var(--progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+}
+
+.ui-status-success { color: var(--status-success); }
+.ui-status-warning { color: var(--status-warning); }
+.ui-status-danger { color: var(--status-danger); }
+
+.ui-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-elevated) 82%, var(--border-default));
+}
+
+.ui-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text-primary) 7%, transparent),
+    transparent
+  );
+  animation: ui-skeleton-shimmer 1.4s linear infinite;
+}
+
+.ui-skeleton-line {
+  height: .8rem;
+  border-radius: 999px;
+}
+
+.ui-skeleton-circle {
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.ui-skeleton-card {
+  min-height: 110px;
+  border-radius: var(--radius-lg);
+}
+
+@keyframes ui-skeleton-shimmer {
+  to { transform: translateX(100%); }
+}

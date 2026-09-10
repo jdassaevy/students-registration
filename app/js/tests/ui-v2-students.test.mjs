@@ -66,8 +66,14 @@ test('mobile students layout swaps the desktop table for record cards', () => {
 });
 
 test('students search uses a centered vector mask instead of a font glyph', () => {
-  assert.match(css, /\.students-toolbar \.search::before\s*\{[^}]*content:\s*["']{2}[^}]*width:\s*16px[^}]*height:\s*16px[^}]*top:\s*50%[^}]*mask:[^}]*svg\+xml[^}]*transform:\s*translateY\(-50%\)/s);
-  assert.doesNotMatch(css, /\.students-toolbar \.search::before\s*\{[^}]*content:\s*["']⌕["']/s);
+  const block = css.match(/\.students-toolbar \.search::before\s*\{([^}]*)\}/s)?.[1] || '';
+  assert.match(block, /content:\s*["']{2}/);
+  assert.match(block, /top:\s*50%/);
+  assert.match(block, /width:\s*16px/);
+  assert.match(block, /height:\s*16px/);
+  assert.match(block, /mask:[^\n]*svg\+xml/);
+  assert.match(block, /transform:\s*translateY\(-50%\)/);
+  assert.doesNotMatch(block, /⌕/);
 });
 
 test('students counters suppress the legacy white diagonal glare', () => {

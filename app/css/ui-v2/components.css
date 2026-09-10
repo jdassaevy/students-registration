@@ -625,6 +625,21 @@ tbody tr:hover td {
   padding: 20px;
 }
 
+#appView #classModal .class-item {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+#appView #classModal .class-item strong {
+  color: var(--text-primary);
+}
+
+#appView #classModal .class-item small {
+  color: var(--text-muted);
+}
+
 #appView .financial-person-block {
   display: grid;
   gap: 12px;

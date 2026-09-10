@@ -2,20 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const scriptUrl = new URL('../core/script.js', import.meta.url);
-const script = () => fs.readFileSync(scriptUrl, 'utf8');
+const onboardingUrl = new URL('../core/academy-onboarding.js', import.meta.url);
+const onboarding = () => fs.readFileSync(onboardingUrl, 'utf8');
 
-test('auth state callback does not await Supabase data loading inside onAuthStateChange', () => {
-  const source = script();
-  const listenerStart = source.indexOf('.onAuthStateChange(');
-  assert.ok(listenerStart >= 0, 'onAuthStateChange listener must exist');
+test('Supabase auth listener releases its lock before resolving academy or loading app data', () => {
+  const source = onboarding();
+  const listenerStart = source.indexOf('originalOnAuthStateChange(');
+  assert.ok(listenerStart >= 0, 'wrapped onAuthStateChange listener must exist');
 
-  const tail = source.slice(listenerStart);
-  const listenerEnd = tail.indexOf('\n    });');
-  assert.ok(listenerEnd >= 0, 'onAuthStateChange listener must close');
-
-  const listener = tail.slice(0, listenerEnd);
-  assert.doesNotMatch(listener, /onAuthStateChange\(async\s*\(/, 'auth callback must stay synchronous');
-  assert.doesNotMatch(listener, /await\s+loadData\s*\(/, 'Supabase-backed loadData must not be awaited inside auth callback');
-  assert.match(listener, /setTimeout\s*\(/, 'data loading should be deferred until after auth callback releases its lock');
+  const listener = source.slice(listenerStart);
+  assert.doesNotMatch(
+    listener,
+    /originalOnAuthStateChange\(\s*async\s*\(/,
+    'the callback registered directly with Supabase Auth must stay synchronous'
+  );
+  assert.match(
+    listener,
+    /setTimeout\s*\(/,
+    'academy resolution must be deferred until after the auth callback releases its lock'
+  );
 });

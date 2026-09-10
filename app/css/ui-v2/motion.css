@@ -25,6 +25,7 @@
   transition:
     opacity var(--motion-fast) ease,
     transform var(--motion-normal) var(--motion-ease),
+    clip-path var(--motion-normal) var(--motion-ease),
     visibility 0s linear var(--motion-normal);
 }
 

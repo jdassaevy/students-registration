@@ -4,9 +4,13 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const core = fs.readFileSync(new URL('../core/script.js', import.meta.url), 'utf8');
+const studentsUi = fs.readFileSync(new URL('../features/students-ui.js', import.meta.url), 'utf8');
 const start = core.indexOf('function openDialog');
 const end = core.indexOf('function animateView');
 const dialogFunctions = core.slice(start, end);
+const guardStart = studentsUi.indexOf('// DIALOG_LIFECYCLE_GUARD_START');
+const guardEnd = studentsUi.indexOf('// DIALOG_LIFECYCLE_GUARD_END');
+const dialogGuard = studentsUi.slice(guardStart, guardEnd);
 
 function loadDialogFunctions() {
   const timers = [];
@@ -18,7 +22,7 @@ function loadDialogFunctions() {
   };
 
   vm.createContext(context);
-  vm.runInContext(`${dialogFunctions}\nthis.openDialog = openDialog; this.closeDialog = closeDialog;`, context);
+  vm.runInContext(`${dialogFunctions}\n${dialogGuard}\nthis.openDialog = openDialog; this.closeDialog = closeDialog;`, context);
   return { ...context, timers };
 }
 

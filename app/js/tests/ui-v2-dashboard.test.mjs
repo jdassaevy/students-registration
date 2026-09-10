@@ -20,16 +20,35 @@ test('dashboard no longer injects page CSS', () => {
   assert.doesNotMatch(js, /style\.textContent\s*=/);
 });
 
-test('dashboard uses semantic UI v2 surfaces with one featured metric', () => {
-  assert.match(css, /\.dashboard-stat-card[\s\S]*background:\s*var\(--surface-card\)/s);
-  assert.match(css, /\.dashboard-stat-featured[\s\S]*background:\s*var\(--accent-primary\)/s);
+test('dashboard uses semantic UI v2 surfaces without a large accent slab', () => {
+  assert.match(css, /\.dashboard-revenue-card[\s\S]*background:\s*var\(--surface-card\)/s);
+  assert.match(css, /\.dashboard-revenue-card::before[\s\S]*background:\s*var\(--accent-primary\)/s);
+  assert.doesNotMatch(css, /\.dashboard-revenue-card[\s\S]*background:\s*var\(--accent-primary\)/s);
   assert.doesNotMatch(css, /font-family:\s*Georgia/i);
   assert.doesNotMatch(css, /border-color:\s*#fff/i);
 });
 
-test('dashboard includes geometry-matched skeletons', () => {
-  assert.match(js, /dashboard-skeleton/);
-  assert.match(css, /\.dashboard-skeleton/);
+test('dashboard uses an asymmetric fintech command layout', () => {
+  assert.match(js, /dashboard-command-grid/);
+  assert.match(js, /dashboard-revenue-card/);
+  assert.match(js, /dashboard-kpi-stack/);
+  assert.match(js, /dashboard-kpi-grid/);
+  assert.match(js, /dashboard-pending-card/);
+  assert.match(css, /\.dashboard-command-grid[\s\S]*grid-template-columns:\s*minmax\(0,\s*1\.5fr\)\s+minmax\(300px,\s*\.75fr\)/s);
+});
+
+test('dashboard greeting is integrated into the page header and active view can use the full canvas', () => {
+  assert.match(js, /dashboard-headline/);
+  assert.doesNotMatch(js, /dashboard-hero panel/);
+  assert.match(css, /\.app-main:has\(#dashboardView:not\(\[hidden\]\)\) \.app-topbar[\s\S]*display:\s*none/s);
+  assert.match(css, /\.app-main > \.app:has\(> #dashboardView:not\(\[hidden\]\)\)[\s\S]*max-width:\s*none/s);
+});
+
+test('dashboard includes geometry-matched skeletons for the new composition', () => {
+  assert.match(js, /dashboard-skeleton-command/);
+  assert.match(js, /dashboard-skeleton-revenue/);
+  assert.match(js, /dashboard-skeleton-kpis/);
+  assert.match(css, /\.dashboard-skeleton-command/);
 });
 
 test('dashboard page stylesheet is loaded after UI v2 shared layers', () => {

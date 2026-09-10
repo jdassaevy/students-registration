@@ -1,20 +1,26 @@
+:root {
+  --narvik: #EAE7DD;
+  --sorrell-brown: #99775C;
+}
+
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-app: #171312;
-  --bg-elevated: #201b19;
-  --bg-panel: #26201e;
-  --bg-soft: #2e2724;
-  --text-primary: #f7f1eb;
-  --text-secondary: #b8ada6;
-  --text-on-brand: #f7f1eb;
-  --border-subtle: rgba(255, 255, 255, .08);
-  --brand-primary: #8f3d2d;
-  --brand-primary-strong: #b6543d;
-  --brand-secondary: #c06a4f;
-  --success: #62a77b;
-  --warning: #d6a65f;
-  --danger: #d36a5e;
+  --bg-app: #171513;
+  --bg-sidebar: #1d1a17;
+  --bg-elevated: #211e1b;
+  --bg-panel: #28231f;
+  --bg-soft: #302a25;
+  --text-primary: var(--narvik);
+  --text-secondary: #b9b1a7;
+  --text-on-brand: var(--narvik);
+  --border-subtle: rgba(234, 231, 221, .09);
+  --brand-primary: var(--sorrell-brown);
+  --brand-primary-strong: #7d604a;
+  --brand-secondary: #b5967d;
+  --success: #6f9d7f;
+  --warning: #c4a16f;
+  --danger: #b8796e;
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 20px;
@@ -37,18 +43,30 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg-app: #e8dfd5;
-  --bg-elevated: #f2ebe3;
-  --bg-panel: #f7f2ec;
-  --bg-soft: #ddd2c6;
-  --text-primary: #302824;
-  --text-secondary: #6f655f;
-  --text-on-brand: #f7f1eb;
-  --border-subtle: #cfc2b6;
-  --brand-primary: #5b2118;
-  --brand-primary-strong: #34150f;
-  --brand-secondary: #95604f;
-  --success: #2f7d58;
-  --warning: #946323;
-  --danger: #a7443b;
+  --bg-app: var(--narvik);
+  --bg-sidebar: #d9d2c6;
+  --bg-elevated: #f3efe7;
+  --bg-panel: #ece6dc;
+  --bg-soft: #d8cfc3;
+  --text-primary: #332e2a;
+  --text-secondary: #6e665f;
+  --text-on-brand: var(--narvik);
+  --border-subtle: #cbbfb2;
+  --brand-primary: var(--sorrell-brown);
+  --brand-primary-strong: #7d604a;
+  --brand-secondary: #ad8b70;
+  --success: #557962;
+  --warning: #8f7146;
+  --danger: #94635c;
+
+  --wine: var(--brand-primary);
+  --wine-dark: var(--brand-primary-strong);
+  --terracotta: var(--brand-secondary);
+  --cream: var(--bg-app);
+  --paper: var(--bg-elevated);
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--border-subtle);
+  --green: var(--success);
+  --red: var(--danger);
 }

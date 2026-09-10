@@ -14,7 +14,7 @@ function applyTheme(theme) {
 
   document.documentElement.dataset.theme = normalized;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = normalized === 'dark' ? '#171312' : '#f6f0e6';
+  if (meta) meta.content = normalized === 'dark' ? '#000000' : '#F5F5DC';
 
   const button = document.getElementById('themeToggle');
   if (button) {

@@ -89,3 +89,12 @@ test('students page owns a semantic UI v2 visual layer loaded after the dashboar
   assert.match(css, /var\(--accent-primary\)/);
   assert.doesNotMatch(css, /background:\s*(?:#fff(?:fff)?|white)\b/i);
 });
+
+test('couple form keeps the second-person payment section visible', () => {
+  assert.match(index, /id=["']person2Payments["']/);
+  assert.doesNotMatch(
+    core,
+    /person2Payments['"]\)\.hidden\s*=\s*!\$\(['"]person2['"]\)/s,
+    'the second-person section must not disappear while creating a couple'
+  );
+});

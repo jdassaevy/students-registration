@@ -13,6 +13,7 @@ const readMaybe = path => {
 
 const index = read('../../index.html');
 const core = read('../core/script.js');
+const studentsUi = readMaybe('../features/students-ui.js');
 const css = readMaybe('../../css/ui-v2/pages/students.css');
 
 test('students keeps current functional targets and adds the mobile cards surface', () => {
@@ -28,21 +29,35 @@ test('students keeps current functional targets and adds the mobile cards surfac
   assert.match(index, /students-table-wrap/);
 });
 
-test('render updates mobile student cards with every current record action', () => {
-  assert.match(core, /function studentCardMarkup\(/);
-  assert.match(core, /\$\(['"]studentCards['"]\)\.innerHTML/);
-  assert.match(core, /studentCardMarkup/);
-  assert.match(core, /editCouple\('/);
-  assert.match(core, /removeCouple\('/);
-  assert.match(core, /toggleEntry\('/);
-  assert.match(core, /toggleMonth\('/);
+test('students presentation mirrors current record actions without replacing core handlers', () => {
+  assert.match(studentsUi, /function studentCardMarkup\(/);
+  assert.match(studentsUi, /\$\(['"]studentCards['"]\)\.innerHTML/);
+  assert.match(studentsUi, /studentCardMarkup/);
+  assert.match(studentsUi, /editCouple\('/);
+  assert.match(studentsUi, /removeCouple\('/);
+  assert.match(studentsUi, /toggleEntry\('/);
+  assert.match(studentsUi, /toggleMonth\('/);
+  assert.match(core, /function editCouple\(/);
+  assert.match(core, /async function removeCouple\(/);
+  assert.match(core, /async function toggleEntry\(/);
+  assert.match(core, /async function toggleMonth\(/);
 });
 
-test('students initial loading mirrors desktop rows and mobile cards', () => {
-  assert.match(core, /function renderStudentsLoading\(/);
-  assert.match(core, /students-loading-row/);
-  assert.match(core, /student-card-skeleton/);
-  assert.match(core, /renderStudentsLoading\(\);[\s\S]*Promise\.all/s);
+test('students initial loading mirrors desktop rows and mobile cards without changing data queries', () => {
+  assert.match(studentsUi, /function renderStudentsLoading\(/);
+  assert.match(studentsUi, /students-loading-row/);
+  assert.match(studentsUi, /student-card-skeleton/);
+  assert.match(studentsUi, /MutationObserver/);
+  assert.match(studentsUi, /loading-state/);
+  assert.match(core, /Promise\.all\(\[[\s\S]*\.from\(['"]classes['"]\)[\s\S]*\.from\(['"]students['"]\)/s);
+});
+
+test('students UI module loads after core and before dashboard wrappers', () => {
+  const coreIndex = index.indexOf('./js/core/script.js');
+  const studentsIndex = index.indexOf('./js/features/students-ui.js');
+  const dashboardIndex = index.indexOf('./js/features/dashboard.js');
+  assert.ok(studentsIndex > coreIndex, 'students UI must load after core');
+  assert.ok(studentsIndex < dashboardIndex, 'students UI must wrap render before dashboard');
 });
 
 test('mobile students layout swaps the desktop table for record cards', () => {

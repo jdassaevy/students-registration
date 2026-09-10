@@ -98,6 +98,10 @@
     transform var(--motion-normal) var(--motion-ease);
 }
 
+.students-stats .stat::after {
+  content: none;
+}
+
 .students-stats .stat:first-child::before {
   position: absolute;
   inset: 0 auto 0 0;
@@ -172,6 +176,9 @@
 
 .students-toolbar .search::before {
   left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  line-height: 1;
   color: var(--text-muted);
   opacity: .85;
 }

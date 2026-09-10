@@ -28,8 +28,8 @@ test('classes presentation is browser-parseable and does not take ownership of a
 });
 
 test('classes becomes a dedicated view between students and financial navigation', () => {
-  assert.match(classesUi, /id=["']classesView["']/);
-  assert.match(classesUi, /id=["']classesTab["']/);
+  assert.match(classesUi, /section\.id\s*=\s*["']classesView["']/);
+  assert.match(classesUi, /classesTab\.id\s*=\s*["']classesTab["']/);
   assert.match(classesUi, /setView\s*=\s*function\s*\(view\)/);
   assert.match(classesUi, /view\s*!==\s*["']classes["']/);
   assert.match(tabBar, /classesTab\s*:\s*\{/);

@@ -11,7 +11,6 @@ const readOptional = path => {
 const index = read('../../index.html');
 const profileCss = readOptional('../../css/ui-v2/pages/profile.css');
 const onboardingCss = readOptional('../../css/ui-v2/pages/onboarding.css');
-const componentsCss = read('../../css/ui-v2/components.css');
 const profileSource = read('../features/academy-profile.js');
 const onboardingSource = read('../core/academy-onboarding.js');
 
@@ -41,9 +40,9 @@ test('legacy academy onboarding is visually aligned with auth using semantic UI 
 });
 
 test('student and class dialogs have explicit UI v2 polish while profile and onboarding keep current data ownership', () => {
-  assert.match(componentsCss, /#appView\s+#modal\s*,\s*#appView\s+#classModal\s*\{/s);
-  assert.match(componentsCss, /#appView\s+#modal\s+\.grid\s*,\s*#appView\s+#classModal\s+\.grid\s*\{[^}]*gap:/s);
-  assert.match(componentsCss, /@media\s*\(max-width:\s*560px\)[\s\S]*#appView\s+#modal[\s\S]*#appView\s+#classModal/s);
+  assert.match(profileCss, /#appView\s+#modal\s*,\s*#appView\s+#classModal\s*\{/s);
+  assert.match(profileCss, /#appView\s+#modal\s+\.grid\s*,\s*#appView\s+#classModal\s+\.grid\s*\{[^}]*gap:/s);
+  assert.match(profileCss, /@media\s*\(max-width:\s*560px\)[\s\S]*#appView\s+#modal[\s\S]*#appView\s+#classModal/s);
 
   assert.match(profileSource, /async function load\(\)/);
   assert.match(profileSource, /async function save\(values = \{\}\)/);

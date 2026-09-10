@@ -16,6 +16,7 @@ const index = read('../../index.html');
 const core = read('../core/script.js');
 const tabBar = read('../features/tab-bar.js');
 const classesUi = readMaybe('../features/classes-ui.js');
+const dueDates = read('../features/due-dates.js');
 const css = readMaybe('../../css/ui-v2/pages/classes.css');
 
 test('classes presentation is browser-parseable and does not take ownership of academy data', () => {
@@ -84,4 +85,21 @@ test('classes owns a semantic responsive UI v2 stylesheet', () => {
   assert.match(css, /@media[^\{]*max-width:\s*768px/s);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(css, /background:\s*(?:#fff(?:fff)?|white)\b/i);
+});
+
+test('student toolbar owns the orange couple action while class creation stays exclusive to Turmas', () => {
+  const studentsHeader = index.match(/<header class="students-page-head">[\s\S]*?<\/header>/)?.[0] || '';
+  const studentsToolbar = index.match(/<div class="toolbar students-toolbar">[\s\S]*?<\/div>\s*<\/div>/)?.[0] || '';
+
+  assert.doesNotMatch(studentsHeader, /id="newBtn"/);
+  assert.match(studentsToolbar, /class="btn btn-primary"\s+id="newBtn"[^>]*>[^<]*Cadastrar casal/i);
+  assert.doesNotMatch(studentsToolbar, /id="newClassBtn"/);
+  assert.match(index, /id="newClassBtn"[^>]*hidden/);
+});
+
+test('class creation modal hides the legacy class list but keeps start date creation intact', () => {
+  assert.match(index, /id="classList"[^>]*hidden/);
+  assert.match(dueDates, /id=\\?"classStartDate\\?"/);
+  assert.match(dueDates, /start_date:\s*startDate/);
+  assert.match(dueDates, /calculateMonthlyDueDates\(startDate/);
 });

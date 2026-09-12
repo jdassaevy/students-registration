@@ -9,6 +9,8 @@ import {
   sendMetaPayload,
   TEMPLATE_NAMES,
 } from "../_shared/whatsapp.ts";
+import { requireAcademyAccess } from "../_shared/tenant.ts";
+import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,22 +64,44 @@ Deno.serve(async (req: Request) => {
 
   const { data: student, error: studentError } = await admin
     .from("students")
-    .select("id,user_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+    .select("id,user_id,academy_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
     .eq("id", studentId)
     .single();
   if (studentError || !student) return json({ error: "Student not found" }, 404);
-  if (student.user_id !== user.id) return json({ error: "Forbidden" }, 403);
+  if (!student.academy_id) return json({ error: "Student has no academy" }, 409);
+
+  try {
+    await requireAcademyAccess(admin, user.id, student.academy_id);
+  } catch {
+    return json({ error: "Forbidden" }, 403);
+  }
+
   if (person === "person2" && !student.person2) return json({ error: "Person not found" }, 404);
 
   const phone = person === "person2" ? student.person2_phone : student.person1_phone;
   const consent = person === "person2" ? student.person2_whatsapp_consent : student.person1_whatsapp_consent;
   const normalizedPhone = normalizeRecipientPhone(phone);
 
+  let validatedReceipt: any = null;
+  if (automationType === "receipt_document") {
+    if (!receiptId) return json({ error: "Receipt required" }, 400);
+    const { data: receipt, error: receiptError } = await admin
+      .from("receipts")
+      .select("id,academy_id,student_id,receipt_number,storage_path,status")
+      .eq("id", receiptId)
+      .single();
+    if (receiptError || !receipt || !receiptMatchesStudent(receipt, student) || !receipt.storage_path) {
+      return json({ error: "Receipt PDF unavailable" }, 409);
+    }
+    validatedReceipt = receipt;
+  }
+
   let logId: string | null = null;
   const logInsert = await admin
     .from("automation_messages")
     .insert({
       user_id: user.id,
+      academy_id: student.academy_id,
       student_id: student.id,
       class_id: student.class_id,
       receipt_id: receiptId,
@@ -130,24 +154,15 @@ Deno.serve(async (req: Request) => {
   try {
     let payload: unknown;
     if (automationType === "receipt_document") {
-      if (!receiptId) throw new Error("Receipt required");
-      const { data: receipt, error: receiptError } = await admin
-        .from("receipts")
-        .select("id,user_id,receipt_number,storage_path,status")
-        .eq("id", receiptId)
-        .single();
-      if (receiptError || !receipt || receipt.user_id !== user.id || !receipt.storage_path) {
-        throw new Error("Receipt PDF unavailable");
-      }
       const { data: signed, error: signedError } = await admin.storage
         .from("receipts")
-        .createSignedUrl(receipt.storage_path, 60 * 60);
+        .createSignedUrl(validatedReceipt.storage_path, 60 * 60);
       if (signedError || !signed?.signedUrl) throw new Error("Receipt URL unavailable");
       payload = buildDocumentPayload({
         to: normalizedPhone!,
         link: signed.signedUrl,
-        filename: `recibo-${receipt.receipt_number}.pdf`,
-        caption: receipt.status === "voided" ? "Recibo estornado" : "Recibo de pagamento",
+        filename: `recibo-${validatedReceipt.receipt_number}.pdf`,
+        caption: validatedReceipt.status === "voided" ? "Recibo estornado" : "Recibo de pagamento",
       });
     } else {
       payload = buildTemplatePayload({
@@ -158,12 +173,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const provider = await sendMetaPayload({
-      phoneNumberId,
-      accessToken,
-      graphVersion,
-      payload,
-    });
+    const provider = await sendMetaPayload({ phoneNumberId, accessToken, graphVersion, payload });
     const providerMessageId = provider?.messages?.[0]?.id ? String(provider.messages[0].id) : null;
     await finish("sent", { provider_message_id: providerMessageId });
     return json({ status: "sent", message_id: providerMessageId });

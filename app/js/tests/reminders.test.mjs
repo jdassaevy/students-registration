@@ -16,6 +16,7 @@ assert.equal(reminderTypeForDate('2026-09-10', '2026-09-11'), null);
 const student = {
     id: 's1',
     user_id: 'u1',
+    academy_id: 'a1',
     class_id: 'c1',
     person1: 'Ana',
     person2: 'Bruno',
@@ -40,11 +41,14 @@ const student = {
 };
 const clazz = {
     id: 'c1',
+    academy_id: 'a1',
     name: 'Turma A',
     start_date: '2026-09-10'
 };
 const academy = {
-    academy_name: 'Academia A',
+    id: 'a1',
+    name: 'Academia A',
+    display_name: 'Academia A',
     responsible_name: 'Prof. Carlos',
     support_phone: '5548888888888'
 };
@@ -52,9 +56,21 @@ const candidates = buildReminderCandidates(
     {student, clazz, academy, today: '2026-09-07'}
 );
 assert.equal(candidates.length, 1);
+assert.equal(candidates[0].academyId, 'a1');
 assert.equal(candidates[0].person, 'person1');
 assert.equal(candidates[0].installment, 1);
 assert.equal(candidates[0].automationType, 'reminder_before_due');
 assert.match(buildReminderIdempotencyKey(candidates[0]), /^reminder:/);
+
+assert.deepEqual(
+    buildReminderCandidates({
+        student,
+        clazz: {...clazz, academy_id: 'a2'},
+        academy,
+        today: '2026-09-07'
+    }),
+    [],
+    'tenant mismatch must fail closed'
+);
 
 console.log('reminder engine tests passed');

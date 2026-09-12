@@ -48,7 +48,7 @@ test('payment confirmation matches the four approved Meta template variables in 
     assert.doesNotMatch(confirmationBlock, /academy\.support_phone/);
 });
 
-test('repair operation validates the receipt and never sends payment confirmation', () => {
+test('repair operation validates membership and exact receipt linkage without sending payment confirmation', () => {
     const start = source.indexOf('operation === "repair_monthly_receipt"');
     const end = source.indexOf('const studentId =', start);
     assert.ok(start >= 0, 'repair operation branch must exist');
@@ -56,19 +56,21 @@ test('repair operation validates the receipt and never sends payment confirmatio
     const repairBlock = source.slice(start, end);
     assert.match(repairBlock, /receipt\.kind\s*!==\s*["']monthly["']/);
     assert.match(repairBlock, /receipt\.status\s*!==\s*["']active["']/);
-    assert.match(repairBlock, /academy_members/);
+    assert.match(repairBlock, /requireAcademyAccess\(admin,\s*user\.id,\s*receipt\.academy_id\)/);
+    assert.match(repairBlock, /receiptMatchesStudent\(receipt,\s*repairStudent\)/);
     assert.match(repairBlock, /requestMonthlyReceiptPdf/);
     assert.doesNotMatch(repairBlock, /TEMPLATE_NAMES\.paymentConfirmation/);
     assert.doesNotMatch(repairBlock, /["']payment_confirmation["']/);
     assert.match(repairBlock, /action:\s*["']repair(?:_pending)?["']/);
 });
 
-test('repair fails closed when receipt student belongs to another academy', () => {
+test('repair fails closed when receipt does not match the exact student and academy', () => {
     const start = source.indexOf('operation === "repair_monthly_receipt"');
     const end = source.indexOf('const studentId =', start);
     const repairBlock = source.slice(start, end);
     assert.match(repairBlock, /select\(["']id,class_id,academy_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent["']\)/);
-    assert.match(repairBlock, /repairStudent\.academy_id\s*!==\s*receipt\.academy_id/);
+    assert.match(repairBlock, /receiptMatchesStudent\(receipt,\s*repairStudent\)/);
+    assert.match(repairBlock, /receiptMatchesStudent\(repairedReceipt,\s*repairStudent\)/);
 });
 
 test('receipt document delivery requires a generated storage path', () => {

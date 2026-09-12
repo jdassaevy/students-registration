@@ -51,7 +51,7 @@ export function buildReminderIdempotencyKey(candidate) {
 }
 
 export function buildReminderCandidates({ student, clazz, academy, today }) {
-  if (!clazz?.start_date) return [];
+  if (!clazz?.start_date || !student?.academy_id || clazz?.academy_id !== student.academy_id) return [];
   const dueDates = calculateMonthlyDueDates(clazz.start_date, 3);
   const candidates = [];
 
@@ -66,6 +66,7 @@ export function buildReminderCandidates({ student, clazz, academy, today }) {
 
       candidates.push({
         userId: student.user_id,
+        academyId: student.academy_id,
         studentId: student.id,
         classId: student.class_id,
         person,
@@ -76,7 +77,7 @@ export function buildReminderCandidates({ student, clazz, academy, today }) {
         automationType,
         amount: Number(student.fees?.[person]?.monthly || 0),
         className: clazz.name || '',
-        academyName: academy?.academy_name || academy?.display_name || '',
+        academyName: academy?.display_name || academy?.name || '',
         responsibleName: academy?.responsible_name || '',
         supportPhone: academy?.support_phone || ''
       });

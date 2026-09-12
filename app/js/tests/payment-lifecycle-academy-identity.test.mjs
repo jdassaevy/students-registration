@@ -6,13 +6,20 @@ const source = fs.readFileSync(
     new URL('../../../supabase/functions/payment-lifecycle/index.ts', import.meta.url),
     'utf8'
 );
+const tenantHelper = fs.readFileSync(
+    new URL('../../../supabase/functions/_shared/tenant.ts', import.meta.url),
+    'utf8'
+);
 
-test('payment lifecycle authorizes through active academy membership', () => {
-    assert.match(source, /from\(["']academy_members["']\)/);
-    assert.match(source, /eq\(["']academy_id["'],\s*student\.academy_id\)/);
-    assert.match(source, /eq\(["']user_id["'],\s*user\.id\)/);
-    assert.match(source, /eq\(["']is_active["'],\s*true\)/);
+test('payment lifecycle authorizes through the shared active academy membership helper', () => {
+    assert.match(source, /import\s*\{\s*requireAcademyAccess\s*\}\s*from\s*["']\.\.\/_shared\/tenant\.ts["']/);
+    assert.match(source, /requireAcademyAccess\(admin,\s*user\.id,\s*student\.academy_id\)/);
     assert.doesNotMatch(source, /student\.user_id\s*!==\s*user\.id/);
+
+    assert.match(tenantHelper, /from\(["']academy_members["']\)/);
+    assert.match(tenantHelper, /eq\(["']academy_id["'],\s*academyId\)/);
+    assert.match(tenantHelper, /eq\(["']user_id["'],\s*userId\)/);
+    assert.match(tenantHelper, /eq\(["']is_active["'],\s*true\)/);
 });
 
 test('payment lifecycle loads identity from academies instead of academy_profiles', () => {

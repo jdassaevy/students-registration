@@ -42,14 +42,14 @@ The helper must not:
 - perform database reads or writes,
 - contain payment or WhatsApp business rules.
 
-The request flow remains separated into four layers:
+The handler remains separated into four concerns:
 
-1. request parsing and validation,
+1. cheap request gates such as method and declared/body size,
 2. authentication,
-3. academy/resource authorization,
+3. semantic JSON parsing/validation and academy/resource authorization,
 4. business logic and data writes.
 
-No business write may occur until the request contract for that execution path has been validated.
+The exact ordering of authentication versus semantic JSON parsing may remain endpoint-specific when preserving current behavior is safer. The non-negotiable invariant is that no business write or external side effect may occur until the request contract for that execution path has been fully validated and authorization has succeeded.
 
 ## 4. Validation Philosophy
 

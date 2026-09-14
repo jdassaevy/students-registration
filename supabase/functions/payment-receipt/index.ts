@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
+import { isApiInputError, readJsonObject, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,9 +33,8 @@ Deno.serve(async (req: Request) => {
     const user = userData.user;
     if (userError || !user) return json({ error: "Unauthorized" }, 401);
 
-    const body = await req.json().catch(() => ({}));
-    const receiptId = String(body?.receipt_id || "").trim();
-    if (!receiptId) return json({ error: "receipt_id is required" }, 400);
+    const body = await readJsonObject(req);
+    const receiptId = requireUuid(body?.receipt_id, "receipt_id");
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
     const { data: receipt, error: receiptError } = await admin
@@ -114,6 +114,9 @@ Deno.serve(async (req: Request) => {
 
     return json({ receipt: updated });
   } catch (error) {
+    if (isApiInputError(error)) {
+      return json(validationErrorPayload(error), error.status);
+    }
     console.error("payment-receipt error", error);
     return json({ error: "Could not generate receipt PDF" }, 500);
   }

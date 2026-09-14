@@ -4,6 +4,7 @@ import { buildRetryIdempotencyKey, canRetryAutomationType, retryEligibility } fr
 import { buildDocumentPayload, buildTemplatePayload, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
+import { isApiInputError, readJsonObject, requireTrimmedString, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,10 +41,18 @@ Deno.serve(async (req: Request) => {
   const user = userData.user;
   if (userError || !user) return json({ error: "Unauthorized" }, 401);
 
-  const body = await req.json().catch(() => ({}));
-  const sourceMessageId = String(body?.source_message_id || "").trim();
-  const requestId = String(body?.request_id || "").trim().slice(0, 160);
-  if (!sourceMessageId || !requestId) return json({ error: "Invalid request" }, 400);
+  let sourceMessageId: string;
+  let requestId: string;
+  try {
+    const body = await readJsonObject(req);
+    sourceMessageId = requireUuid(body?.source_message_id, "source_message_id");
+    requestId = requireTrimmedString(body?.request_id, "request_id", { maxLength: 160 });
+  } catch (error) {
+    if (isApiInputError(error)) {
+      return json(validationErrorPayload(error), error.status);
+    }
+    throw error;
+  }
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
   const { data: source, error: sourceError } = await admin.from("automation_messages")

@@ -7,6 +7,14 @@ import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 import { buildDocumentPayload, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
+import {
+  isApiInputError,
+  readJsonObject,
+  requireEnum,
+  requireInteger,
+  requireUuid,
+  validationErrorPayload,
+} from "../_shared/api-validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +27,26 @@ function json(body: unknown, status = 200) {
 
 function money(value: number) {
   return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+type PaymentLifecycleInput =
+  | { mode: "repair"; operation: "repair_monthly_receipt"; receiptId: string }
+  | { mode: "payment"; studentId: string; person: "person1" | "person2"; kind: "entry" | "monthly"; installment: number };
+
+function parsePaymentLifecycleRequest(body: Record<string, unknown>): PaymentLifecycleInput {
+  if (Object.prototype.hasOwnProperty.call(body, "operation")) {
+    const operation = requireEnum(body.operation, "operation", ["repair_monthly_receipt"] as const);
+    const receiptId = requireUuid(body.receipt_id, "receipt_id");
+    return { mode: "repair", operation, receiptId };
+  }
+
+  const studentId = requireUuid(body.student_id, "student_id");
+  const person = requireEnum(body.person, "person", ["person1", "person2"] as const);
+  const kind = requireEnum(body.kind, "kind", ["entry", "monthly"] as const);
+  const installment = kind === "entry"
+    ? 0
+    : requireInteger(body.installment, "installment", { min: 1, max: 3 });
+  return { mode: "payment", studentId, person, kind, installment };
 }
 
 Deno.serve(async (req: Request) => {
@@ -38,12 +66,10 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const operation = String(body?.operation || "").trim();
-    const repairReceiptId = String(body?.receipt_id || "").trim();
+    const input = parsePaymentLifecycleRequest(await readJsonObject(req));
 
-    if (operation === "repair_monthly_receipt") {
-      if (!repairReceiptId) return json({ error: "receipt_id is required" }, 400);
+    if (input.mode === "repair") {
+      const repairReceiptId = input.receiptId;
 
       const { data: receipt, error: receiptError } = await admin.from("receipts")
         .select("*").eq("id", repairReceiptId).single();
@@ -143,11 +169,7 @@ Deno.serve(async (req: Request) => {
       return json({ paid: true, action: "repair", receipt: repairedReceipt, pdf_status: repairedReceipt.storage_path ? "ready" : "pending", whatsapp: repairWhatsapp, settings: repairSettings });
     }
 
-    const studentId = String(body?.student_id || "").trim();
-    const person = body?.person === "person2" ? "person2" : "person1";
-    const kind = body?.kind === "entry" ? "entry" : body?.kind === "monthly" ? "monthly" : null;
-    const installment = kind === "monthly" ? Number(body?.installment || 0) : 0;
-    if (!studentId || !kind || (kind === "monthly" && (installment < 1 || installment > 3))) return json({ error: "Invalid request" }, 400);
+    const { studentId, person, kind, installment } = input;
 
     const { data: student, error: studentError } = await admin.from("students")
       .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
@@ -361,6 +383,9 @@ Deno.serve(async (req: Request) => {
 
     return json({ paid, action: repairedPdf && action === "keep" ? "repair" : action, receipt, whatsapp, settings, pdf_status: pdfStatus });
   } catch (error) {
+    if (isApiInputError(error)) {
+      return json(validationErrorPayload(error), error.status);
+    }
     console.error("payment-lifecycle error", error);
     return json({ error: "Could not process payment lifecycle" }, 500);
   }

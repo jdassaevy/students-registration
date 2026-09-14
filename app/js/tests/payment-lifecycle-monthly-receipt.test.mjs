@@ -49,10 +49,14 @@ test('payment confirmation matches the four approved Meta template variables in 
 });
 
 test('repair operation validates membership and exact receipt linkage without sending payment confirmation', () => {
-    const start = source.indexOf('operation === "repair_monthly_receipt"');
-    const end = source.indexOf('const studentId =', start);
+    assert.match(
+        source,
+        /requireEnum\(body\.operation,\s*["']operation["'],\s*\[["']repair_monthly_receipt["']\]\s*as const\)/
+    );
+    const start = source.indexOf('input.mode === "repair"');
+    const end = source.indexOf('const { studentId, person, kind, installment } = input;', start);
     assert.ok(start >= 0, 'repair operation branch must exist');
-    assert.ok(end > start, 'repair operation must be handled before normal payment parsing');
+    assert.ok(end > start, 'repair operation must be handled before normal payment flow');
     const repairBlock = source.slice(start, end);
     assert.match(repairBlock, /receipt\.kind\s*!==\s*["']monthly["']/);
     assert.match(repairBlock, /receipt\.status\s*!==\s*["']active["']/);
@@ -65,8 +69,10 @@ test('repair operation validates membership and exact receipt linkage without se
 });
 
 test('repair fails closed when receipt does not match the exact student and academy', () => {
-    const start = source.indexOf('operation === "repair_monthly_receipt"');
-    const end = source.indexOf('const studentId =', start);
+    const start = source.indexOf('input.mode === "repair"');
+    const end = source.indexOf('const { studentId, person, kind, installment } = input;', start);
+    assert.ok(start >= 0, 'repair operation branch must exist');
+    assert.ok(end > start, 'repair operation must be isolated from normal payment flow');
     const repairBlock = source.slice(start, end);
     assert.match(repairBlock, /select\(["']id,class_id,academy_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent["']\)/);
     assert.match(repairBlock, /receiptMatchesStudent\(receipt,\s*repairStudent\)/);

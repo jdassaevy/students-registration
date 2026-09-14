@@ -11,6 +11,16 @@ import {
 } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
+import {
+  isApiInputError,
+  optionalPrimitiveArray,
+  optionalTrimmedString,
+  optionalUuid,
+  readJsonObject,
+  requireEnum,
+  requireUuid,
+  validationErrorPayload,
+} from "../_shared/api-validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +34,15 @@ const templateByType: Record<string, string> = {
   payment_confirmation: TEMPLATE_NAMES.paymentConfirmation,
   payment_voided: TEMPLATE_NAMES.paymentVoided,
 };
+
+const automationTypes = [
+  "reminder_before_due",
+  "due_today",
+  "overdue",
+  "payment_confirmation",
+  "receipt_document",
+  "payment_voided",
+] as const;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -49,18 +68,31 @@ Deno.serve(async (req: Request) => {
   const user = userData.user;
   if (userError || !user) return json({ error: "Unauthorized" }, 401);
 
-  const admin = createClient(supabaseUrl, serviceRoleKey);
-  const body = await req.json().catch(() => ({}));
-  const studentId = String(body?.student_id || "").trim();
-  const person = body?.person === "person2" ? "person2" : "person1";
-  const automationType = String(body?.automation_type || "").trim();
-  const receiptId = body?.receipt_id ? String(body.receipt_id) : null;
-  const bodyParameters = Array.isArray(body?.body_parameters) ? body.body_parameters.slice(0, 12) : [];
-  const idempotencyKey = body?.idempotency_key ? String(body.idempotency_key).slice(0, 240) : null;
+  let studentId: string;
+  let person: "person1" | "person2";
+  let automationType: typeof automationTypes[number];
+  let receiptId: string | null;
+  let bodyParameters: Array<string | number>;
+  let idempotencyKey: string | null;
 
-  if (!studentId || (!templateByType[automationType] && automationType !== "receipt_document")) {
-    return json({ error: "Invalid request" }, 400);
+  try {
+    const body = await readJsonObject(req);
+    studentId = requireUuid(body?.student_id, "student_id");
+    person = requireEnum(body?.person, "person", ["person1", "person2"] as const);
+    automationType = requireEnum(body?.automation_type, "automation_type", automationTypes);
+    receiptId = automationType === "receipt_document"
+      ? requireUuid(body?.receipt_id, "receipt_id")
+      : optionalUuid(body?.receipt_id, "receipt_id");
+    bodyParameters = optionalPrimitiveArray(body?.body_parameters, "body_parameters", { maxItems: 12 });
+    idempotencyKey = optionalTrimmedString(body?.idempotency_key, "idempotency_key", { maxLength: 240 });
+  } catch (error) {
+    if (isApiInputError(error)) {
+      return json(validationErrorPayload(error), error.status);
+    }
+    throw error;
   }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey);
 
   const { data: student, error: studentError } = await admin
     .from("students")
@@ -84,7 +116,6 @@ Deno.serve(async (req: Request) => {
 
   let validatedReceipt: any = null;
   if (automationType === "receipt_document") {
-    if (!receiptId) return json({ error: "Receipt required" }, 400);
     const { data: receipt, error: receiptError } = await admin
       .from("receipts")
       .select("id,academy_id,student_id,receipt_number,storage_path,status")

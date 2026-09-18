@@ -39,6 +39,33 @@ function invalid(field: string | null): never {
   throw new ApiInputError('INVALID_INPUT', 400, field);
 }
 
+async function readBoundedBody(req: Request, maxBytes: number): Promise<string> {
+  if (!req.body) return "";
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new ApiInputError("PAYLOAD_TOO_LARGE", 413);
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 export async function readJsonObject(
   req: Request,
   maxBytes: number = MAX_JSON_BYTES,
@@ -48,10 +75,7 @@ export async function readJsonObject(
     throw new ApiInputError('PAYLOAD_TOO_LARGE', 413);
   }
 
-  const raw = await req.text();
-  if (new TextEncoder().encode(raw).byteLength > maxBytes) {
-    throw new ApiInputError('PAYLOAD_TOO_LARGE', 413);
-  }
+  const raw = await readBoundedBody(req, maxBytes);
 
   let parsed: unknown;
   try {

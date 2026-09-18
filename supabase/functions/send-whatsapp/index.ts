@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   buildDocumentPayload,
   buildTemplatePayload,
@@ -44,16 +45,19 @@ const automationTypes = [
   "payment_voided",
 ] as const;
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  let rateHeaders: Record<string, string> = {};
+  const respond = (body: unknown, status = 200) => json(body, status, rateHeaders);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -67,6 +71,14 @@ Deno.serve(async (req: Request) => {
   const { data: userData, error: userError } = await authClient.auth.getUser();
   const user = userData.user;
   if (userError || !user) return json({ error: "Unauthorized" }, 401);
+
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  const rateLimit = await checkRateLimit(admin, user.id, "send-whatsapp");
+  if (rateLimit.kind === "limited") {
+    return json(rateLimit.body, rateLimit.status, rateLimit.headers);
+  }
+  rateHeaders = rateLimit.kind === "allowed" ? rateLimit.headers : {};
 
   let studentId: string;
   let person: "person1" | "person2";
@@ -87,28 +99,26 @@ Deno.serve(async (req: Request) => {
     idempotencyKey = optionalTrimmedString(body?.idempotency_key, "idempotency_key", { maxLength: 240 });
   } catch (error) {
     if (isApiInputError(error)) {
-      return json(validationErrorPayload(error), error.status);
+      return respond(validationErrorPayload(error), error.status);
     }
     throw error;
   }
-
-  const admin = createClient(supabaseUrl, serviceRoleKey);
 
   const { data: student, error: studentError } = await admin
     .from("students")
     .select("id,user_id,academy_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
     .eq("id", studentId)
     .single();
-  if (studentError || !student) return json({ error: "Student not found" }, 404);
-  if (!student.academy_id) return json({ error: "Student has no academy" }, 409);
+  if (studentError || !student) return respond({ error: "Student not found" }, 404);
+  if (!student.academy_id) return respond({ error: "Student has no academy" }, 409);
 
   try {
     await requireAcademyAccess(admin, user.id, student.academy_id);
   } catch {
-    return json({ error: "Forbidden" }, 403);
+    return respond({ error: "Forbidden" }, 403);
   }
 
-  if (person === "person2" && !student.person2) return json({ error: "Person not found" }, 404);
+  if (person === "person2" && !student.person2) return respond({ error: "Person not found" }, 404);
 
   const phone = person === "person2" ? student.person2_phone : student.person1_phone;
   const consent = person === "person2" ? student.person2_whatsapp_consent : student.person1_whatsapp_consent;
@@ -122,7 +132,7 @@ Deno.serve(async (req: Request) => {
       .eq("id", receiptId)
       .single();
     if (receiptError || !receipt || !receiptMatchesStudent(receipt, student) || !receipt.storage_path) {
-      return json({ error: "Receipt PDF unavailable" }, 409);
+      return respond({ error: "Receipt PDF unavailable" }, 409);
     }
     validatedReceipt = receipt;
   }
@@ -147,10 +157,10 @@ Deno.serve(async (req: Request) => {
 
   if (logInsert.error) {
     if (logInsert.error.code === "23505" && idempotencyKey) {
-      return json({ status: "duplicate", idempotency_key: idempotencyKey }, 200);
+      return respond({ status: "duplicate", idempotency_key: idempotencyKey }, 200);
     }
     console.error("automation log insert failed", logInsert.error.message);
-    return json({ error: "Could not create message log" }, 500);
+    return respond({ error: "Could not create message log" }, 500);
   }
   logId = logInsert.data.id;
 
@@ -168,7 +178,7 @@ Deno.serve(async (req: Request) => {
       error_code: !normalizedPhone ? "missing_phone" : "missing_consent",
       error_message: !normalizedPhone ? "Aluno sem WhatsApp cadastrado" : "Aluno sem consentimento para WhatsApp",
     });
-    return json({ status: "skipped" }, 200);
+    return respond({ status: "skipped" }, 200);
   }
 
   const accessToken = Deno.env.get("META_ACCESS_TOKEN") || "";
@@ -179,7 +189,7 @@ Deno.serve(async (req: Request) => {
       error_code: "meta_not_configured",
       error_message: "Credenciais da Meta ainda não configuradas no Supabase",
     });
-    return json({ error: "Meta credentials not configured" }, 503);
+    return respond({ error: "Meta credentials not configured" }, 503);
   }
 
   try {
@@ -207,7 +217,7 @@ Deno.serve(async (req: Request) => {
     const provider = await sendMetaPayload({ phoneNumberId, accessToken, graphVersion, payload });
     const providerMessageId = provider?.messages?.[0]?.id ? String(provider.messages[0].id) : null;
     await finish("sent", { provider_message_id: providerMessageId });
-    return json({ status: "sent", message_id: providerMessageId });
+    return respond({ status: "sent", message_id: providerMessageId });
   } catch (error: any) {
     const safe = error?.meta || sanitizeMetaError(error);
     await finish("failed", {
@@ -215,6 +225,6 @@ Deno.serve(async (req: Request) => {
       error_message: safe.message || "Falha ao enviar mensagem",
     });
     console.error("send-whatsapp failed", safe);
-    return json({ error: "Could not send WhatsApp message", provider: safe }, 502);
+    return respond({ error: "Could not send WhatsApp message", provider: safe }, 502);
   }
 });

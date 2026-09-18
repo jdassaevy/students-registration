@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { isApiInputError, readJsonObject, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
 
@@ -8,16 +9,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  let rateHeaders: Record<string, string> = {};
+  const respond = (body: unknown, status = 200) => json(body, status, rateHeaders);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -33,19 +37,25 @@ Deno.serve(async (req: Request) => {
     const user = userData.user;
     if (userError || !user) return json({ error: "Unauthorized" }, 401);
 
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  const rateLimit = await checkRateLimit(admin, user.id, "payment-receipt");
+  if (rateLimit.kind === "limited") {
+    return json(rateLimit.body, rateLimit.status, rateLimit.headers);
+  }
+  rateHeaders = rateLimit.kind === "allowed" ? rateLimit.headers : {};
+
     const body = await readJsonObject(req);
     const receiptId = requireUuid(body?.receipt_id, "receipt_id");
-
-    const admin = createClient(supabaseUrl, serviceRoleKey);
     const { data: receipt, error: receiptError } = await admin
       .from("receipts")
       .select("*")
       .eq("id", receiptId)
       .single();
-    if (receiptError || !receipt) return json({ error: "Receipt not found" }, 404);
-    if (receipt.kind !== "monthly") return json({ error: "Monthly receipt required" }, 400);
-    if (receipt.status !== "active") return json({ error: "Active receipt required" }, 400);
-    if (!receipt.academy_id) return json({ error: "Academy not resolved" }, 409);
+    if (receiptError || !receipt) return respond({ error: "Receipt not found" }, 404);
+    if (receipt.kind !== "monthly") return respond({ error: "Monthly receipt required" }, 400);
+    if (receipt.status !== "active") return respond({ error: "Active receipt required" }, 400);
+    if (!receipt.academy_id) return respond({ error: "Academy not resolved" }, 409);
 
     const { data: membership, error: membershipError } = await admin
       .from("academy_members")
@@ -55,7 +65,7 @@ Deno.serve(async (req: Request) => {
       .eq("is_active", true)
       .maybeSingle();
     if (membershipError) throw membershipError;
-    if (!membership) return json({ error: "Forbidden" }, 403);
+    if (!membership) return respond({ error: "Forbidden" }, 403);
 
     const [{ data: student, error: studentError }, { data: academy, error: academyError }] = await Promise.all([
       admin.from("students").select("id,person1,person2,academy_id").eq("id", receipt.student_id).single(),
@@ -64,18 +74,18 @@ Deno.serve(async (req: Request) => {
         .eq("id", receipt.academy_id)
         .single(),
     ]);
-    if (studentError || !student) return json({ error: "Student not found" }, 404);
-    if (academyError || !academy) return json({ error: "Academy not found" }, 404);
-    if (student.academy_id !== receipt.academy_id) return json({ error: "Receipt tenant mismatch" }, 409);
+    if (studentError || !student) return respond({ error: "Student not found" }, 404);
+    if (academyError || !academy) return respond({ error: "Academy not found" }, 404);
+    if (student.academy_id !== receipt.academy_id) return respond({ error: "Receipt tenant mismatch" }, 409);
 
     let className = "Sem turma";
     if (receipt.class_id) {
       const { data: classRow } = await admin.from("classes").select("name,academy_id").eq("id", receipt.class_id).maybeSingle();
-      if (classRow && classRow.academy_id !== receipt.academy_id) return json({ error: "Receipt tenant mismatch" }, 409);
+      if (classRow && classRow.academy_id !== receipt.academy_id) return respond({ error: "Receipt tenant mismatch" }, 409);
       if (classRow?.name) className = classRow.name;
     }
 
-    if (receipt.storage_path) return json({ receipt });
+    if (receipt.storage_path) return respond({ receipt });
 
     const studentName = receipt.person === "person2" ? (student.person2 || student.person1) : student.person1;
     const paymentLabel = `${Number(receipt.installment || 0)}ª Mensalidade`;
@@ -112,12 +122,12 @@ Deno.serve(async (req: Request) => {
       .single();
     if (updateError) throw updateError;
 
-    return json({ receipt: updated });
+    return respond({ receipt: updated });
   } catch (error) {
     if (isApiInputError(error)) {
-      return json(validationErrorPayload(error), error.status);
+      return respond(validationErrorPayload(error), error.status);
     }
     console.error("payment-receipt error", error);
-    return json({ error: "Could not generate receipt PDF" }, 500);
+    return respond({ error: "Could not generate receipt PDF" }, 500);
   }
 });

@@ -35,5 +35,5 @@ test('receipt uses official academy name while messaging can use display name', 
 });
 
 test('lifecycle fails closed when the student has no academy', () => {
-    assert.match(source, /if\s*\(!student\.academy_id\)\s*return json\(\{\s*error:\s*["']Academy not resolved["']\s*\},\s*409\)/);
+    assert.match(source, /if\s*\(!student\.academy_id\)\s*return respond\(\{\s*error:\s*["']Academy not resolved["']\s*\},\s*409\)/);
 });

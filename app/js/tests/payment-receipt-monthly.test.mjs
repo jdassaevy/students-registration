@@ -41,7 +41,7 @@ test('payment-receipt fails closed on student and class tenant mismatches before
 });
 
 test('payment-receipt reuses an existing PDF before generating another one', () => {
-    assert.match(source, /if\s*\(receipt\.storage_path\)\s*return json\(\{\s*receipt\s*\}\)/);
+    assert.match(source, /if\s*\(receipt\.storage_path\)\s*return respond\(\{\s*receipt\s*\}\)/);
     assert.match(source, /upload\(storagePath,\s*pdfBytes,[\s\S]*?upsert:\s*true/);
     assert.match(source, /eq\(["']academy_id["'],\s*receipt\.academy_id\)/);
 });

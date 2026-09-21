@@ -1,47 +1,45 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { corsHeadersFor, isAllowedCorsRequest } from "../_shared/cors.ts";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { isApiInputError, readJsonObject, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
+    headers: { ...corsHeadersFor(req), "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = corsHeadersFor(req);
+  if (!isAllowedCorsRequest(req)) return json(req, req, { error: "Origin not allowed" }, 403);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
 
   let rateHeaders: Record<string, string> = {};
-  const respond = (body: unknown, status = 200) => json(body, status, rateHeaders);
+  const respond = (body: unknown, status = 200) => json(req, body, status, rateHeaders);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const authHeader = req.headers.get("Authorization") || "";
-    if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+    if (!authHeader.startsWith("Bearer ")) return json(req, { error: "Unauthorized" }, 401);
 
     const authClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: userData, error: userError } = await authClient.auth.getUser();
     const user = userData.user;
-    if (userError || !user) return json({ error: "Unauthorized" }, 401);
+    if (userError || !user) return json(req, { error: "Unauthorized" }, 401);
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
   const rateLimit = await checkRateLimit(admin, user.id, "payment-receipt");
   if (rateLimit.kind === "limited") {
-    return json(rateLimit.body, rateLimit.status, rateLimit.headers);
+    return json(req, rateLimit.body, rateLimit.status, rateLimit.headers);
   }
   rateHeaders = rateLimit.kind === "allowed" ? rateLimit.headers : {};
 

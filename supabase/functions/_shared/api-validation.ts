@@ -66,16 +66,23 @@ async function readBoundedBody(req: Request, maxBytes: number): Promise<string> 
   return new TextDecoder().decode(bytes);
 }
 
-export async function readJsonObject(
+export async function readBoundedText(
   req: Request,
-  maxBytes: number = MAX_JSON_BYTES,
-): Promise<Record<string, unknown>> {
+  maxBytes: number,
+): Promise<string> {
   const length = req.headers.get('content-length');
   if (length && Number.isFinite(Number(length)) && Number(length) > maxBytes) {
     throw new ApiInputError('PAYLOAD_TOO_LARGE', 413);
   }
 
-  const raw = await readBoundedBody(req, maxBytes);
+  return readBoundedBody(req, maxBytes);
+}
+
+export async function readJsonObject(
+  req: Request,
+  maxBytes: number = MAX_JSON_BYTES,
+): Promise<Record<string, unknown>> {
+  const raw = await readBoundedText(req, maxBytes);
 
   let parsed: unknown;
   try {

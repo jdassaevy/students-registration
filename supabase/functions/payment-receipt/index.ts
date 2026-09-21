@@ -14,7 +14,7 @@ function json(req: Request, body: unknown, status = 200, extraHeaders: Record<st
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = corsHeadersFor(req);
-  if (!isAllowedCorsRequest(req)) return json(req, req, { error: "Origin not allowed" }, 403);
+  if (!isAllowedCorsRequest(req)) return json(req, { error: "Origin not allowed" }, 403);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
 

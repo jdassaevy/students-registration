@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildRetryIdempotencyKey, canRetryAutomationType, retryEligibility } from "../_shared/retry-policy.ts";
 import { buildDocumentPayload, buildTemplatePayload, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
@@ -11,10 +12,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
@@ -30,6 +31,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  let rateHeaders: Record<string, string> = {};
+  const respond = (body: unknown, status = 200) => json(body, status, rateHeaders);
+
   const authHeader = req.headers.get("Authorization") || "";
   if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
 
@@ -41,6 +45,14 @@ Deno.serve(async (req: Request) => {
   const user = userData.user;
   if (userError || !user) return json({ error: "Unauthorized" }, 401);
 
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  const rateLimit = await checkRateLimit(admin, user.id, "retry-automation-message");
+  if (rateLimit.kind === "limited") {
+    return json(rateLimit.body, rateLimit.status, rateLimit.headers);
+  }
+  rateHeaders = rateLimit.kind === "allowed" ? rateLimit.headers : {};
+
   let sourceMessageId: string;
   let requestId: string;
   try {
@@ -49,32 +61,30 @@ Deno.serve(async (req: Request) => {
     requestId = requireTrimmedString(body?.request_id, "request_id", { maxLength: 160 });
   } catch (error) {
     if (isApiInputError(error)) {
-      return json(validationErrorPayload(error), error.status);
+      return respond(validationErrorPayload(error), error.status);
     }
     throw error;
   }
-
-  const admin = createClient(supabaseUrl, serviceRoleKey);
   const { data: source, error: sourceError } = await admin.from("automation_messages")
     .select("id,user_id,academy_id,student_id,class_id,receipt_id,person,automation_type,status")
     .eq("id", sourceMessageId)
     .single();
-  if (sourceError || !source) return json({ error: "Source message not found" }, 404);
-  if (!source.academy_id) return json({ error: "Academy not resolved" }, 409);
+  if (sourceError || !source) return respond({ error: "Source message not found" }, 404);
+  if (!source.academy_id) return respond({ error: "Academy not resolved" }, 409);
   try {
     await requireAcademyAccess(admin, user.id, source.academy_id);
   } catch {
-    return json({ error: "Forbidden" }, 403);
+    return respond({ error: "Forbidden" }, 403);
   }
-  if (!canRetryAutomationType(source.automation_type)) return json({ error: "Message type cannot be retried" }, 400);
-  if (!source.student_id) return json({ error: "Student unavailable" }, 409);
+  if (!canRetryAutomationType(source.automation_type)) return respond({ error: "Message type cannot be retried" }, 400);
+  if (!source.student_id) return respond({ error: "Student unavailable" }, 409);
 
   const { data: student, error: studentError } = await admin.from("students")
     .select("id,academy_id,class_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
     .eq("id", source.student_id)
     .single();
-  if (studentError || !student) return json({ error: "Student unavailable" }, 409);
-  if (student.academy_id !== source.academy_id) return json({ error: "Student tenant mismatch" }, 409);
+  if (studentError || !student) return respond({ error: "Student unavailable" }, 409);
+  if (student.academy_id !== source.academy_id) return respond({ error: "Student tenant mismatch" }, 409);
 
   const person = source.person === "person2" ? "person2" : "person1";
   const phone = person === "person2" ? student.person2_phone : student.person1_phone;
@@ -91,11 +101,11 @@ Deno.serve(async (req: Request) => {
   }
 
   if (source.receipt_id && (!receipt || !receiptMatchesStudent(receipt, student))) {
-    return json({ error: "missing_receipt" }, 409);
+    return respond({ error: "missing_receipt" }, 409);
   }
 
   if (["payment_confirmation", "payment_voided", "receipt_document"].includes(source.automation_type) && !receipt) {
-    return json({ error: "missing_receipt" }, 409);
+    return respond({ error: "missing_receipt" }, 409);
   }
 
   const eligibility = retryEligibility({
@@ -105,12 +115,12 @@ Deno.serve(async (req: Request) => {
     type: source.automation_type,
     hasRequiredReceipt: Boolean(receipt?.storage_path),
   });
-  if (eligibility !== "eligible") return json({ error: eligibility }, eligibility === "forbidden" ? 403 : 409);
+  if (eligibility !== "eligible") return respond({ error: eligibility }, eligibility === "forbidden" ? 403 : 409);
 
   const accessToken = Deno.env.get("META_ACCESS_TOKEN") || "";
   const phoneNumberId = Deno.env.get("META_PHONE_NUMBER_ID") || "";
   const graphVersion = Deno.env.get("META_GRAPH_VERSION") || "v25.0";
-  if (!accessToken || !phoneNumberId) return json({ error: "Meta credentials not configured" }, 503);
+  if (!accessToken || !phoneNumberId) return respond({ error: "Meta credentials not configured" }, 503);
 
   const idempotencyKey = buildRetryIdempotencyKey(source.id, requestId);
   const { data: existing } = await admin.from("automation_messages")
@@ -119,13 +129,13 @@ Deno.serve(async (req: Request) => {
     .eq("user_id", user.id)
     .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
-  if (existing) return json({ status: "duplicate", retry: existing }, 200);
+  if (existing) return respond({ status: "duplicate", retry: existing }, 200);
 
   const [{ data: academy }, { data: clazz }] = await Promise.all([
     admin.from("academies").select("name,display_name,responsible_name,support_phone").eq("id", source.academy_id).single(),
     student.class_id ? admin.from("classes").select("name,academy_id").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
-  if (clazz && clazz.academy_id !== source.academy_id) return json({ error: "Class tenant mismatch" }, 409);
+  if (clazz && clazz.academy_id !== source.academy_id) return respond({ error: "Class tenant mismatch" }, 409);
 
   const academyName = academy?.display_name || academy?.name || "Academia";
   const to = normalizeRecipientPhone(phone)!;
@@ -133,7 +143,7 @@ Deno.serve(async (req: Request) => {
 
   if (source.automation_type === "receipt_document") {
     const { data: signed, error: signedError } = await admin.storage.from("receipts").createSignedUrl(receipt.storage_path, 3600);
-    if (signedError || !signed?.signedUrl) return json({ error: "Receipt PDF unavailable" }, 409);
+    if (signedError || !signed?.signedUrl) return respond({ error: "Receipt PDF unavailable" }, 409);
     payload = buildDocumentPayload({
       to,
       link: signed.signedUrl,
@@ -177,9 +187,9 @@ Deno.serve(async (req: Request) => {
     if (logError.code === "23505") {
       const { data: duplicate } = await admin.from("automation_messages").select("id,status,provider_message_id")
         .eq("academy_id", source.academy_id).eq("user_id", user.id).eq("idempotency_key", idempotencyKey).maybeSingle();
-      return json({ status: "duplicate", retry: duplicate }, 200);
+      return respond({ status: "duplicate", retry: duplicate }, 200);
     }
-    return json({ error: "Could not create retry log" }, 500);
+    return respond({ error: "Could not create retry log" }, 500);
   }
 
   try {
@@ -191,7 +201,7 @@ Deno.serve(async (req: Request) => {
       executed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq("id", retryLog.id);
-    return json({ status: "sent", retry_message_id: retryLog.id, provider_message_id: providerMessageId });
+    return respond({ status: "sent", retry_message_id: retryLog.id, provider_message_id: providerMessageId });
   } catch (error: any) {
     const safe = error?.meta || sanitizeMetaError(error);
     await admin.from("automation_messages").update({
@@ -201,6 +211,6 @@ Deno.serve(async (req: Request) => {
       executed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq("id", retryLog.id);
-    return json({ error: "Could not resend WhatsApp message", retry_message_id: retryLog.id }, 502);
+    return respond({ error: "Could not resend WhatsApp message", retry_message_id: retryLog.id }, 502);
   }
 });

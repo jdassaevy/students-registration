@@ -87,6 +87,34 @@ test('readJsonObject accepts exactly the configured boundary and rejects larger 
   assert.equal(MAX_JSON_BYTES, 64 * 1024);
 });
 
+
+test('readJsonObject rejects no-content-length stream at max + 1 without draining it', async () => {
+  let pulls = 0;
+  let cancelled = false;
+  const chunk = new TextEncoder().encode('x'.repeat(1024));
+  const stream = new ReadableStream({
+    pull(controller) {
+      pulls += 1;
+      controller.enqueue(chunk);
+      if (pulls >= 100) controller.close();
+    },
+    cancel() { cancelled = true; },
+  });
+  const req = new Request('https://example.test', { method: 'POST', body: stream, duplex: 'half' });
+  await assert.rejects(
+    () => readJsonObject(req, 2048),
+    error => error instanceof ApiInputError && error.code === 'PAYLOAD_TOO_LARGE' && error.status === 413,
+  );
+  assert.equal(cancelled, true);
+  assert.ok(pulls < 100);
+});
+
+test('readJsonObject still accepts an in-range streamed JSON object', async () => {
+  const raw = JSON.stringify({ ok: true });
+  const req = new Request('https://example.test', { method: 'POST', body: raw });
+  assert.deepEqual(await readJsonObject(req), { ok: true });
+});
+
 test('validationErrorPayload exposes only stable public validation data', () => {
   const payload = validationErrorPayload(new ApiInputError('INVALID_INPUT', 400, 'person'));
   assert.deepEqual(payload, { error: 'Invalid request', code: 'INVALID_INPUT', field: 'person' });

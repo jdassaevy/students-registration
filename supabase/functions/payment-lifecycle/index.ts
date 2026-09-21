@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { requestMonthlyReceiptPdf } from "../_shared/monthly-receipt-delegation.mjs";
 import { isUniqueViolation, paymentAmount, paymentIsMarked, paymentLabel, paymentNotificationAmount, paymentReceiptAmount, receiptActionForState, receiptNeedsPdf } from "../_shared/payment-lifecycle.ts";
@@ -21,8 +22,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders } });
 }
 
 function money(value: number) {
@@ -53,6 +54,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  let rateHeaders: Record<string, string> = {};
+  const respond = (body: unknown, status = 200) => json(body, status, rateHeaders);
+
   const authHeader = req.headers.get("Authorization") || "";
   if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
 
@@ -65,6 +69,13 @@ Deno.serve(async (req: Request) => {
   const user = userData.user;
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
+
+  const rateLimit = await checkRateLimit(admin, user.id, "payment-lifecycle");
+  if (rateLimit.kind === "limited") {
+    return json(rateLimit.body, rateLimit.status, rateLimit.headers);
+  }
+  rateHeaders = rateLimit.kind === "allowed" ? rateLimit.headers : {};
+
   try {
     const input = parsePaymentLifecycleRequest(await readJsonObject(req));
 
@@ -73,23 +84,23 @@ Deno.serve(async (req: Request) => {
 
       const { data: receipt, error: receiptError } = await admin.from("receipts")
         .select("*").eq("id", repairReceiptId).single();
-      if (receiptError || !receipt) return json({ error: "Receipt not found" }, 404);
-      if (receipt.kind !== "monthly") return json({ error: "Monthly receipt required" }, 400);
-      if (receipt.status !== "active") return json({ error: "Active receipt required" }, 400);
-      if (!receipt.academy_id) return json({ error: "Academy not resolved" }, 409);
+      if (receiptError || !receipt) return respond({ error: "Receipt not found" }, 404);
+      if (receipt.kind !== "monthly") return respond({ error: "Monthly receipt required" }, 400);
+      if (receipt.status !== "active") return respond({ error: "Active receipt required" }, 400);
+      if (!receipt.academy_id) return respond({ error: "Academy not resolved" }, 409);
 
       try {
         await requireAcademyAccess(admin, user.id, receipt.academy_id);
       } catch {
-        return json({ error: "Forbidden" }, 403);
+        return respond({ error: "Forbidden" }, 403);
       }
 
       const { data: repairStudent, error: repairStudentError } = await admin.from("students")
         .select("id,class_id,academy_id,person1,person2,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
         .eq("id", receipt.student_id)
         .single();
-      if (repairStudentError || !repairStudent) return json({ error: "Student not found" }, 404);
-      if (!receiptMatchesStudent(receipt, repairStudent)) return json({ error: "Receipt tenant mismatch" }, 409);
+      if (repairStudentError || !repairStudent) return respond({ error: "Student not found" }, 404);
+      if (!receiptMatchesStudent(receipt, repairStudent)) return respond({ error: "Receipt tenant mismatch" }, 409);
 
       const { data: repairSettingsRow, error: repairSettingsError } = await admin.from("automation_settings")
         .select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled")
@@ -117,9 +128,9 @@ Deno.serve(async (req: Request) => {
       } catch (error: any) {
         console.warn("monthly receipt repair remains pending", error?.message || "unknown error");
         repairWhatsapp.receipt_document = repairSettings.receipt_delivery_enabled ? "pending_pdf" : "disabled";
-        return json({ paid: true, action: "repair_pending", receipt, pdf_status: "pending", whatsapp: repairWhatsapp, settings: repairSettings });
+        return respond({ paid: true, action: "repair_pending", receipt, pdf_status: "pending", whatsapp: repairWhatsapp, settings: repairSettings });
       }
-      if (!receiptMatchesStudent(repairedReceipt, repairStudent)) return json({ error: "Receipt tenant mismatch" }, 409);
+      if (!receiptMatchesStudent(repairedReceipt, repairStudent)) return respond({ error: "Receipt tenant mismatch" }, 409);
 
       async function sendRepairDocument(payload: unknown, idempotencyKey: string) {
         const { data: existing } = await admin.from("automation_messages").select("id,status")
@@ -166,7 +177,7 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      return json({ paid: true, action: "repair", receipt: repairedReceipt, pdf_status: repairedReceipt.storage_path ? "ready" : "pending", whatsapp: repairWhatsapp, settings: repairSettings });
+      return respond({ paid: true, action: "repair", receipt: repairedReceipt, pdf_status: repairedReceipt.storage_path ? "ready" : "pending", whatsapp: repairWhatsapp, settings: repairSettings });
     }
 
     const { studentId, person, kind, installment } = input;
@@ -174,13 +185,13 @@ Deno.serve(async (req: Request) => {
     const { data: student, error: studentError } = await admin.from("students")
       .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
       .eq("id", studentId).single();
-    if (studentError || !student) return json({ error: "Student not found" }, 404);
-    if (!student.academy_id) return json({ error: "Academy not resolved" }, 409);
+    if (studentError || !student) return respond({ error: "Student not found" }, 404);
+    if (!student.academy_id) return respond({ error: "Academy not resolved" }, 409);
 
     try {
       await requireAcademyAccess(admin, user.id, student.academy_id);
     } catch {
-      return json({ error: "Forbidden" }, 403);
+      return respond({ error: "Forbidden" }, 403);
     }
 
     const paid = paymentIsMarked(student, person, kind, installment);
@@ -188,7 +199,7 @@ Deno.serve(async (req: Request) => {
     const { data: activeReceipt } = await admin.from("receipts").select("*")
       .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment)
       .eq("status", "active").maybeSingle();
-    if (activeReceipt && !receiptMatchesStudent(activeReceipt, student)) return json({ error: "Receipt tenant mismatch" }, 409);
+    if (activeReceipt && !receiptMatchesStudent(activeReceipt, student)) return respond({ error: "Receipt tenant mismatch" }, 409);
     const action = receiptActionForState({ paid, hasActiveReceipt: Boolean(activeReceipt) });
 
     let paymentEvent: any = null;
@@ -196,7 +207,7 @@ Deno.serve(async (req: Request) => {
       const { data: existingEvent } = await admin.from("payment_events").select("*")
         .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).maybeSingle();
       if (existingEvent) {
-        if (existingEvent.academy_id !== student.academy_id) return json({ error: "Payment tenant mismatch" }, 409);
+        if (existingEvent.academy_id !== student.academy_id) return respond({ error: "Payment tenant mismatch" }, 409);
         paymentEvent = existingEvent;
       } else {
         const { data, error } = await admin.from("payment_events").insert({
@@ -208,7 +219,7 @@ Deno.serve(async (req: Request) => {
           const { data: concurrentEvent, error: concurrentError } = await admin.from("payment_events").select("*")
             .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).single();
           if (concurrentError) throw concurrentError;
-          if (concurrentEvent.academy_id !== student.academy_id) return json({ error: "Payment tenant mismatch" }, 409);
+          if (concurrentEvent.academy_id !== student.academy_id) return respond({ error: "Payment tenant mismatch" }, 409);
           paymentEvent = concurrentEvent;
         }
       }
@@ -224,8 +235,8 @@ Deno.serve(async (req: Request) => {
       student.class_id ? admin.from("classes").select("name,academy_id").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
       admin.from("automation_settings").select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled").eq("user_id", user.id).maybeSingle(),
     ]);
-    if (academyError || !academy) return json({ error: "Academy not found" }, 404);
-    if (clazz && clazz.academy_id !== student.academy_id) return json({ error: "Class tenant mismatch" }, 409);
+    if (academyError || !academy) return respond({ error: "Academy not found" }, 404);
+    if (clazz && clazz.academy_id !== student.academy_id) return respond({ error: "Class tenant mismatch" }, 409);
 
     const settings = normalizeAutomationSettings(settingsRow);
     const studentName = (person === "person2" ? student.person2 : student.person1) || "Aluno(a)";
@@ -258,7 +269,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (receipt && !receiptMatchesStudent(receipt, student)) return json({ error: "Receipt tenant mismatch" }, 409);
+    if (receipt && !receiptMatchesStudent(receipt, student)) return respond({ error: "Receipt tenant mismatch" }, 409);
 
     if (paid && kind === "entry" && receiptNeedsPdf(receipt)) {
       const receiptAmount = paymentReceiptAmount(receipt, amount);
@@ -352,7 +363,7 @@ Deno.serve(async (req: Request) => {
       } else {
         try {
           receipt = await requestMonthlyReceiptPdf({ supabaseUrl, anonKey, authHeader, receiptId: receipt.id });
-          if (receipt && !receiptMatchesStudent(receipt, student)) return json({ error: "Receipt tenant mismatch" }, 409);
+          if (receipt && !receiptMatchesStudent(receipt, student)) return respond({ error: "Receipt tenant mismatch" }, 409);
           pdfStatus = receipt?.storage_path ? "ready" : "pending";
           repairedPdf = pdfStatus === "ready";
         } catch (error: any) {
@@ -381,12 +392,12 @@ Deno.serve(async (req: Request) => {
       whatsapp.payment_voided = await sendLogged("payment_voided", payload, `payment:${receipt.id}:voided`);
     }
 
-    return json({ paid, action: repairedPdf && action === "keep" ? "repair" : action, receipt, whatsapp, settings, pdf_status: pdfStatus });
+    return respond({ paid, action: repairedPdf && action === "keep" ? "repair" : action, receipt, whatsapp, settings, pdf_status: pdfStatus });
   } catch (error) {
     if (isApiInputError(error)) {
-      return json(validationErrorPayload(error), error.status);
+      return respond(validationErrorPayload(error), error.status);
     }
     console.error("payment-lifecycle error", error);
-    return json({ error: "Could not process payment lifecycle" }, 500);
+    return respond({ error: "Could not process payment lifecycle" }, 500);
   }
 });

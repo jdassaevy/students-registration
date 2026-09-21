@@ -1,3 +1,7 @@
+import { constantTimeEqual } from "./request-security.ts";
+
+export const MAX_WEBHOOK_BYTES = 256 * 1024;
+
 type ProviderStatus = "sent" | "delivered" | "read" | "failed";
 
 export type WebhookStatus = {
@@ -14,6 +18,13 @@ export function mapProviderStatus(value: unknown): ProviderStatus | null {
     : null;
 }
 
+function boundedString(value: unknown, maxLength: number): string | null {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+  return normalized.length <= maxLength ? normalized : normalized.slice(0, maxLength);
+}
+
 export function extractStatuses(payload: any): WebhookStatus[] {
   const result: WebhookStatus[] = [];
   if (payload?.object !== "whatsapp_business_account") return result;
@@ -23,15 +34,19 @@ export function extractStatuses(payload: any): WebhookStatus[] {
       const statuses = Array.isArray(change?.value?.statuses) ? change.value.statuses : [];
       for (const item of statuses) {
         const status = mapProviderStatus(item?.status);
-        const id = typeof item?.id === "string" ? item.id.trim() : "";
+        const id = boundedString(item?.id, 512);
         if (!status || !id) continue;
         const firstError = Array.isArray(item?.errors) ? item.errors[0] : null;
+        const rawTimestamp = boundedString(item?.timestamp, 32);
         result.push({
           id,
           status,
-          timestamp: item?.timestamp ? String(item.timestamp) : null,
-          errorCode: firstError?.code != null ? String(firstError.code) : null,
-          errorMessage: firstError?.title || firstError?.message || firstError?.error_data?.details || null,
+          timestamp: rawTimestamp && /^\d{1,13}$/.test(rawTimestamp) ? rawTimestamp : null,
+          errorCode: boundedString(firstError?.code, 64),
+          errorMessage: boundedString(
+            firstError?.title || firstError?.message || firstError?.error_data?.details,
+            1000,
+          ),
         });
       }
     }
@@ -44,21 +59,13 @@ function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let index = 0; index < a.length; index++) {
-    diff |= a.charCodeAt(index) ^ b.charCodeAt(index);
-  }
-  return diff === 0;
-}
-
 export async function verifyMetaSignature(
   rawBody: string,
   signatureHeader: string | null,
   appSecret: string,
 ): Promise<boolean> {
-  if (!rawBody || !signatureHeader?.startsWith("sha256=") || !appSecret) return false;
+  if (!rawBody || !signatureHeader || !appSecret) return false;
+  if (!/^sha256=[0-9a-f]{64}$/i.test(signatureHeader)) return false;
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -71,5 +78,5 @@ export async function verifyMetaSignature(
     await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody)),
   );
   const expected = `sha256=${bytesToHex(signature)}`;
-  return constantTimeEqual(expected, signatureHeader);
+  return constantTimeEqual(expected, signatureHeader.toLowerCase());
 }

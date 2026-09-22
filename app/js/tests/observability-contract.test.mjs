@@ -47,6 +47,8 @@ test('shared observability helper emits only allowlisted technical fields', () =
   }
 
   assert.match(source, /REQUEST_ID_PATTERN/);
+  assert.match(source, /REQUEST_ID_PATTERN = \/\^\[0-9a-f\]\{8\}-/);
+  assert.doesNotMatch(source, /A-Za-z0-9\._:-/);
   assert.match(source, /crypto\.randomUUID\(\)/);
   assert.match(source, /"X-Request-ID"/);
 });

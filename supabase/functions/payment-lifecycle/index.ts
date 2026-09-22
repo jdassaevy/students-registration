@@ -6,6 +6,7 @@ import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { requestMonthlyReceiptPdf } from "../_shared/monthly-receipt-delegation.mjs";
 import { isUniqueViolation, paymentAmount, paymentIsMarked, paymentLabel, paymentNotificationAmount, paymentReceiptAmount, receiptActionForState, receiptNeedsPdf } from "../_shared/payment-lifecycle.ts";
 import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
+import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { buildDocumentPayload, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
@@ -19,7 +20,7 @@ import {
 } from "../_shared/api-validation.ts";
 
 function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeadersFor(req), "Content-Type": "application/json", ...extraHeaders } });
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeadersFor(req), ...traceHeaders(req), "Content-Type": "application/json", ...extraHeaders } });
 }
 
 function money(value: number) {
@@ -47,7 +48,8 @@ function parsePaymentLifecycleRequest(body: Record<string, unknown>): PaymentLif
 }
 
 Deno.serve(async (req: Request) => {
-  const corsHeaders = corsHeadersFor(req);
+  const startedAt = Date.now();
+  const corsHeaders = { ...corsHeadersFor(req), ...traceHeaders(req) };
   if (!isAllowedCorsRequest(req)) return json(req, { error: "Origin not allowed" }, 403);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
@@ -124,7 +126,7 @@ Deno.serve(async (req: Request) => {
       try {
         repairedReceipt = await requestMonthlyReceiptPdf({ supabaseUrl, anonKey, authHeader, receiptId: receipt.id });
       } catch (error: any) {
-        console.warn("monthly receipt repair remains pending", error?.message || "unknown error");
+        logSafeEvent(req, "payment-lifecycle", "monthly_receipt_repair_pending", { outcome: "pending_pdf", duration_ms: Date.now() - startedAt }, "warn");
         repairWhatsapp.receipt_document = repairSettings.receipt_delivery_enabled ? "pending_pdf" : "disabled";
         return respond({ paid: true, action: "repair_pending", receipt, pdf_status: "pending", whatsapp: repairWhatsapp, settings: repairSettings });
       }
@@ -365,7 +367,7 @@ Deno.serve(async (req: Request) => {
           pdfStatus = receipt?.storage_path ? "ready" : "pending";
           repairedPdf = pdfStatus === "ready";
         } catch (error: any) {
-          console.warn("monthly receipt PDF remains pending", error?.message || "unknown error");
+          logSafeEvent(req, "payment-lifecycle", "monthly_receipt_pdf_pending", { outcome: "pending_pdf", duration_ms: Date.now() - startedAt }, "warn");
           pdfStatus = "pending";
           whatsapp.receipt_document = settings.receipt_delivery_enabled ? "pending_pdf" : "disabled";
         }
@@ -395,7 +397,7 @@ Deno.serve(async (req: Request) => {
     if (isApiInputError(error)) {
       return respond(validationErrorPayload(error), error.status);
     }
-    console.error("payment-lifecycle error", error);
+    logSafeEvent(req, "payment-lifecycle", "request_failed", { status: 500, code: "internal_error", duration_ms: Date.now() - startedAt }, "error");
     return respond({ error: "Could not process payment lifecycle" }, 500);
   }
 });

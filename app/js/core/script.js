@@ -1,6 +1,16 @@
 const db = window
     .supabase
-    .createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey);
+    .createClient(
+        SUPABASE_CONFIG.url,
+        SUPABASE_CONFIG.publishableKey,
+        {
+            auth: {
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: true
+            }
+        }
+    );
 const LOCAL_COUPLES_KEY = 'arteNativaCasais_v1';
 const LOCAL_CLASSES_KEY = 'arteNativaTurmas_v1';
 const MIN_NEW_PASSWORD_LENGTH = 8;

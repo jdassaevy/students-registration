@@ -268,7 +268,7 @@
                 legacyMessage.textContent = '';
                 await auth.callback(auth.event, auth.session);
             } catch (error) {
-                console.error('Não foi possível criar a academia para a conta existente.', error);
+                globalThis.ClientLogging?.report('academy-onboarding-create', error);
                 window.currentAcademyId = null;
                 legacyMessage.textContent = 'Não foi possível configurar a academia. Tente novamente.';
                 setLegacyLoading(false);
@@ -336,7 +336,7 @@
                     }
                 } catch (error) {
                     window.currentAcademyId = null;
-                    console.error('Não foi possível resolver a academia ativa.', error);
+                    globalThis.ClientLogging?.report('academy-onboarding-resolve', error);
                 }
             }
 

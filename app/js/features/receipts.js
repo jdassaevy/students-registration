@@ -61,7 +61,7 @@
                 .select('*')
                 .order('created_at', {ascending: false});
             if (error) {
-                console.warn('Recibos ainda não configurados:', error.message);
+                globalThis.ClientLogging?.report('receipts-load', error);
                 api.items = [];
                 renderHistory();
                 return [];

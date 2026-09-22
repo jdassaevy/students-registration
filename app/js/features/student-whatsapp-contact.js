@@ -101,7 +101,7 @@
       .eq('id', id)
       .single();
     if (error) {
-      console.error(error);
+      globalThis.ClientLogging?.report('whatsapp-contact-load', error);
       return;
     }
     byId('p1Phone').value = data.person1_phone || '';
@@ -139,7 +139,7 @@
       : { data: null, error: null };
 
     if (previous.error) {
-      console.error(previous.error);
+      globalThis.ClientLogging?.report('whatsapp-contact-previous', previous.error);
       toast('Não foi possível validar o consentimento atual.');
       return;
     }
@@ -185,7 +185,7 @@
       : await db.from('students').insert(payload).select().single();
 
     if (result.error) {
-      console.error(result.error);
+      globalThis.ClientLogging?.report('whatsapp-contact-save', result.error);
       toast('Não foi possível salvar.');
       return;
     }

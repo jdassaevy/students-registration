@@ -271,7 +271,7 @@
             .select('*')
             .order('paid_at', {ascending: true});
         if (error) {
-            console.warn('Histórico financeiro ainda não configurado:', error.message);
+            globalThis.ClientLogging?.report('reports-payment-history', error);
             reportEvents = [];
             return false;
         }
@@ -478,7 +478,7 @@
             document
                 .getElementById('revenueHistoryNotice')
                 .textContent = 'Não foi possível carregar a biblioteca de gráficos.';
-            console.warn('Não foi possível renderizar os gráficos:', error?.message || error);
+            globalThis.ClientLogging?.report('reports-charts', error);
         } finally {
             setReportsChartLoading(false);
         }

@@ -96,7 +96,7 @@ if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('payment:lifecycle', {detail: data || {}}));
                 return data || {};
             } catch (error) {
-                console.error('payment lifecycle failed', error);
+                globalThis.ClientLogging?.report('payment-lifecycle', error);
                 toast('Pagamento atualizado, mas a automação do recibo precisa ser verificada.');
                 return null;
             }
@@ -113,7 +113,7 @@ if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('payment:lifecycle', {detail: data || {}}));
                 return data || {};
             } catch (error) {
-                console.error('monthly receipt repair failed', error);
+                globalThis.ClientLogging?.report('monthly-receipt-repair', error);
                 toast('O pagamento continua registrado, mas o PDF ainda não pôde ser gerado.');
                 return null;
             }

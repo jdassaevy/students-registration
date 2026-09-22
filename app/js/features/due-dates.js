@@ -109,7 +109,7 @@
             );
             decorateClassList();
         } catch (error) {
-            console.warn('Não foi possível carregar vencimentos:', error.message);
+            globalThis.ClientLogging?.report('due-dates-load', error);
         }
     }
 

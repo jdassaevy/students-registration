@@ -22,6 +22,11 @@ let classes = [];
 let authMode = 'login';
 let activeView = 'students';
 let toastTimer = null;
+let loadDataPromise = null;
+
+const resilientRead = factory => globalThis.ReadResilience?.run
+    ? globalThis.ReadResilience.run(factory)
+    : factory();
 
 const escapeHtml = value => String(value ?? '').replace(
     /[&<>'"]/g,
@@ -321,28 +326,52 @@ function translateError(message = '') {
     return message || 'Não foi possível concluir a operação.';
 }
 
-async function loadData() {
-    $('list').innerHTML = '<tr><td colspan="6" class="loading-state">Carregando seus dados...</td></tr>';
-    const [classResult, studentResult] = await Promise.all([
-        db
-            .from('classes')
-            .select('*')
-            .order('created_at'),
-        db
-            .from('students')
-            .select('*')
-            .order('created_at', {ascending: false})
-    ]);
-    if (classResult.error || studentResult.error) 
-        throw classResult.error || studentResult.error;
-    classes = classResult
-        .data
-        .map(fromClass);
-    couples = studentResult
-        .data
-        .map(fromStudent);
-    await migrateLocalData();
-    render();
+async function loadData({showLoading = true, migrateLegacy = true} = {}) {
+    if (loadDataPromise)
+        return loadDataPromise;
+
+    const hadData = classes.length > 0 || couples.length > 0;
+    if (showLoading && !hadData)
+        $('list').innerHTML = '<tr><td colspan="6" class="loading-state">Carregando seus dados...</td></tr>';
+
+    loadDataPromise = (async () => {
+        const [classResult, studentResult] = await Promise.all([
+            resilientRead(() => db
+                .from('classes')
+                .select('*')
+                .order('created_at')),
+            resilientRead(() => db
+                .from('students')
+                .select('*')
+                .order('created_at', {ascending: false}))
+        ]);
+        if (classResult.error || studentResult.error)
+            throw classResult.error || studentResult.error;
+
+        const nextClasses = (classResult.data || []).map(fromClass);
+        const nextCouples = (studentResult.data || []).map(fromStudent);
+        classes = nextClasses;
+        couples = nextCouples;
+
+        if (migrateLegacy)
+            await migrateLocalData();
+
+        render();
+        return true;
+    })();
+
+    try {
+        return await loadDataPromise;
+    } catch (error) {
+        if (hadData) {
+            render();
+        } else {
+            $('list').innerHTML = '<tr><td colspan="6" class="loading-state">Não foi possível carregar seus dados. Verifique a conexão e tente novamente.</td></tr>';
+        }
+        throw error;
+    } finally {
+        loadDataPromise = null;
+    }
 }
 
 async function migrateLocalData() {
@@ -397,21 +426,19 @@ async function migrateLocalData() {
     localStorage.setItem(flag, 'true');
     toast('Dados antigos enviados para sua conta.');
     const [cr, sr] = await Promise.all([
-        db
+        resilientRead(() => db
             .from('classes')
             .select('*')
-            .order('created_at'),
-        db
+            .order('created_at')),
+        resilientRead(() => db
             .from('students')
             .select('*')
-            .order('created_at', {ascending: false})
+            .order('created_at', {ascending: false}))
     ]);
-    classes = cr
-        .data
-        .map(fromClass);
-    couples = sr
-        .data
-        .map(fromStudent);
+    if (cr.error || sr.error)
+        throw cr.error || sr.error;
+    classes = (cr.data || []).map(fromClass);
+    couples = (sr.data || []).map(fromStudent);
     clearLegacyLocalData();
 }
 
@@ -1089,12 +1116,30 @@ db
             await loadData();
         } catch (error) {
             globalThis.ClientLogging?.report('auth-state-load', error);
+            const message = String(error?.message || '');
             toast(
-                error.message.includes('does not exist')
+                message.includes('does not exist')
                     ? 'Configure o banco com o arquivo supabase-schema.sql.'
                     : 'Erro ao carregar dados.'
             );
         }
     });
+
+window.addEventListener('offline', () => {
+    if (currentUser)
+        toast('Sem conexão. Mantendo os últimos dados carregados.');
+});
+
+window.addEventListener('online', () => {
+    if (!currentUser)
+        return;
+    toast('Conexão restaurada. Atualizando dados...');
+    void loadData({showLoading: false, migrateLegacy: false})
+        .then(() => toast('Dados atualizados.'))
+        .catch(error => {
+            globalThis.ClientLogging?.report('reconnect-load', error);
+            toast('A conexão voltou, mas a atualização ainda não foi concluída.');
+        });
+});
 
 setAuthMode('login');

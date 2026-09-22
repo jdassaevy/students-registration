@@ -6,7 +6,7 @@ import { buildRetryIdempotencyKey, canRetryAutomationType, retryEligibility } fr
 import { buildDocumentPayload, buildTemplatePayload, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
-import { isApiInputError, readJsonObject, requireTrimmedString, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
+import { isApiInputError, optionalBoolean, readJsonObject, requireTrimmedString, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
 
 function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -53,10 +53,16 @@ Deno.serve(async (req: Request) => {
 
   let sourceMessageId: string;
   let requestId: string;
+  let acknowledgeConfigurationFix = false;
   try {
     const body = await readJsonObject(req);
     sourceMessageId = requireUuid(body?.source_message_id, "source_message_id");
     requestId = requireTrimmedString(body?.request_id, "request_id", { maxLength: 160 });
+    acknowledgeConfigurationFix = optionalBoolean(
+      body?.acknowledge_configuration_fix,
+      "acknowledge_configuration_fix",
+      false,
+    );
   } catch (error) {
     if (isApiInputError(error)) {
       return respond(validationErrorPayload(error), error.status);
@@ -64,7 +70,7 @@ Deno.serve(async (req: Request) => {
     throw error;
   }
   const { data: source, error: sourceError } = await admin.from("automation_messages")
-    .select("id,user_id,academy_id,student_id,class_id,receipt_id,person,automation_type,status")
+    .select("id,user_id,academy_id,student_id,class_id,receipt_id,person,automation_type,status,error_code")
     .eq("id", sourceMessageId)
     .single();
   if (sourceError || !source) return respond({ error: "Source message not found" }, 404);
@@ -112,6 +118,9 @@ Deno.serve(async (req: Request) => {
     hasConsent: consent === true,
     type: source.automation_type,
     hasRequiredReceipt: Boolean(receipt?.storage_path),
+    sourceStatus: source.status,
+    errorCode: source.error_code,
+    configurationFixAcknowledged: acknowledgeConfigurationFix,
   });
   if (eligibility !== "eligible") return respond({ error: eligibility }, eligibility === "forbidden" ? 403 : 409);
 

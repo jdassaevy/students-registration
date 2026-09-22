@@ -27,6 +27,11 @@ const escapeHtml = value => String(value ?? '').replace(
     /[&<>'"]/g,
     c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[c])
 );
+
+function clearLegacyLocalData() {
+    localStorage.removeItem(LOCAL_CLASSES_KEY);
+    localStorage.removeItem(LOCAL_COUPLES_KEY);
+}
 const normalizePayments = value => ({
     person1: Array.isArray(
         value
@@ -342,12 +347,15 @@ async function loadData() {
 
 async function migrateLocalData() {
     const flag = `arteNativaMigrated_${currentUser.id}`;
-    if (localStorage.getItem(flag)) 
+    if (localStorage.getItem(flag)) {
+        clearLegacyLocalData();
         return;
+    }
     const oldClasses = JSON.parse(localStorage.getItem(LOCAL_CLASSES_KEY) || '[]');
     const oldCouples = JSON.parse(localStorage.getItem(LOCAL_COUPLES_KEY) || '[]');
     if (!oldClasses.length && !oldCouples.length) {
         localStorage.setItem(flag, 'true');
+        clearLegacyLocalData();
         return;
     }
     if (!confirm(`Encontramos ${oldCouples.length} cadastro(s) neste aparelho. Deseja enviá-los para sua conta online?`)) 
@@ -404,6 +412,7 @@ async function migrateLocalData() {
     couples = sr
         .data
         .map(fromStudent);
+    clearLegacyLocalData();
 }
 
 function stats(items = couples) {
@@ -701,7 +710,7 @@ function render() {
                     .map(
                         (on, i) => `<button class="month ${on
                             ? 'on'
-                            : ''}" onclick="toggleMonth('${c.id}','${person}',${i})">${on
+                            : ''}" data-student-action="toggle-month" data-student-id="${escapeHtml(c.id)}" data-person="${person}" data-index="${i}">${on
                                 ? '✓'
                                 : i + 1}</button>`
                     )
@@ -710,14 +719,14 @@ function render() {
                     c.person1
                 )}</span><button class="pill ${c.entryPayments.person1
                     ? 'paid'
-                    : 'pending'}" onclick="toggleEntry('${c.id}','person1')">${c.entryPayments.person1
+                    : 'pending'}" data-student-action="toggle-entry" data-student-id="${escapeHtml(c.id)}" data-person="person1">${c.entryPayments.person1
                         ? 'Paga'
                         : 'Pendente'}</button></div>${c.person2
                             ? `<div class="person-payment"><span class="person-payment-name">${escapeHtml(
                                 c.person2
                             )}</span><button class="pill ${c.entryPayments.person2
                                 ? 'paid'
-                                : 'pending'}" onclick="toggleEntry('${c.id}','person2')">${c.entryPayments.person2
+                                : 'pending'}" data-student-action="toggle-entry" data-student-id="${escapeHtml(c.id)}" data-person="person2">${c.entryPayments.person2
                                     ? 'Paga'
                                     : 'Pendente'}</button></div>`
                             : ''}`;
@@ -734,7 +743,7 @@ function render() {
                                 ? personButtons('person2', c.person2)
                                 : ''}</td><td class="count"><b>${paid1 + paid2} de ${c.person2
                                     ? 6
-                                    : 3}</b> pagas</td><td><div class="actions"><button class="icon-btn" onclick="editCouple('${c.id}')">✎</button><button class="icon-btn" onclick="removeCouple('${c.id}')">⌫</button></div></td></tr>`;
+                                    : 3}</b> pagas</td><td><div class="actions"><button class="icon-btn" data-student-action="edit" data-student-id="${escapeHtml(c.id)}">✎</button><button class="icon-btn" data-student-action="remove" data-student-id="${escapeHtml(c.id)}">⌫</button></div></td></tr>`;
             })
             .join('')
         : '<tr><td colspan="6" class="empty"><b>Nenhum cadastro encontrado</b>Cadastre um' +
@@ -1017,6 +1026,40 @@ $('classList').addEventListener('click', event => {
         removeClass(button.dataset.deleteClass);
     }
 );
+
+document.addEventListener('click', event => {
+    const target = event.target instanceof Element
+        ? event.target
+        : null;
+    const button = target?.closest('[data-student-action]');
+    if (!button) 
+        return;
+
+    const id = button.dataset.studentId;
+    const person = button.dataset.person;
+    const action = button.dataset.studentAction;
+
+    if (action === 'toggle-month') {
+        const index = Number(button.dataset.index);
+        if (id && (person === 'person1' || person === 'person2') && Number.isInteger(index) && index >= 0 && index < 3)
+            void toggleMonth(id, person, index);
+        return;
+    }
+
+    if (action === 'toggle-entry') {
+        if (id && (person === 'person1' || person === 'person2'))
+            void toggleEntry(id, person);
+        return;
+    }
+
+    if (action === 'edit' && id) {
+        editCouple(id);
+        return;
+    }
+
+    if (action === 'remove' && id)
+        void removeCouple(id);
+});
 
 db
     .auth

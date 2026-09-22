@@ -154,8 +154,8 @@ create or replace function public.is_academy_member(target_academy uuid)
 returns boolean
 language sql
 stable
-security definer
-set search_path = public
+security invoker
+set search_path = pg_catalog, public
 as $$
     select target_academy is not null
        and auth.uid() is not null
@@ -172,8 +172,8 @@ create or replace function public.is_academy_owner(target_academy uuid)
 returns boolean
 language sql
 stable
-security definer
-set search_path = public
+security invoker
+set search_path = pg_catalog, public
 as $$
     select target_academy is not null
        and auth.uid() is not null
@@ -331,5 +331,9 @@ grant select on public.automation_messages to authenticated;
 revoke execute on function public.is_academy_member(uuid) from public, anon;
 revoke execute on function public.is_academy_owner(uuid) from public, anon;
 revoke execute on function public.protect_receipt_audit_fields() from public, anon, authenticated;
-grant execute on function public.is_academy_member(uuid) to authenticated;
-grant execute on function public.is_academy_owner(uuid) to authenticated;
+grant execute on function public.is_academy_member(uuid) to authenticated, service_role;
+grant execute on function public.is_academy_owner(uuid) to authenticated, service_role;
+
+-- New postgres-owned public functions must be exposed explicitly.
+alter default privileges for role postgres in schema public
+    revoke execute on functions from public, anon, authenticated;

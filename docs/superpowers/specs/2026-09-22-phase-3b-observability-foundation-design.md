@@ -20,12 +20,12 @@ Make production failures traceable without adding business-data migrations, copy
 
 Every Edge Function response receives an `X-Request-ID`.
 
-- Only a canonical UUID-shaped inbound `x-request-id` can be propagated.
-- Any missing or non-UUID inbound value is replaced with a random UUID before it can enter logs.
+- Request IDs are always generated inside the Edge Function with `crypto.randomUUID()`.
+- Client-supplied `x-request-id` values are never copied into logs, even when they look like UUIDs.
 - Browser CORS responses expose `X-Request-ID`.
-- The same ID is used in structured logs for the request.
+- The same server-generated ID is used in structured logs for the request.
 
-This lets a user-visible error be correlated with backend logs without accepting arbitrary client-controlled identifiers such as names, phone numbers or business IDs into the request-correlation field.
+This lets a user-visible error be correlated with backend logs without allowing names, phone numbers, user/student/academy UUIDs, receipt identifiers or other client-controlled values to occupy the request-correlation field.
 
 ## Safe structured logs
 
@@ -41,7 +41,7 @@ The shared logger accepts only:
 - HTTP method
 - request ID
 
-Arbitrary objects are not logged.
+The helper rejects object values for technical string fields and does not coerce objects/arrays into log text. Numeric aggregate/duration fields accept finite numbers only. Endpoint and event names are static literals in the six Edge Function entrypoints.
 
 ## Endpoint behavior
 
@@ -75,8 +75,8 @@ Phase 3B does not auto-retry the 10 historical failures and does not mutate thos
 - CI green.
 - Exact candidate bundles validated in DEV.
 - Authentication and CORS contracts remain unchanged.
-- All responses include `X-Request-ID`.
-- Arbitrary client-controlled request IDs cannot be copied into logs.
+- All responses include a server-generated `X-Request-ID`.
+- Client-controlled request IDs cannot be copied into logs.
 - No raw console logging remains in Edge Function entrypoints.
 - No PII/secret field is accepted by the shared observability helper.
 - DEV tests create no persistent business data.

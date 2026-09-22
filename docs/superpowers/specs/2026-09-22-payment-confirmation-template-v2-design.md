@@ -39,7 +39,7 @@ Pagamento registrado com sucesso. Obrigado!
 
 The existing approved template `dassaevy_payment_confirmation` remains the default.
 
-The Edge Functions only use V2 when `META_PAYMENT_CONFIRMATION_TEMPLATE` equals `dassaevy_payment_confirmation_v2` and the academy has a non-empty support phone. Otherwise they fall back to the current four-variable template.
+The Edge Functions only use V2 when `META_PAYMENT_CONFIRMATION_V2_ENABLED=true` and the academy has a non-empty support phone. Otherwise they fall back to the current four-variable template.
 
 This lets the code ship before Meta approval without changing production messages.
 

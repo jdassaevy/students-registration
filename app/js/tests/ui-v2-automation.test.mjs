@@ -20,7 +20,7 @@ test('automation keeps existing persistence, readiness, Meta and retry ownership
   for (const contract of [
     'function ensureSettings()',
     'function loadMessages()',
-    'function loadReadiness()',
+    'function loadReadiness(',
     'function retryMessage(button)',
     'const metaConnectionState = messages =>',
     "db.from('automation_settings')",

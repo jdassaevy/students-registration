@@ -25,14 +25,19 @@ test('reports no longer injects presentation CSS', () => {
   assert.doesNotMatch(js, /style\.textContent\s*=/);
 });
 
-test('reports keeps existing calculation and payment history ownership', () => {
+test('reports keeps calculations and read-only payment history ownership', () => {
   for (const contract of [
     'function reportMetrics(',
     'function classRows(',
     'function revenueSeries(',
-    'async function syncPaymentEvent(',
-    ".from('payment_events')"
+    ".from('payment_events')",
+    "addEventListener('payment:lifecycle'"
   ]) assert.ok(js.includes(contract), `missing report contract: ${contract}`);
+
+  assert.doesNotMatch(
+    js,
+    /from\(['"]payment_events['"]\)[\s\S]{0,160}\.(?:insert|update|delete)\s*\(/,
+  );
 });
 
 test('charts use semantic UI v2 variables', () => {

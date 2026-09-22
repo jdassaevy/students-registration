@@ -29,7 +29,7 @@ test('normal payment confirmation reads academy profile name and support phone t
   assert.match(lifecycle, /select\(["']name,display_name,responsible_name,support_phone["']\)/);
   assert.match(lifecycle, /const academyMessageName = academy\.display_name \|\| academy\.name/);
   assert.match(lifecycle, /buildPaymentConfirmationTemplate\(\{[\s\S]*studentName,[\s\S]*paymentLabel: label,[\s\S]*amount: money\(notificationAmount\),[\s\S]*academyName: academyMessageName,[\s\S]*supportPhone: academy\.support_phone/);
-  assert.match(lifecycle, /Deno\.env\.get\(["']META_PAYMENT_CONFIRMATION_TEMPLATE["']\)/);
+  assert.match(lifecycle, /Deno\.env\.get\(["']META_PAYMENT_CONFIRMATION_V2_ENABLED["']\) === ["']true["']/);
 });
 
 test('payment confirmation retry uses the same shared parameter builder as normal delivery', () => {

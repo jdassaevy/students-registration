@@ -38,6 +38,9 @@
             /[&<>'"]/g,
             c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[c])
         );
+    const read = factory => globalThis.ReadResilience?.run
+        ? globalThis.ReadResilience.run(factory)
+        : factory();
 
     const friendlyStatus = status => STATUS_LABELS[status] || 'Desconhecido';
     const friendlyType = type => TYPE_LABELS[type] || 'Automação';
@@ -283,7 +286,11 @@
     async function ensureSettings() {
         const userId = await getUserId();
         if (!userId) return null;
-        const {data, error} = await db.from('automation_settings').select('*').eq('user_id', userId).maybeSingle();
+        const {data, error} = await read(() => db
+            .from('automation_settings')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle());
         if (error) throw error;
         if (data) {
             currentSettings = {...DEFAULT_SETTINGS, ...data};
@@ -327,8 +334,15 @@
 
     async function loadMessages() {
         const [{data: messages, error: messageError}, {data: students, error: studentError}] = await Promise.all([
-            db.from('automation_messages').select('id,student_id,person,automation_type,status,error_code,error_message,provider_message_id,created_at,executed_at,receipt_id').order('created_at', {ascending: false}).limit(50),
-            db.from('students').select('id,person1,person2,person1_phone,person2_phone').limit(500)
+            read(() => db
+                .from('automation_messages')
+                .select('id,student_id,person,automation_type,status,error_code,error_message,provider_message_id,created_at,executed_at,receipt_id')
+                .order('created_at', {ascending: false})
+                .limit(50)),
+            read(() => db
+                .from('students')
+                .select('id,person1,person2,person1_phone,person2_phone')
+                .limit(500))
         ]);
         if (messageError) throw messageError;
         if (studentError) throw studentError;
@@ -398,9 +412,18 @@
         const userId = await getUserId();
         if (!userId) return;
         const [profileResult, receiptsResult, duplicatesResult] = await Promise.all([
-            db.from('academy_profiles').select('academy_name,responsible_name,support_phone').eq('user_id', userId).maybeSingle(),
-            db.from('receipts').select('id,storage_path,status').limit(1),
-            db.rpc('find_duplicate_active_receipts').then(result => result).catch(() => ({data: null, error: new Error('rpc unavailable')}))
+            read(() => db
+                .from('academy_profiles')
+                .select('academy_name,responsible_name,support_phone')
+                .eq('user_id', userId)
+                .maybeSingle()),
+            read(() => db
+                .from('receipts')
+                .select('id,storage_path,status')
+                .limit(1)),
+            read(() => db
+                .rpc('find_duplicate_active_receipts'))
+                .catch(() => ({data: null, error: new Error('rpc unavailable')}))
         ]);
         const profile = profileResult.data || {};
         const students = currentStudents;
@@ -448,7 +471,16 @@
                 return true;
             } catch (error) {
                 globalThis.ClientLogging?.report('automation-center-load', error);
-                document.getElementById('automationActivity').innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação agora.</div>';
+                if (automationReady) {
+                    renderSettings();
+                    renderSummary();
+                    renderActivity();
+                    renderIntegrationStatus();
+                    if (typeof toast === 'function')
+                        toast('Não foi possível atualizar agora. Mantendo os últimos dados carregados.');
+                } else {
+                    document.getElementById('automationActivity').innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação agora.</div>';
+                }
                 return false;
             } finally {
                 setAutomationLoading(false);

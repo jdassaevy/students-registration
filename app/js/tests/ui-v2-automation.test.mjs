@@ -23,8 +23,8 @@ test('automation keeps existing persistence, readiness, Meta and retry ownership
     'function loadReadiness(',
     'function retryMessage(button)',
     'const metaConnectionState = messages =>',
-    "db.from('automation_settings')",
-    "db.from('automation_messages')",
+    ".from('automation_settings')",
+    ".from('automation_messages')",
     "db.functions.invoke('retry-automation-message'"
   ]) {
     assert.ok(js.includes(contract), `missing automation contract: ${contract}`);

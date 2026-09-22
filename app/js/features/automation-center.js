@@ -257,13 +257,24 @@
         }
     }
 
+    const AUTOMATION_CACHE_MS = 30_000;
     let currentSettings = {...DEFAULT_SETTINGS};
     let currentMessages = [];
+    let currentStudents = [];
     let studentsById = new Map();
-    let activeUserId = null;
+    let activeUserId = typeof currentUser !== 'undefined'
+        ? currentUser?.id || null
+        : null;
+    let automationDirty = true;
+    let automationLastLoadedAt = 0;
+    let automationRefreshPromise = null;
 
     async function getUserId() {
         if (activeUserId) return activeUserId;
+        if (typeof currentUser !== 'undefined' && currentUser?.id) {
+            activeUserId = currentUser.id;
+            return activeUserId;
+        }
         const {data} = await db.auth.getUser();
         activeUserId = data?.user?.id || null;
         return activeUserId;
@@ -317,12 +328,13 @@
     async function loadMessages() {
         const [{data: messages, error: messageError}, {data: students, error: studentError}] = await Promise.all([
             db.from('automation_messages').select('id,student_id,person,automation_type,status,error_code,error_message,provider_message_id,created_at,executed_at,receipt_id').order('created_at', {ascending: false}).limit(50),
-            db.from('students').select('id,person1,person2')
+            db.from('students').select('id,person1,person2,person1_phone,person2_phone').limit(500)
         ]);
         if (messageError) throw messageError;
         if (studentError) throw studentError;
         currentMessages = messages || [];
-        studentsById = new Map((students || []).map(item => [item.id, item]));
+        currentStudents = students || [];
+        studentsById = new Map(currentStudents.map(item => [item.id, item]));
         renderSummary();
         renderActivity();
         renderIntegrationStatus();
@@ -382,18 +394,16 @@
         }).join('');
     }
 
-    async function loadReadiness() {
+    async function loadReadiness(settingsReady = false) {
         const userId = await getUserId();
         if (!userId) return;
-        const [profileResult, studentsResult, receiptsResult, settingsResult, duplicatesResult] = await Promise.all([
+        const [profileResult, receiptsResult, duplicatesResult] = await Promise.all([
             db.from('academy_profiles').select('academy_name,responsible_name,support_phone').eq('user_id', userId).maybeSingle(),
-            db.from('students').select('id,person1_phone,person2_phone').limit(500),
             db.from('receipts').select('id,storage_path,status').limit(1),
-            db.from('automation_settings').select('user_id').eq('user_id', userId).maybeSingle(),
             db.rpc('find_duplicate_active_receipts').then(result => result).catch(() => ({data: null, error: new Error('rpc unavailable')}))
         ]);
         const profile = profileResult.data || {};
-        const students = studentsResult.data || [];
+        const students = currentStudents;
         const hasWithWhatsapp = students.some(s => Boolean(s.person1_phone || s.person2_phone));
         const hasWithoutWhatsapp = students.some(s => !s.person1_phone || !s.person2_phone);
         const duplicateSafe = !duplicatesResult.error && Array.isArray(duplicatesResult.data)
@@ -407,7 +417,7 @@
             {ok: hasWithoutWhatsapp || students.length === 0, title: 'Cadastro sem WhatsApp', detail: 'Telefone continua opcional para o aluno.'},
             {ok: hasWithWhatsapp, title: 'Cadastro com WhatsApp', detail: 'Tenha ao menos um aluno com telefone para o teste real.'},
             {ok: !receiptsResult.error, title: 'Fluxo de recibos', detail: 'Histórico de recibos acessível.'},
-            {ok: Boolean(settingsResult.data), title: 'Preferências de automação', detail: 'Configurações individuais da academia criadas.'},
+            {ok: Boolean(settingsReady), title: 'Preferências de automação', detail: 'Configurações individuais da academia criadas.'},
             {ok: duplicateSafe, title: 'Recibos sem duplicidade', detail: 'Proteção de recibo ativo permanece válida.'},
             {ok: metaState.ok, title: 'Conexão com a Meta', detail: metaState.detail}
         ];
@@ -416,19 +426,39 @@
         ).join('');
     }
 
-    async function refreshAll() {
-        setAutomationLoading(true);
+    async function refreshAll({force = false} = {}) {
+        const fresh = automationReady &&
+            !automationDirty &&
+            Date.now() - automationLastLoadedAt < AUTOMATION_CACHE_MS;
+        if (!force && fresh)
+            return true;
+        if (automationRefreshPromise)
+            return automationRefreshPromise;
+
+        automationRefreshPromise = (async () => {
+            setAutomationLoading(true);
+            try {
+                const settings = await ensureSettings();
+                renderSettings();
+                await loadMessages();
+                await loadReadiness(Boolean(settings));
+                automationReady = true;
+                automationDirty = false;
+                automationLastLoadedAt = Date.now();
+                return true;
+            } catch (error) {
+                globalThis.ClientLogging?.report('automation-center-load', error);
+                document.getElementById('automationActivity').innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação agora.</div>';
+                return false;
+            } finally {
+                setAutomationLoading(false);
+            }
+        })();
+
         try {
-            await ensureSettings();
-            renderSettings();
-            await loadMessages();
-            await loadReadiness();
-        } catch (error) {
-            globalThis.ClientLogging?.report('automation-center-load', error);
-            document.getElementById('automationActivity').innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação agora.</div>';
+            return await automationRefreshPromise;
         } finally {
-            automationReady = true;
-            setAutomationLoading(false);
+            automationRefreshPromise = null;
         }
     }
 
@@ -478,7 +508,7 @@
     }
 
     document.querySelectorAll('[data-automation-setting]').forEach(input => input.addEventListener('change', () => updateSetting(input)));
-    document.getElementById('automationRefresh').addEventListener('click', refreshAll);
+    document.getElementById('automationRefresh').addEventListener('click', () => refreshAll({force: true}));
     document.getElementById('automationActivity').addEventListener('click', event => {
         const button = event.target.closest?.('[data-retry-message]');
         if (button) retryMessage(button);
@@ -500,19 +530,28 @@
             document.getElementById('reportsView')?.setAttribute('hidden', '');
             document.querySelectorAll('.view-tab').forEach(item => item.classList.remove('active'));
             tab.classList.add('active');
-            refreshAll();
+            void refreshAll();
             if (typeof animateView === 'function') animateView(section);
         };
     }
 
     tab.addEventListener('click', () => setView('automation'));
+    window.addEventListener('payment:lifecycle', () => {
+        automationDirty = true;
+        if (activeView === 'automation')
+            void refreshAll({force: true});
+    });
+
     db.auth.onAuthStateChange((event, session) => {
         activeUserId = session?.user?.id || null;
+        automationDirty = true;
+        automationLastLoadedAt = 0;
         if (!session?.user) {
             currentMessages = [];
+            currentStudents = [];
             studentsById.clear();
         } else if (activeView === 'automation') {
-            setTimeout(refreshAll, 0);
+            setTimeout(() => refreshAll({force: true}), 0);
         }
     });
 })();

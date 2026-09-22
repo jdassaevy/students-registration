@@ -13,7 +13,7 @@ const vercel = JSON.parse(read('../../../vercel.json'));
 const CHART_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
 
 test('student actions use delegated handlers instead of inline event attributes', () => {
-  const renderedStudentSources = `${core}\n${students}`;
+  const renderedStudentSources = core + '\n' + students;
   assert.doesNotMatch(renderedStudentSources, /\son(?:click|change|submit|input|keydown|load|error)=["']/i);
   assert.match(renderedStudentSources, /data-student-action=["']toggle-month["']/);
   assert.match(renderedStudentSources, /data-student-action=["']toggle-entry["']/);
@@ -22,13 +22,16 @@ test('student actions use delegated handlers instead of inline event attributes'
   assert.match(core, /document\.addEventListener\(['"]click['"][\s\S]*data-student-action/);
 });
 
-test('Chart.js is statically pinned and admitted by the exact CSP path', () => {
-  assert.match(index, new RegExp(`src=["']${CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`));
-  assert.doesNotMatch(reports, /createElement\(['"]script['"]\)/);
-  assert.doesNotMatch(reports, /cdn\.jsdelivr\.net\/npm\/chart\.js/);
+test('Chart.js lazy loader stays exact-pinned and admitted by the exact CSP path', () => {
+  assert.equal(index.includes(CHART_URL), false);
+  assert.equal(reports.includes(CHART_URL), true);
+  assert.match(reports, /createElement\(['"]script['"]\)/);
+  assert.match(reports, /script\.src = CHART_SCRIPT_URL/);
+  assert.match(reports, /script\.crossOrigin = ['"]anonymous['"]/);
+  assert.match(reports, /script\.referrerPolicy = ['"]no-referrer['"]/);
   const rule = vercel.headers?.find(item => item.source === '/(.*)');
   const csp = rule?.headers?.find(item => item.key === 'Content-Security-Policy')?.value || '';
-  assert.match(csp, new RegExp(CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.equal(csp.includes(CHART_URL), true);
 });
 
 test('legacy local student/class data is purged only after migration is known complete', () => {

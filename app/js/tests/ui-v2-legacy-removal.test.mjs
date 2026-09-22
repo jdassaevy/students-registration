@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 const read = relativePath => fs.readFileSync(new URL(relativePath, import.meta.url), 'utf8');
 const index = read('../../index.html');
+const tabBar = read('../features/tab-bar.js');
 
 const legacyFiles = [
   './css/style.css',
@@ -73,9 +74,10 @@ test('critical functional modules remain loaded', () => {
     './js/features/payment-automation.js',
     './js/features/dashboard.js',
     './js/features/reports.js',
-    './js/features/automation-center.js',
     './js/features/academy-profile.js'
   ]) {
     assert.ok(index.includes(src), `missing ${src}`);
   }
+  assert.equal(index.includes('./js/features/automation-center.js'), false);
+  assert.ok(tabBar.includes('./js/features/automation-center.js?v=4'), 'automation lazy loader missing');
 });

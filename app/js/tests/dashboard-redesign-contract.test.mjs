@@ -4,8 +4,10 @@ import fs from 'node:fs';
 
 const indexUrl = new URL('../../index.html', import.meta.url);
 const coreUrl = new URL('../core/script.js', import.meta.url);
+const tabBarUrl = new URL('../features/tab-bar.js', import.meta.url);
 const index = () => fs.readFileSync(indexUrl, 'utf8');
 const core = () => fs.readFileSync(coreUrl, 'utf8');
+const tabBar = () => fs.readFileSync(tabBarUrl, 'utf8');
 
 const criticalIds = [
   'authView', 'appView', 'authForm', 'authEmail', 'authPassword',
@@ -32,11 +34,12 @@ test('redesign keeps existing functional module includes', () => {
     './js/features/academy-profile.js',
     './js/features/payment-automation.js',
     './js/features/dashboard.js',
-    './js/features/reports.js',
-    './js/features/automation-center.js'
+    './js/features/reports.js'
   ]) {
     assert.ok(html.includes(src), `missing script ${src}`);
   }
+  assert.equal(html.includes('./js/features/automation-center.js'), false);
+  assert.ok(tabBar().includes('./js/features/automation-center.js?v=4'), 'automation lazy loader missing');
 });
 
 test('core still owns current loading and view behavior', () => {

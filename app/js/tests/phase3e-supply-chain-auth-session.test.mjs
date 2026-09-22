@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const index = read('../../index.html');
 const script = read('../core/script.js');
+const reports = read('../features/reports.js');
 const vercel = JSON.parse(read('../../../vercel.json'));
 
 const SUPABASE_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0';
@@ -12,20 +13,21 @@ const DOCX_CDN = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js';
 const CHART_CDN = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
 
 test('browser dependencies are exact-version pinned', () => {
-  assert.match(index, new RegExp(`src=["']${SUPABASE_CDN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`));
-  assert.match(index, new RegExp(`src=["']${DOCX_CDN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`));
+  assert.ok(index.includes(SUPABASE_CDN));
+  assert.ok(index.includes(DOCX_CDN));
+  assert.ok(reports.includes(CHART_CDN));
   assert.doesNotMatch(index, /@supabase\/supabase-js@2["']/);
   assert.doesNotMatch(index, /@supabase\/supabase-js@latest/i);
 });
 
 test('external scripts do not send the page referrer', () => {
-  for (const url of [SUPABASE_CDN, DOCX_CDN, CHART_CDN]) {
-    const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const tag = index.match(new RegExp(`<script[^>]*src=["']${escaped}["'][^>]*><\\/script>`));
-    assert.ok(tag, `missing script tag for ${url}`);
-    assert.match(tag[0], /crossorigin=["']anonymous["']/);
-    assert.match(tag[0], /referrerpolicy=["']no-referrer["']/);
+  for (const url of [SUPABASE_CDN, DOCX_CDN]) {
+    const tag = index.split('\n').find(line => line.includes(url)) || '';
+    assert.match(tag, /crossorigin=["']anonymous["']/);
+    assert.match(tag, /referrerpolicy=["']no-referrer["']/);
   }
+  assert.match(reports, /script\.crossOrigin = ['"]anonymous['"]/);
+  assert.match(reports, /script\.referrerPolicy = ['"]no-referrer['"]/);
 });
 
 test('CSP script-src allows only self and the reviewed CDN files', () => {

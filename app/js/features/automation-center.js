@@ -154,7 +154,12 @@
     tab.className = 'view-tab';
     tab.id = 'automationTab';
     tab.textContent = 'Automações';
-    nav.appendChild(tab);
+    const fallbackTab = document.getElementById('automationTab');
+    if (fallbackTab?.dataset.automationFallback === 'true') {
+        fallbackTab.replaceWith(tab);
+    } else {
+        nav.appendChild(tab);
+    }
 
     const section = document.createElement('section');
     section.id = 'automationView';

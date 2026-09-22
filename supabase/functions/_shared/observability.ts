@@ -40,7 +40,7 @@ export function logSafeEvent(
   fields: SafeLogFields = {},
   level: "info" | "warn" | "error" = "info",
 ) {
-  const payload = {
+  const entry = {
     ts: new Date().toISOString(),
     request_id: requestIdFor(req),
     endpoint: cleanString(endpoint, 64),
@@ -57,7 +57,7 @@ export function logSafeEvent(
     ...(fields.method !== undefined ? { method: cleanString(fields.method, 16) } : {}),
   };
 
-  const line = JSON.stringify(payload);
+  const line = JSON.stringify(entry);
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);
   else console.info(line);

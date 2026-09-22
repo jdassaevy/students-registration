@@ -354,7 +354,9 @@ Deno.serve(async (req: Request) => {
 
     if (to && receipt && settings.payment_confirmation_enabled && (action === "create" || (kind === "entry" && repairedPdf))) {
       const confirmationTemplate = buildPaymentConfirmationTemplate({
-        preferredTemplateName: Deno.env.get("META_PAYMENT_CONFIRMATION_TEMPLATE"),
+        preferredTemplateName: Deno.env.get("META_PAYMENT_CONFIRMATION_V2_ENABLED") === "true"
+          ? TEMPLATE_NAMES.paymentConfirmationV2
+          : null,
         studentName,
         paymentLabel: label,
         amount: money(notificationAmount),

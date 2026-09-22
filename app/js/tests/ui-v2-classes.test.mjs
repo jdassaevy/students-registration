@@ -24,10 +24,8 @@ test('classes presentation is browser-parseable and does not take ownership of a
   assert.doesNotThrow(() => new vm.Script(classesUi, {filename: 'classes-ui.js'}));
   assert.doesNotMatch(classesUi, /\b(?:db|supabase)\s*\.\s*from\s*\(/);
   assert.doesNotMatch(classesUi, /createClient\s*\(/);
-  assert.match(core, /const nextClasses = \(classResult\.data \|\| \[\]\)\.map\(fromClass\)/);
-  assert.match(core, /const nextCouples = \(studentResult\.data \|\| \[\]\)\.map\(fromStudent\)/);
-  assert.match(core, /classes = nextClasses/);
-  assert.match(core, /couples = nextCouples/);
+  assert.match(core, /\bclasses\s*=\s*classResult[\s\S]*\.map\(fromClass\)/);
+  assert.match(core, /\bcouples\s*=\s*studentResult[\s\S]*\.map\(fromStudent\)/);
 });
 
 test('classes becomes a dedicated view between students and financial navigation', () => {

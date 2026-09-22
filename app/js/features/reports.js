@@ -124,41 +124,21 @@
 
         chartLoadPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            let settled = false;
-            const finish = callback => {
-                if (settled)
-                    return;
-                settled = true;
-                clearTimeout(timeoutId);
-                callback();
-            };
-            const timeoutId = setTimeout(() => {
-                finish(() => {
-                    script.remove();
-                    chartLoadPromise = null;
-                    reject(new Error('Chart.js load timed out'));
-                });
-            }, 8000);
-
             script.src = CHART_SCRIPT_URL;
             script.crossOrigin = 'anonymous';
             script.referrerPolicy = 'no-referrer';
             script.dataset.reportsChartLoader = 'true';
             script.onload = () => {
-                finish(() => {
-                    if (window.Chart) {
-                        resolve();
-                        return;
-                    }
-                    chartLoadPromise = null;
-                    reject(new Error('Chart.js unavailable'));
-                });
+                if (window.Chart) {
+                    resolve();
+                    return;
+                }
+                chartLoadPromise = null;
+                reject(new Error('Chart.js unavailable'));
             };
             script.onerror = () => {
-                finish(() => {
-                    chartLoadPromise = null;
-                    reject(new Error('Chart.js unavailable'));
-                });
+                chartLoadPromise = null;
+                reject(new Error('Chart.js unavailable'));
             };
             document.head.appendChild(script);
         });
@@ -321,13 +301,10 @@
             return reportEventsPromise;
 
         reportEventsPromise = (async () => {
-            const read = () => db
+            const {data, error} = await db
                 .from('payment_events')
                 .select('*')
                 .order('paid_at', {ascending: true});
-            const {data, error} = await (globalThis.ReadResilience?.run
-                ? globalThis.ReadResilience.run(read)
-                : read());
             if (error) {
                 globalThis.ClientLogging?.report('reports-payment-history', error);
                 return reportEventsLoaded;

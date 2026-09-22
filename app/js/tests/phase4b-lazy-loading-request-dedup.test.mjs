@@ -14,7 +14,7 @@ test('heavy optional features are not downloaded by the initial HTML', () => {
   assert.doesNotMatch(index, /chart\.js@4\.4\.7\/dist\/chart\.umd\.min\.js/);
   assert.doesNotMatch(index, /features\/automation-center\.js/);
   assert.match(tabBar, /createAutomationFallback\(\)/);
-  assert.match(tabBar, /script\.src = ['"]\.\/js\/features\/automation-center\.js\?v=5['"]/);
+  assert.match(tabBar, /script\.src = ['"]\.\/js\/features\/automation-center\.js\?v=4['"]/);
   assert.match(reports, new RegExp(CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 

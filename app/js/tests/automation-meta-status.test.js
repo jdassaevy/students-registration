@@ -79,6 +79,56 @@ assert.deepEqual(
     metaConnectionState([
         {
             status: 'failed',
+            automation_type: 'payment_voided',
+            provider_message_id: null,
+            error_code: '132001',
+            created_at: '2026-09-21T10:00:00Z'
+        },
+        {
+            status: 'sent',
+            automation_type: 'payment_voided',
+            provider_message_id: 'wamid.fixed-template',
+            error_code: null,
+            created_at: '2026-09-22T10:00:00Z'
+        }
+    ]),
+    {
+        key: 'connected',
+        ok: true,
+        title: 'Meta conectada',
+        detail: 'Há envio aceito pela API da Meta.'
+    }
+);
+
+assert.deepEqual(
+    metaConnectionState([
+        {
+            status: 'failed',
+            automation_type: 'payment_voided',
+            provider_message_id: null,
+            error_code: '190',
+            created_at: '2026-09-21T10:00:00Z'
+        },
+        {
+            status: 'sent',
+            automation_type: 'payment_confirmation',
+            provider_message_id: 'wamid.auth-fixed',
+            error_code: null,
+            created_at: '2026-09-22T10:00:00Z'
+        }
+    ]),
+    {
+        key: 'connected',
+        ok: true,
+        title: 'Meta conectada',
+        detail: 'Há envio aceito pela API da Meta.'
+    }
+);
+
+assert.deepEqual(
+    metaConnectionState([
+        {
+            status: 'failed',
             provider_message_id: null,
             error_code: '190',
             error_message: 'Meta API authentication error'

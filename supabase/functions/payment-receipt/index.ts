@@ -3,17 +3,19 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { corsHeadersFor, isAllowedCorsRequest } from "../_shared/cors.ts";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
+import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { isApiInputError, readJsonObject, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
 
 function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeadersFor(req), "Content-Type": "application/json", ...extraHeaders },
+    headers: { ...corsHeadersFor(req), ...traceHeaders(req), "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
 Deno.serve(async (req: Request) => {
-  const corsHeaders = corsHeadersFor(req);
+  const startedAt = Date.now();
+  const corsHeaders = { ...corsHeadersFor(req), ...traceHeaders(req) };
   if (!isAllowedCorsRequest(req)) return json(req, { error: "Origin not allowed" }, 403);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
@@ -125,7 +127,7 @@ Deno.serve(async (req: Request) => {
     if (isApiInputError(error)) {
       return respond(validationErrorPayload(error), error.status);
     }
-    console.error("payment-receipt error", error);
+    logSafeEvent(req, "payment-receipt", "request_failed", { status: 500, code: "internal_error", duration_ms: Date.now() - startedAt }, "error");
     return respond({ error: "Could not generate receipt PDF" }, 500);
   }
 });

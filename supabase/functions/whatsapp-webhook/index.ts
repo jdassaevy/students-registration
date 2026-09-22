@@ -2,19 +2,20 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isApiInputError, readBoundedText, validationErrorPayload } from "../_shared/api-validation.ts";
 import { matchesSecret } from "../_shared/request-security.ts";
+import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { extractStatuses, MAX_WEBHOOK_BYTES, verifyMetaSignature } from "../_shared/whatsapp-webhook.ts";
 
-function text(body: string, status = 200) {
+function text(req: Request, body: string, status = 200) {
   return new Response(body, {
     status,
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: { ...traceHeaders(req), "Content-Type": "text/plain; charset=utf-8" },
   });
 }
 
-function json(body: unknown, status = 200) {
+function json(req: Request, body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...traceHeaders(req), "Content-Type": "application/json" },
   });
 }
 
@@ -28,13 +29,11 @@ const rank: Record<string, number> = {
 };
 
 Deno.serve(async (req: Request) => {
+  const startedAt = Date.now();
   const url = new URL(req.url);
   const verifyToken = Deno.env.get("META_WEBHOOK_VERIFY_TOKEN") || "";
 
-  console.info("whatsapp-webhook request", {
-    method: req.method,
-    pathname: url.pathname,
-  });
+  logSafeEvent(req, "whatsapp-webhook", "request_received", { method: req.method });
 
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
@@ -42,27 +41,23 @@ Deno.serve(async (req: Request) => {
     const challenge = url.searchParams.get("hub.challenge");
 
     if (!verifyToken) {
-      console.error("whatsapp-webhook verify token missing");
-      return text("Webhook verify token not configured", 503);
+      logSafeEvent(req, "whatsapp-webhook", "verify_token_missing", { status: 503, duration_ms: Date.now() - startedAt }, "error");
+      return text(req, "Webhook verify token not configured", 503);
     }
     if (mode === "subscribe" && matchesSecret(verifyToken, token) && challenge) {
-      console.info("whatsapp-webhook verification accepted");
-      return text(challenge, 200);
+      logSafeEvent(req, "whatsapp-webhook", "verification_accepted", { status: 200, duration_ms: Date.now() - startedAt });
+      return text(req, challenge, 200);
     }
-    console.warn("whatsapp-webhook verification rejected", {
-      mode,
-      hasToken: Boolean(token),
-      hasChallenge: Boolean(challenge),
-    });
-    return text("Forbidden", 403);
+    logSafeEvent(req, "whatsapp-webhook", "verification_rejected", { status: 403, duration_ms: Date.now() - startedAt }, "warn");
+    return text(req, "Forbidden", 403);
   }
 
-  if (req.method !== "POST") return text("Method not allowed", 405);
+  if (req.method !== "POST") return text(req, "Method not allowed", 405);
 
   const appSecret = Deno.env.get("META_APP_SECRET") || "";
   if (!appSecret) {
-    console.error("whatsapp-webhook Meta app secret missing");
-    return json({ error: "Meta app secret not configured" }, 503);
+    logSafeEvent(req, "whatsapp-webhook", "app_secret_missing", { status: 503, duration_ms: Date.now() - startedAt }, "error");
+    return json(req, { error: "Meta app secret not configured" }, 503);
   }
 
   let rawBody: string;
@@ -70,33 +65,28 @@ Deno.serve(async (req: Request) => {
     rawBody = await readBoundedText(req, MAX_WEBHOOK_BYTES);
   } catch (error) {
     if (isApiInputError(error)) {
-      return json(validationErrorPayload(error), error.status);
+      return json(req, validationErrorPayload(error), error.status);
     }
     throw error;
   }
 
   const signatureHeader = req.headers.get("x-hub-signature-256");
   if (!(await verifyMetaSignature(rawBody, signatureHeader, appSecret))) {
-    console.warn("whatsapp-webhook invalid signature", {
-      hasSignature: Boolean(signatureHeader),
-      bodyLength: rawBody.length,
-    });
-    return json({ error: "Invalid signature" }, 401);
+    logSafeEvent(req, "whatsapp-webhook", "invalid_signature", { status: 401, duration_ms: Date.now() - startedAt }, "warn");
+    return json(req, { error: "Invalid signature" }, 401);
   }
 
   let payload: unknown;
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    console.warn("whatsapp-webhook invalid JSON");
-    return json({ error: "Invalid JSON" }, 400);
+    logSafeEvent(req, "whatsapp-webhook", "invalid_json", { status: 400, duration_ms: Date.now() - startedAt }, "warn");
+    return json(req, { error: "Invalid JSON" }, 400);
   }
 
   const statuses = extractStatuses(payload);
-  console.info("whatsapp-webhook payload accepted", {
-    statuses: statuses.length,
-  });
-  if (!statuses.length) return json({ received: true, updated: 0 }, 200);
+  logSafeEvent(req, "whatsapp-webhook", "payload_accepted", { status: 200, count: statuses.length });
+  if (!statuses.length) return json(req, { received: true, updated: 0 }, 200);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -112,18 +102,12 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (readError) {
-      console.error("whatsapp-webhook lookup failed", {
-        providerMessageId: event.id,
-        error: readError.message,
-      });
+      logSafeEvent(req, "whatsapp-webhook", "status_lookup_failed", { code: readError.code || "db_error" }, "error");
       continue;
     }
     if (!current) {
       unmatched += 1;
-      console.warn("whatsapp-webhook provider message not found", {
-        providerMessageId: event.id,
-        incomingStatus: event.status,
-      });
+      logSafeEvent(req, "whatsapp-webhook", "provider_message_unmatched", { outcome: event.status }, "warn");
       continue;
     }
 
@@ -131,11 +115,7 @@ Deno.serve(async (req: Request) => {
     const incomingRank = rank[event.status] ?? 0;
     const shouldApply = event.status === "failed" || incomingRank >= currentRank;
     if (!shouldApply) {
-      console.info("whatsapp-webhook ignored status regression", {
-        providerMessageId: event.id,
-        currentStatus: current.status,
-        incomingStatus: event.status,
-      });
+      logSafeEvent(req, "whatsapp-webhook", "status_regression_ignored", { outcome: event.status });
       continue;
     }
 
@@ -162,21 +142,14 @@ Deno.serve(async (req: Request) => {
       .eq("id", current.id);
 
     if (updateError) {
-      console.error("whatsapp-webhook update failed", {
-        providerMessageId: event.id,
-        incomingStatus: event.status,
-        error: updateError.message,
-      });
+      logSafeEvent(req, "whatsapp-webhook", "status_update_failed", { code: updateError.code || "db_error", outcome: event.status }, "error");
       continue;
     }
 
     updated += 1;
-    console.info("whatsapp-webhook status updated", {
-      providerMessageId: event.id,
-      from: current.status,
-      to: event.status,
-    });
+    logSafeEvent(req, "whatsapp-webhook", "status_updated", { outcome: event.status });
   }
 
-  return json({ received: true, updated, unmatched }, 200);
+  logSafeEvent(req, "whatsapp-webhook", "request_completed", { status: 200, count: updated, outcome: unmatched ? "completed_with_unmatched" : "completed", duration_ms: Date.now() - startedAt });
+  return json(req, { received: true, updated, unmatched }, 200);
 });

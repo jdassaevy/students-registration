@@ -12,6 +12,7 @@ import {
   TEMPLATE_NAMES,
 } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
+import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
 import {
   isApiInputError,
@@ -44,12 +45,13 @@ const automationTypes = [
 function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeadersFor(req), "Content-Type": "application/json", ...extraHeaders },
+    headers: { ...corsHeadersFor(req), ...traceHeaders(req), "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
 Deno.serve(async (req: Request) => {
-  const corsHeaders = corsHeadersFor(req);
+  const startedAt = Date.now();
+  const corsHeaders = { ...corsHeadersFor(req), ...traceHeaders(req) };
   if (!isAllowedCorsRequest(req)) return json(req, { error: "Origin not allowed" }, 403);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
@@ -157,7 +159,7 @@ Deno.serve(async (req: Request) => {
     if (logInsert.error.code === "23505" && idempotencyKey) {
       return respond({ status: "duplicate", idempotency_key: idempotencyKey }, 200);
     }
-    console.error("automation log insert failed", logInsert.error.message);
+    logSafeEvent(req, "send-whatsapp", "automation_log_insert_failed", { status: 500, code: logInsert.error.code || "db_error", duration_ms: Date.now() - startedAt }, "error");
     return respond({ error: "Could not create message log" }, 500);
   }
   logId = logInsert.data.id;
@@ -215,6 +217,7 @@ Deno.serve(async (req: Request) => {
     const provider = await sendMetaPayload({ phoneNumberId, accessToken, graphVersion, payload });
     const providerMessageId = provider?.messages?.[0]?.id ? String(provider.messages[0].id) : null;
     await finish("sent", { provider_message_id: providerMessageId });
+    logSafeEvent(req, "send-whatsapp", "provider_send_succeeded", { status: 200, outcome: "sent", duration_ms: Date.now() - startedAt });
     return respond({ status: "sent", message_id: providerMessageId });
   } catch (error: any) {
     const safe = error?.meta || sanitizeMetaError(error);
@@ -222,7 +225,7 @@ Deno.serve(async (req: Request) => {
       error_code: safe.code ? String(safe.code) : "send_failed",
       error_message: safe.message || "Falha ao enviar mensagem",
     });
-    console.error("send-whatsapp failed", safe);
+    logSafeEvent(req, "send-whatsapp", "provider_send_failed", { status: 502, code: safe.code || "send_failed", duration_ms: Date.now() - startedAt }, "error");
     return respond({ error: "Could not send WhatsApp message", provider: safe }, 502);
   }
 });

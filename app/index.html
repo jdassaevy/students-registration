@@ -5,12 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#000000">
     <title>Gestão de Alunos | Dassaevy Labs</title>
-    <script>
-        (() => {
-            const saved = localStorage.getItem('dassaevy-theme');
-            document.documentElement.dataset.theme = saved === 'light' ? 'light' : 'dark';
-        })();
-    </script>
+    <script src="./js/core/theme-boot.js"></script>
     <link rel="stylesheet" href="./css/ui-v2/tokens.css?v=1">
     <link rel="stylesheet" href="./css/ui-v2/base.css?v=1">
     <link rel="stylesheet" href="./css/ui-v2/components.css?v=1">
@@ -47,11 +42,11 @@
                 </div>
                 <div class="field" id="passwordField">
                     <label for="authPassword">Senha</label>
-                    <input type="password" id="authPassword" autocomplete="current-password" minlength="6" required="required" placeholder="Mínimo de 6 caracteres">
+                    <input type="password" id="authPassword" autocomplete="current-password" required="required" placeholder="Digite sua senha">
                 </div>
                 <div class="field" id="confirmPasswordField" hidden="hidden">
                     <label for="authPasswordConfirmation">Confirme a nova senha</label>
-                    <input type="password" id="authPasswordConfirmation" autocomplete="new-password" minlength="6" placeholder="Digite novamente a senha">
+                    <input type="password" id="authPasswordConfirmation" autocomplete="new-password" minlength="8" placeholder="Digite novamente a senha">
                 </div>
                 <button type="submit" class="btn btn-primary" id="authSubmit">Entrar</button>
                 <p class="auth-message" id="authMessage" role="status"></p>

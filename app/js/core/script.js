@@ -3,9 +3,9 @@ const db = window
     .createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey);
 const LOCAL_COUPLES_KEY = 'arteNativaCasais_v1';
 const LOCAL_CLASSES_KEY = 'arteNativaTurmas_v1';
+const MIN_NEW_PASSWORD_LENGTH = 8;
 const $ = id => document.getElementById(id);
 let currentUser = null;
-let recoverySession = null;
 let couples = [];
 let classes = [];
 let authMode = 'login';
@@ -202,6 +202,7 @@ function setAuthMode(mode) {
         ? 'Já tenho uma conta'
         : 'Criar uma conta';
     const updatingPassword = mode === 'update-password';
+    const creatingPassword = mode === 'register' || updatingPassword;
 
     $('emailField').hidden = updatingPassword;
     $('passwordField').hidden = mode === 'reset';
@@ -210,8 +211,13 @@ function setAuthMode(mode) {
     $('authEmail').required = !updatingPassword;
     $('authPassword').required = mode !== 'reset';
     $('authPasswordConfirmation').required = updatingPassword;
+    $('authPassword').minLength = creatingPassword ? MIN_NEW_PASSWORD_LENGTH : 1;
+    $('authPasswordConfirmation').minLength = MIN_NEW_PASSWORD_LENGTH;
+    $('authPassword').placeholder = creatingPassword
+        ? `Mínimo de ${MIN_NEW_PASSWORD_LENGTH} caracteres`
+        : 'Digite sua senha';
 
-    $('authPassword').autocomplete = updatingPassword
+    $('authPassword').autocomplete = creatingPassword
         ? 'new-password'
         : 'current-password';
 
@@ -226,15 +232,16 @@ async function handleAuth(event) {
         .value
         .trim();
     const password = $('authPassword').value;
+    const requiresStrongPassword = authMode === 'register' || authMode === 'update-password';
     setLoading(button, true, 'Aguarde...');
     authMessage('');
     try {
+        if (requiresStrongPassword && password.length < MIN_NEW_PASSWORD_LENGTH) {
+            throw new Error(`Password should be at least ${MIN_NEW_PASSWORD_LENGTH} characters`);
+        }
+
         if (authMode === 'update-password') {
             const confirmation = $('authPasswordConfirmation').value;
-
-            if (password.length < 6) {
-                throw new Error('Password should be at least 6 characters');
-            }
 
             if (password !== confirmation) {
                 throw new Error('Passwords do not match');
@@ -265,9 +272,7 @@ async function handleAuth(event) {
             const {error} = await db
                 .auth
                 .resetPasswordForEmail(email, {
-                    redirectTo: location
-                        .href
-                        .split('#')[0]
+                    redirectTo: `${location.origin}${location.pathname}`
                 });
             if (error) 
                 throw error;
@@ -294,7 +299,7 @@ function translateError(message = '') {
     if (message.includes('already registered')) 
         return 'Este e-mail já possui uma conta.';
     if (message.includes('Password should')) 
-        return 'A senha precisa ter pelo menos 6 caracteres.';
+        return `A senha precisa ter pelo menos ${MIN_NEW_PASSWORD_LENGTH} caracteres.`;
     if (message.includes('Passwords do not match')) 
         return 'As senhas digitadas não são iguais.';
     return message || 'Não foi possível concluir a operação.';
@@ -1009,7 +1014,6 @@ db
             ?.user || null;
 
         if (event === 'PASSWORD_RECOVERY') {
-            recoverySession = session;
             currentUser = session
                 ?.user || null;
 

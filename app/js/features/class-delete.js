@@ -25,7 +25,7 @@
             target_class_id: id
         });
         if (error) {
-            console.error('atomic class deletion failed', error);
+            globalThis.ClientLogging?.report('class-delete', error);
             if (typeof toast === 'function') toast('Erro ao excluir turma e alunos.');
             return;
         }

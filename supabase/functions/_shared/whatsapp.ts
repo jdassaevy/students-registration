@@ -3,6 +3,7 @@ export const TEMPLATE_NAMES = {
   dueToday: "dassaevy_due_today",
   overdue: "dassaevy_overdue",
   paymentConfirmation: "dassaevy_payment_confirmation",
+  paymentConfirmationV2: "dassaevy_payment_confirmation_v2",
   paymentVoided: "dassaevy_payment_voided",
 } as const;
 
@@ -21,6 +22,38 @@ type DocumentInput = {
   filename: string;
   caption?: string;
 };
+
+type PaymentConfirmationTemplateInput = {
+  preferredTemplateName?: string | null;
+  studentName: string;
+  paymentLabel: string;
+  amount: string;
+  academyName: string;
+  supportPhone?: string | null;
+};
+
+export function buildPaymentConfirmationTemplate({
+  preferredTemplateName,
+  studentName,
+  paymentLabel,
+  amount,
+  academyName,
+  supportPhone,
+}: PaymentConfirmationTemplateInput) {
+  const cleanSupportPhone = String(supportPhone ?? "").trim();
+  const useV2 =
+    preferredTemplateName === TEMPLATE_NAMES.paymentConfirmationV2 &&
+    Boolean(cleanSupportPhone);
+
+  return {
+    templateName: useV2
+      ? TEMPLATE_NAMES.paymentConfirmationV2
+      : TEMPLATE_NAMES.paymentConfirmation,
+    bodyParameters: useV2
+      ? [studentName, paymentLabel, amount, academyName, cleanSupportPhone]
+      : [studentName, paymentLabel, amount, academyName],
+  };
+}
 
 export function normalizeRecipientPhone(value?: string | null): string | null {
   const digits = String(value ?? "").replace(/\D/g, "");

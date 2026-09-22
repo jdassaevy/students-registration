@@ -307,7 +307,7 @@
             currentSettings[key] = previous;
             input.checked = previous;
             message.textContent = 'Não foi possível salvar essa preferência.';
-            console.warn('automation setting update failed', error.message);
+            globalThis.ClientLogging?.report('automation-setting-update', error);
         } finally {
             input.disabled = false;
             input.setAttribute('aria-busy', 'false');
@@ -424,7 +424,7 @@
             await loadMessages();
             await loadReadiness();
         } catch (error) {
-            console.warn('automation center load failed', error.message);
+            globalThis.ClientLogging?.report('automation-center-load', error);
             document.getElementById('automationActivity').innerHTML = '<div class="automation-empty">Não foi possível carregar os dados de automação agora.</div>';
         } finally {
             automationReady = true;
@@ -469,7 +469,7 @@
             if (typeof toast === 'function') {
                 toast(text.includes('503') ? 'Conecte a Meta para realizar o reenvio.' : 'Não foi possível reenviar agora.');
             }
-            console.warn('automation retry failed', error.message);
+            globalThis.ClientLogging?.report('automation-retry', error);
         } finally {
             button.disabled = false;
             button.setAttribute('aria-busy', 'false');

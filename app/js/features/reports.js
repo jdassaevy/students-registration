@@ -112,17 +112,9 @@
     }
 
     function loadChartJs() {
-        if (window.Chart)
-            return Promise.resolve();
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
-            script.onload = resolve;
-            script.onerror = reject;
-            document
-                .head
-                .appendChild(script);
-        });
+        return window.Chart
+            ? Promise.resolve()
+            : Promise.reject(new Error('Chart.js unavailable'));
     }
 
     function normalizeFilterOptions() {

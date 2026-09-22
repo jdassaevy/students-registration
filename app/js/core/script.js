@@ -7,7 +7,8 @@ const db = window
             auth: {
                 autoRefreshToken: true,
                 persistSession: true,
-                detectSessionInUrl: true
+                detectSessionInUrl: true,
+                flowType: 'implicit'
             }
         }
     );

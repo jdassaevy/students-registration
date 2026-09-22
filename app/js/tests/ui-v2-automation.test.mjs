@@ -71,6 +71,15 @@ test('automation switches and status surfaces are semantic and responsive', () =
   assert.match(css, /@media\s*\(max-width:\s*700px\)[\s\S]*\.automation-row/s);
 });
 
+test('configuration failures require an explicit correction acknowledgement before retry', () => {
+  assert.match(js, /META_CONFIGURATION_ERROR_CODES/);
+  assert.match(js, /132001/);
+  assert.match(js, /data-retry-config-fix="true"/);
+  assert.match(js, /acknowledge_configuration_fix:\s*configurationFix/);
+  assert.match(js, /Confirme que o template ou a configuração da Meta já foi corrigido/);
+  assert.match(js, /Tentar após corrigir/);
+});
+
 test('refresh and retry keep visible busy states without removing duplicate-submit protection', () => {
   assert.match(js, /automationRefresh[\s\S]*disabled/s);
   assert.match(js, /aria-busy/);

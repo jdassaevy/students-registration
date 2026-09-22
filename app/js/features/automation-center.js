@@ -20,6 +20,10 @@
     const RETRYABLE_TYPES = new Set(
         ['payment_confirmation', 'receipt_document', 'payment_voided']
     );
+    const META_CONFIGURATION_ERROR_CODES = new Set([
+        '100', '190', '131008', '131009',
+        '132000', '132001', '132005', '132007', '132012'
+    ]);
     const META_SUCCESS_STATUSES = new Set(['sent', 'delivered', 'read']);
     const DEFAULT_SETTINGS = {
         reminders_enabled: true,
@@ -37,12 +41,70 @@
 
     const friendlyStatus = status => STATUS_LABELS[status] || 'Desconhecido';
     const friendlyType = type => TYPE_LABELS[type] || 'Automação';
-    const canRetry = message => message
-        ?.status === 'failed' && RETRYABLE_TYPES.has(
-            message?.automation_type
-        );
+    const requiresMetaConfigurationFix = message =>
+        message?.status === 'failed' &&
+        META_CONFIGURATION_ERROR_CODES.has(String(message?.error_code || '').trim());
+    const failureGuidance = message => {
+        const code = String(message?.error_code || '').trim();
+        if (code === '132001') {
+            return 'Template do WhatsApp não encontrado ou não aprovado para o idioma configurado. Corrija o template na Meta antes de tentar novamente.';
+        }
+        if (code === '190') {
+            return 'A autenticação com a Meta precisa ser corrigida antes de tentar novamente.';
+        }
+        if (requiresMetaConfigurationFix(message)) {
+            return 'A Meta rejeitou a configuração ou o formato da mensagem. Corrija a integração antes de tentar novamente.';
+        }
+        return message?.error_message || '';
+    };
+    const retryMode = message => {
+        if (message?.status !== 'failed' || !RETRYABLE_TYPES.has(message?.automation_type)) {
+            return null;
+        }
+        return requiresMetaConfigurationFix(message)
+            ? 'after_configuration_fix'
+            : 'normal';
+    };
+    const canRetry = message => retryMode(message) === 'normal';
+    const messageTime = message => {
+        const parsed = new Date(message?.executed_at || message?.created_at || 0).getTime();
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const latestMessagePerType = messages => {
+        const latest = new Map();
+        for (const message of Array.isArray(messages) ? messages : []) {
+            const type = String(message?.automation_type || '');
+            if (!type) continue;
+            const current = latest.get(type);
+            if (!current || messageTime(message) > messageTime(current)) {
+                latest.set(type, message);
+            }
+        }
+        return [...latest.values()];
+    };
     const metaConnectionState = messages => {
         const items = Array.isArray(messages) ? messages : [];
+        const latestByType = latestMessagePerType(items);
+        const latestOverall = items.reduce(
+            (latest, message) => !latest || messageTime(message) > messageTime(latest) ? message : latest,
+            null
+        );
+        const unresolvedGlobalAuthFailure =
+            String(latestOverall?.error_code || '').trim() === '190' &&
+            latestOverall?.status === 'failed';
+        const unresolvedTypeConfigurationFailure = latestByType.some(
+            message =>
+                requiresMetaConfigurationFix(message) &&
+                String(message?.error_code || '').trim() !== '190'
+        );
+        if (unresolvedGlobalAuthFailure || unresolvedTypeConfigurationFailure) {
+            return {
+                key: 'problem',
+                ok: false,
+                title: 'Meta requer atenção',
+                detail: 'Há falha de configuração recente. Corrija a integração antes de reenviar.'
+            };
+        }
         const hasAcceptedMessage = items.some(
             message => META_SUCCESS_STATUSES.has(message?.status) && Boolean(message?.provider_message_id)
         );
@@ -77,6 +139,9 @@
         friendlyStatus,
         friendlyType,
         canRetry,
+        retryMode,
+        failureGuidance,
+        requiresMetaConfigurationFix,
         metaConnectionState
     };
 
@@ -299,10 +364,14 @@
         holder.innerHTML = currentMessages.map(message => {
             const date = new Date(message.executed_at || message.created_at);
             const dateText = Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('pt-BR');
-            const retry = canRetry(message)
+            const mode = retryMode(message);
+            const retry = mode === 'normal'
                 ? `<button type="button" class="automation-retry" data-retry-message="${message.id}" aria-busy="false">Reenviar</button>`
-                : '<span></span>';
-            const error = message.error_message ? `<span class="automation-error">${safeText(message.error_message)}</span>` : '';
+                : mode === 'after_configuration_fix'
+                    ? `<button type="button" class="automation-retry" data-retry-message="${message.id}" data-retry-config-fix="true" aria-busy="false">Tentar após corrigir</button>`
+                    : '<span></span>';
+            const guidance = failureGuidance(message);
+            const error = guidance ? `<span class="automation-error">${safeText(guidance)}</span>` : '';
             return `<div class="automation-row">
                 <strong>${safeText(studentNameFor(message))}</strong>
                 <span>${safeText(friendlyType(message.automation_type))}</span>
@@ -369,11 +438,25 @@
         button.disabled = true;
         button.setAttribute('aria-busy', 'true');
         button.textContent = 'Enviando...';
+        const configurationFix = button.dataset.retryConfigFix === 'true';
+        if (
+            configurationFix &&
+            !confirm('Esse erro não melhora com reenvio automático. Confirme que o template ou a configuração da Meta já foi corrigido.')
+        ) {
+            button.disabled = false;
+            button.setAttribute('aria-busy', 'false');
+            button.textContent = 'Tentar após corrigir';
+            return;
+        }
         const requestId = button.dataset.retryRequestId || crypto.randomUUID();
         button.dataset.retryRequestId = requestId;
         try {
             const {data, error} = await db.functions.invoke('retry-automation-message', {
-                body: {source_message_id: sourceMessageId, request_id: requestId}
+                body: {
+                    source_message_id: sourceMessageId,
+                    request_id: requestId,
+                    acknowledge_configuration_fix: configurationFix
+                }
             });
             if (error) throw error;
             if (typeof toast === 'function') {
@@ -390,7 +473,7 @@
         } finally {
             button.disabled = false;
             button.setAttribute('aria-busy', 'false');
-            button.textContent = 'Reenviar';
+            button.textContent = configurationFix ? 'Tentar após corrigir' : 'Reenviar';
         }
     }
 

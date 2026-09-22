@@ -19,9 +19,12 @@ test('retry validates message UUID and bounded request id before source lookup',
   assert.match(code, /readJsonObject/);
   assert.match(code, /requireUuid\(body\?\.source_message_id,\s*["']source_message_id["']\)/);
   assert.match(code, /requireTrimmedString\(body\?\.request_id,\s*["']request_id["']/);
+  assert.match(code, /optionalBoolean\([\s\S]*body\?\.acknowledge_configuration_fix/);
   assert.match(code, /maxLength:\s*160/);
   assert.match(code, /isApiInputError/);
   assert.ok(code.indexOf('requireUuid') < code.indexOf('.from("automation_messages")'));
+  assert.match(code, /select\(["']id,user_id,academy_id,student_id,class_id,receipt_id,person,automation_type,status,error_code["']\)/);
+  assert.match(code, /configurationFixAcknowledged:\s*acknowledgeConfigurationFix/);
 });
 
 test('send-whatsapp validates all consumed request fields before student lookup', () => {

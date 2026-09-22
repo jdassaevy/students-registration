@@ -23,6 +23,7 @@ const {
   requireInteger,
   requireTrimmedString,
   optionalTrimmedString,
+  optionalBoolean,
   optionalPrimitiveArray,
   validationErrorPayload,
 } = validationModule;
@@ -59,6 +60,17 @@ test('bounded strings trim and reject overflow instead of truncating', () => {
   assert.equal(requireTrimmedString('  request-1  ', 'request_id', { maxLength: 160 }), 'request-1');
   assert.equal(optionalTrimmedString('', 'idempotency_key', { maxLength: 240 }), null);
   expectInputError(() => requireTrimmedString('x'.repeat(161), 'request_id', { maxLength: 160 }), 'INVALID_INPUT', 'request_id');
+});
+
+test('optional boolean accepts only real booleans', () => {
+  assert.equal(optionalBoolean(undefined, 'acknowledge_configuration_fix'), false);
+  assert.equal(optionalBoolean(true, 'acknowledge_configuration_fix'), true);
+  assert.equal(optionalBoolean(null, 'acknowledge_configuration_fix', true), true);
+  expectInputError(
+    () => optionalBoolean('true', 'acknowledge_configuration_fix'),
+    'INVALID_INPUT',
+    'acknowledge_configuration_fix',
+  );
 });
 
 test('primitive arrays enforce item count and primitive types', () => {

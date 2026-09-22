@@ -207,7 +207,7 @@
             render(data);
             setLoading(false);
         } catch (error) {
-            console.error('Não foi possível carregar o perfil da academia.', error);
+            globalThis.ClientLogging?.report('academy-profile-load', error);
             setLoading(false);
             setMessage('Não foi possível carregar os dados da academia. Tente novamente.', true);
         }
@@ -238,7 +238,7 @@
             if (typeof toast === 'function') toast('Dados da academia atualizados!');
             window.dispatchEvent?.(new CustomEvent('academy-profile-updated', { detail: data }));
         } catch (error) {
-            console.error('Não foi possível salvar o perfil da academia.', error);
+            globalThis.ClientLogging?.report('academy-profile-save', error);
             setMessage(error?.message || 'Não foi possível salvar os dados da academia.', true);
         } finally {
             setSaving(false);

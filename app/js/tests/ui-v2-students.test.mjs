@@ -30,18 +30,19 @@ test('students keeps current functional targets and adds the mobile cards surfac
   assert.match(index, /students-table-wrap/);
 });
 
-test('students presentation mirrors current record actions without replacing core handlers', () => {
+test('students presentation preserves record actions through CSP-safe delegation', () => {
   assert.match(studentsUi, /function studentCardMarkup\(/);
   assert.match(studentsUi, /\$\(['"]studentCards['"]\)\.innerHTML/);
   assert.match(studentsUi, /studentCardMarkup/);
-  assert.match(studentsUi, /editCouple\('/);
-  assert.match(studentsUi, /removeCouple\('/);
-  assert.match(studentsUi, /toggleEntry\('/);
-  assert.match(studentsUi, /toggleMonth\('/);
+  assert.match(studentsUi, /data-student-action=["']edit["']/);
+  assert.match(studentsUi, /data-student-action=["']remove["']/);
+  assert.match(studentsUi, /data-student-action=["']toggle-entry["']/);
+  assert.match(studentsUi, /data-student-action=["']toggle-month["']/);
   assert.match(core, /function editCouple\(/);
   assert.match(core, /async function removeCouple\(/);
   assert.match(core, /async function toggleEntry\(/);
   assert.match(core, /async function toggleMonth\(/);
+  assert.match(core, /document\.addEventListener\(['"]click['"][\s\S]*data-student-action/);
 });
 
 test('students initial loading mirrors desktop rows and mobile cards without changing data queries', () => {

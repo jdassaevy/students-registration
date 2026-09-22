@@ -172,6 +172,16 @@ export function optionalTrimmedString(
   return requireTrimmedString(value, field, { maxLength });
 }
 
+export function optionalBoolean(
+  value: unknown,
+  field: string,
+  defaultValue = false,
+): boolean {
+  if (value === undefined || value === null) return defaultValue;
+  if (typeof value !== 'boolean') invalid(field);
+  return value;
+}
+
 export function optionalPrimitiveArray(
   value: unknown,
   field: string,

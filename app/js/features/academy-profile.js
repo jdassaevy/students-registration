@@ -26,14 +26,11 @@
 
     async function load() {
         const id = activeAcademyId();
-        const read = () => db
+        const { data, error } = await db
             .from('academies')
             .select(PROFILE_SELECT)
             .eq('id', id)
             .single();
-        const { data, error } = await (globalThis.ReadResilience?.run
-            ? globalThis.ReadResilience.run(read)
-            : read());
 
         if (error) throw error;
         return data;

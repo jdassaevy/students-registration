@@ -56,17 +56,15 @@
         async load() {
             if (!client)
                 return [];
-            const read = () => client
+            const {data, error} = await client
                 .from('receipts')
                 .select('*')
                 .order('created_at', {ascending: false});
-            const {data, error} = await (globalThis.ReadResilience?.run
-                ? globalThis.ReadResilience.run(read)
-                : read());
             if (error) {
                 globalThis.ClientLogging?.report('receipts-load', error);
+                api.items = [];
                 renderHistory();
-                return api.items;
+                return [];
             }
             api.items = data || [];
             renderHistory();

@@ -4,6 +4,7 @@ import { buildTemplatePayload, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAME
 import { buildReminderCandidates, buildReminderIdempotencyKey } from "../_shared/reminders.js";
 import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 import { matchesSecret } from "../_shared/request-security.ts";
+import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 
 const templateByType: Record<string, string> = {
   reminder_before_due: TEMPLATE_NAMES.reminderBeforeDue,
@@ -11,8 +12,8 @@ const templateByType: Record<string, string> = {
   overdue: TEMPLATE_NAMES.overdue,
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+function json(req: Request, body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...traceHeaders(req), "Content-Type": "application/json" } });
 }
 
 function todayInSaoPaulo() {
@@ -31,19 +32,20 @@ function formatMoney(value: number) {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  const startedAt = Date.now();
+  if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
 
   const expectedCronSecret = Deno.env.get("AUTOMATION_CRON_SECRET") || "";
   const receivedCronSecret = req.headers.get("x-cron-secret") || "";
-  if (!expectedCronSecret) return json({ error: "Cron secret not configured" }, 503);
-  if (!matchesSecret(expectedCronSecret, receivedCronSecret)) return json({ error: "Unauthorized" }, 401);
+  if (!expectedCronSecret) return json(req, { error: "Cron secret not configured" }, 503);
+  if (!matchesSecret(expectedCronSecret, receivedCronSecret)) return json(req, { error: "Unauthorized" }, 401);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const metaAccessToken = Deno.env.get("META_ACCESS_TOKEN") || "";
   const metaPhoneNumberId = Deno.env.get("META_PHONE_NUMBER_ID") || "";
   const graphVersion = Deno.env.get("META_GRAPH_VERSION") || "v25.0";
-  if (!metaAccessToken || !metaPhoneNumberId) return json({ error: "Meta credentials not configured" }, 503);
+  if (!metaAccessToken || !metaPhoneNumberId) return json(req, { error: "Meta credentials not configured" }, 503);
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
   const today = todayInSaoPaulo();
@@ -60,8 +62,8 @@ Deno.serve(async (req: Request) => {
   ]);
 
   if (classesError || studentsError || academiesError || settingsError) {
-    console.error("process-reminders load failed", classesError || studentsError || academiesError || settingsError);
-    return json({ error: "Could not load reminder data" }, 500);
+    logSafeEvent(req, "process-reminders", "load_failed", { status: 500, code: "db_error", duration_ms: Date.now() - startedAt }, "error");
+    return json(req, { error: "Could not load reminder data" }, 500);
   }
 
   const classesById = new Map((classes || []).map(item => [item.id, item]));
@@ -104,7 +106,7 @@ Deno.serve(async (req: Request) => {
 
       if (logError) {
         if (logError.code === "23505") { summary.duplicates += 1; continue; }
-        console.error("reminder log insert failed", logError.message);
+        logSafeEvent(req, "process-reminders", "automation_log_insert_failed", { code: logError.code || "db_error" }, "error");
         summary.failed += 1;
         continue;
       }
@@ -135,5 +137,13 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  return json(summary);
+  if (summary.tenant_mismatch > 0) {
+    logSafeEvent(req, "process-reminders", "tenant_mismatch_detected", { count: summary.tenant_mismatch }, "error");
+  }
+  if (summary.failed > 0) {
+    logSafeEvent(req, "process-reminders", "run_completed_with_failures", { status: 200, count: summary.failed, duration_ms: Date.now() - startedAt }, "warn");
+  } else {
+    logSafeEvent(req, "process-reminders", "run_completed", { status: 200, count: summary.sent, duration_ms: Date.now() - startedAt });
+  }
+  return json(req, summary);
 });

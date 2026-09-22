@@ -27,9 +27,12 @@ Branch: `security/phase-3c-financial-write-surface`
 Only after repository CI and DEV validation are green:
 
 1. Capture production counts and tenant/linkage invariants.
-2. Apply the exact reviewed ACL migration.
-3. Verify effective grants.
-4. Recheck counts/invariants.
-5. Merge only after production matches the reviewed state.
+2. Merge the reviewed frontend change so the browser stops attempting direct financial writes.
+3. Wait for the production frontend deployment to complete successfully.
+4. Apply the exact reviewed ACL migration.
+5. Verify effective grants and service-role access.
+6. Recheck counts/invariants.
+
+This ordering avoids a window where the old browser bundle still attempts writes that the new ACL intentionally denies.
 
 No data cleanup, backfill or destructive reset is allowed.

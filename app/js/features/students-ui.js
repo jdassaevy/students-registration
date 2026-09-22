@@ -34,7 +34,7 @@
             <span class="student-card-person-name">${escapeHtml(name)}</span>
             <div class="payments" aria-label="Mensalidades de ${escapeHtml(name)}">
                 ${couple.payments[person].map((paid, index) => `
-                    <button type="button" class="month ${paid ? 'on' : ''}" onclick="toggleMonth('${couple.id}','${person}',${index})" aria-label="${index + 1}ª mensalidade de ${escapeHtml(name)}: ${paid ? 'paga' : 'pendente'}">
+                    <button type="button" class="month ${paid ? 'on' : ''}" data-student-action="toggle-month" data-student-id="${escapeHtml(couple.id)}" data-person="${person}" data-index="${index}" aria-label="${index + 1}ª mensalidade de ${escapeHtml(name)}: ${paid ? 'paga' : 'pendente'}">
                         ${paid ? '✓' : index + 1}
                     </button>`).join('')}
             </div>
@@ -45,7 +45,7 @@
         const paid = couple.entryPayments[person];
         return `<div class="student-card-person">
             <span class="student-card-person-name">${escapeHtml(name)}</span>
-            <button type="button" class="pill ${paid ? 'paid' : 'pending'}" onclick="toggleEntry('${couple.id}','${person}')">
+            <button type="button" class="pill ${paid ? 'paid' : 'pending'}" data-student-action="toggle-entry" data-student-id="${escapeHtml(couple.id)}" data-person="${person}">
                 ${paid ? 'Paga' : 'Pendente'}
             </button>
         </div>`;
@@ -70,8 +70,8 @@
                     <p>${classItem ? escapeHtml(classItem.name) : 'Sem turma'} <span>•</span> ${escapeHtml(couple.createdAt)}</p>
                 </div>
                 <div class="student-card-actions actions">
-                    <button type="button" class="icon-btn" onclick="editCouple('${couple.id}')" aria-label="Editar cadastro">✎</button>
-                    <button type="button" class="icon-btn" onclick="removeCouple('${couple.id}')" aria-label="Excluir cadastro">⌫</button>
+                    <button type="button" class="icon-btn" data-student-action="edit" data-student-id="${escapeHtml(couple.id)}" aria-label="Editar cadastro">✎</button>
+                    <button type="button" class="icon-btn" data-student-action="remove" data-student-id="${escapeHtml(couple.id)}" aria-label="Excluir cadastro">⌫</button>
                 </div>
             </header>
 

@@ -66,10 +66,38 @@
             : 'normal';
     };
     const canRetry = message => retryMode(message) === 'normal';
+    const messageTime = message => {
+        const parsed = new Date(message?.executed_at || message?.created_at || 0).getTime();
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const latestMessagePerType = messages => {
+        const latest = new Map();
+        for (const message of Array.isArray(messages) ? messages : []) {
+            const type = String(message?.automation_type || '');
+            if (!type) continue;
+            const current = latest.get(type);
+            if (!current || messageTime(message) > messageTime(current)) {
+                latest.set(type, message);
+            }
+        }
+        return [...latest.values()];
+    };
     const metaConnectionState = messages => {
         const items = Array.isArray(messages) ? messages : [];
-        const hasConfigurationFailure = items.some(requiresMetaConfigurationFix);
-        if (hasConfigurationFailure) {
+        const latestByType = latestMessagePerType(items);
+        const latestOverall = items.reduce(
+            (latest, message) => !latest || messageTime(message) > messageTime(latest) ? message : latest,
+            null
+        );
+        const unresolvedGlobalAuthFailure =
+            String(latestOverall?.error_code || '').trim() === '190' &&
+            latestOverall?.status === 'failed';
+        const unresolvedTypeConfigurationFailure = latestByType.some(
+            message =>
+                requiresMetaConfigurationFix(message) &&
+                String(message?.error_code || '').trim() !== '190'
+        );
+        if (unresolvedGlobalAuthFailure || unresolvedTypeConfigurationFailure) {
             return {
                 key: 'problem',
                 ok: false,

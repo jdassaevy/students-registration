@@ -629,7 +629,7 @@ async function exportSelectedClass() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         toast('Lista da turma gerada!');
     } catch (error) {
-        console.error(error);
+        globalThis.ClientLogging?.report('class-export', error);
         toast('Não foi possível gerar a lista.');
     } finally {
         setLoading(button, false, '');
@@ -1088,7 +1088,7 @@ db
         try {
             await loadData();
         } catch (error) {
-            console.error(error);
+            globalThis.ClientLogging?.report('auth-state-load', error);
             toast(
                 error.message.includes('does not exist')
                     ? 'Configure o banco com o arquivo supabase-schema.sql.'

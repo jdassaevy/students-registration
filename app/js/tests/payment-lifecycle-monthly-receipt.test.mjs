@@ -6,6 +6,10 @@ const source = fs.readFileSync(
     new URL('../../../supabase/functions/payment-lifecycle/index.ts', import.meta.url),
     'utf8'
 );
+const whatsapp = fs.readFileSync(
+    new URL('../../../supabase/functions/_shared/whatsapp.ts', import.meta.url),
+    'utf8'
+);
 
 test('monthly PDF generation is delegated with the original auth context', () => {
     assert.match(source, /monthly-receipt-delegation\.mjs/);
@@ -32,20 +36,13 @@ test('monthly PDF failure becomes partial success instead of payment failure', (
     assert.match(source, /pdf_status:\s*pdfStatus/);
 });
 
-test('payment confirmation matches the four approved Meta template variables in order', () => {
-    const start = source.indexOf('templateName: TEMPLATE_NAMES.paymentConfirmation');
-    const end = source.indexOf('whatsapp.payment_confirmation', start);
-    assert.ok(start >= 0, 'payment confirmation template block must exist');
-    assert.ok(end > start, 'payment confirmation send must follow template construction');
-    const confirmationBlock = source.slice(start, end);
-
+test('payment confirmation preserves the approved four-variable V1 fallback order', () => {
     assert.match(
-        confirmationBlock,
-        /bodyParameters:\s*\[studentName,\s*label,\s*money\(notificationAmount\),\s*academyMessageName\]/
+        whatsapp,
+        /bodyParameters:\s*useV2[\s\S]*?:\s*\[studentName, paymentLabel, amount, academyName\]/
     );
-    assert.doesNotMatch(confirmationBlock, /receipt\.receipt_number/);
-    assert.doesNotMatch(confirmationBlock, /academy\.responsible_name/);
-    assert.doesNotMatch(confirmationBlock, /academy\.support_phone/);
+    assert.match(source, /buildPaymentConfirmationTemplate\(/);
+    assert.match(source, /bodyParameters:\s*confirmationTemplate\.bodyParameters/);
 });
 
 test('repair operation validates membership and exact receipt linkage without sending payment confirmation', () => {

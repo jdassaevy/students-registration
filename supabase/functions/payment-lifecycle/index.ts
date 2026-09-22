@@ -7,7 +7,7 @@ import { requestMonthlyReceiptPdf } from "../_shared/monthly-receipt-delegation.
 import { isUniqueViolation, paymentAmount, paymentIsMarked, paymentLabel, paymentNotificationAmount, paymentReceiptAmount, receiptActionForState, receiptNeedsPdf } from "../_shared/payment-lifecycle.ts";
 import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
-import { buildDocumentPayload, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
+import { buildDocumentPayload, buildPaymentConfirmationTemplate, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
 import {
@@ -353,7 +353,22 @@ Deno.serve(async (req: Request) => {
     const to = eligible && metaReady && receipt ? normalizeRecipientPhone(phone) : null;
 
     if (to && receipt && settings.payment_confirmation_enabled && (action === "create" || (kind === "entry" && repairedPdf))) {
-      const confirmation = buildTemplatePayload({ to, templateName: TEMPLATE_NAMES.paymentConfirmation, languageCode: "pt_BR", bodyParameters: [studentName, label, money(notificationAmount), academyMessageName] });
+      const confirmationTemplate = buildPaymentConfirmationTemplate({
+        preferredTemplateName: Deno.env.get("META_PAYMENT_CONFIRMATION_V2_ENABLED") === "true"
+          ? TEMPLATE_NAMES.paymentConfirmationV2
+          : null,
+        studentName,
+        paymentLabel: label,
+        amount: money(notificationAmount),
+        academyName: academyMessageName,
+        supportPhone: academy.support_phone,
+      });
+      const confirmation = buildTemplatePayload({
+        to,
+        templateName: confirmationTemplate.templateName,
+        languageCode: "pt_BR",
+        bodyParameters: confirmationTemplate.bodyParameters,
+      });
       whatsapp.payment_confirmation = await sendLogged("payment_confirmation", confirmation, `payment:${receipt.id}:confirmation`);
     }
 

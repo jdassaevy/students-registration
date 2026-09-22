@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { corsHeadersFor, isAllowedCorsRequest } from "../_shared/cors.ts";
 import { buildRetryIdempotencyKey, canRetryAutomationType, retryEligibility } from "../_shared/retry-policy.ts";
-import { buildDocumentPayload, buildTemplatePayload, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
+import { buildDocumentPayload, buildPaymentConfirmationTemplate, buildTemplatePayload, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
 import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
@@ -161,23 +161,39 @@ Deno.serve(async (req: Request) => {
     });
   } else {
     const label = paymentLabel(receipt.kind, receipt.installment);
-    const templateName = source.automation_type === "payment_voided"
-      ? TEMPLATE_NAMES.paymentVoided
-      : TEMPLATE_NAMES.paymentConfirmation;
-    payload = buildTemplatePayload({
-      to,
-      templateName,
-      languageCode: "pt_BR",
-      bodyParameters: [
-        studentName || "Aluno",
+    if (source.automation_type === "payment_confirmation") {
+      const confirmationTemplate = buildPaymentConfirmationTemplate({
+        preferredTemplateName: Deno.env.get("META_PAYMENT_CONFIRMATION_V2_ENABLED") === "true"
+          ? TEMPLATE_NAMES.paymentConfirmationV2
+          : null,
+        studentName: studentName || "Aluno",
+        paymentLabel: label,
+        amount: money(receipt.amount),
         academyName,
-        label,
-        money(receipt.amount),
-        receipt.receipt_number,
-        academy?.responsible_name || "responsável da academia",
-        academy?.support_phone || "contato da academia",
-      ],
-    });
+        supportPhone: academy?.support_phone,
+      });
+      payload = buildTemplatePayload({
+        to,
+        templateName: confirmationTemplate.templateName,
+        languageCode: "pt_BR",
+        bodyParameters: confirmationTemplate.bodyParameters,
+      });
+    } else {
+      payload = buildTemplatePayload({
+        to,
+        templateName: TEMPLATE_NAMES.paymentVoided,
+        languageCode: "pt_BR",
+        bodyParameters: [
+          studentName || "Aluno",
+          academyName,
+          label,
+          money(receipt.amount),
+          receipt.receipt_number,
+          academy?.responsible_name || "responsável da academia",
+          academy?.support_phone || "contato da academia",
+        ],
+      });
+    }
   }
 
   const { data: retryLog, error: logError } = await admin.from("automation_messages").insert({

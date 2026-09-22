@@ -30,7 +30,7 @@ for (const [endpoint, firstBusinessTable] of endpoints) {
     assert.match(code, /rateLimit\.kind === ["']limited["']/);
     assert.match(code, /return json\(req, rateLimit\.body, rateLimit\.status, rateLimit\.headers\)/);
     assert.match(code, /function json\(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = \{\}\)/);
-    assert.match(code, /\.\.\.corsHeadersFor\(req\), "Content-Type": "application\/json", \.\.\.extraHeaders/);
+    assert.match(code, /\.\.\.corsHeadersFor\(req\), \.\.\.traceHeaders\(req\), "Content-Type": "application\/json", \.\.\.extraHeaders/);
     assert.match(code, /const respond = \(body: unknown, status = 200\) => json\(req, body, status, rateHeaders\)/);
   });
 }

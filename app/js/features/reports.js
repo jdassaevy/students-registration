@@ -1,6 +1,11 @@
 (() => {
     const REPORT_MONTHS = 6;
+    const CHART_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
     let reportEvents = [];
+    let reportEventsLoaded = false;
+    let reportEventsDirty = true;
+    let reportEventsPromise = null;
+    let chartLoadPromise = null;
     let revenueChart = null;
     let statusChart = null;
     let classChart = null;
@@ -112,9 +117,33 @@
     }
 
     function loadChartJs() {
-        return window.Chart
-            ? Promise.resolve()
-            : Promise.reject(new Error('Chart.js unavailable'));
+        if (window.Chart)
+            return Promise.resolve();
+        if (chartLoadPromise)
+            return chartLoadPromise;
+
+        chartLoadPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = CHART_SCRIPT_URL;
+            script.crossOrigin = 'anonymous';
+            script.referrerPolicy = 'no-referrer';
+            script.dataset.reportsChartLoader = 'true';
+            script.onload = () => {
+                if (window.Chart) {
+                    resolve();
+                    return;
+                }
+                chartLoadPromise = null;
+                reject(new Error('Chart.js unavailable'));
+            };
+            script.onerror = () => {
+                chartLoadPromise = null;
+                reject(new Error('Chart.js unavailable'));
+            };
+            document.head.appendChild(script);
+        });
+
+        return chartLoadPromise;
     }
 
     function normalizeFilterOptions() {
@@ -265,18 +294,32 @@
         return buckets;
     }
 
-    async function loadEvents() {
-        const {data, error} = await db
-            .from('payment_events')
-            .select('*')
-            .order('paid_at', {ascending: true});
-        if (error) {
-            globalThis.ClientLogging?.report('reports-payment-history', error);
-            reportEvents = [];
-            return false;
+    async function loadEvents({force = false} = {}) {
+        if (!force && reportEventsLoaded && !reportEventsDirty)
+            return true;
+        if (reportEventsPromise)
+            return reportEventsPromise;
+
+        reportEventsPromise = (async () => {
+            const {data, error} = await db
+                .from('payment_events')
+                .select('*')
+                .order('paid_at', {ascending: true});
+            if (error) {
+                globalThis.ClientLogging?.report('reports-payment-history', error);
+                return reportEventsLoaded;
+            }
+            reportEvents = data || [];
+            reportEventsLoaded = true;
+            reportEventsDirty = false;
+            return true;
+        })();
+
+        try {
+            return await reportEventsPromise;
+        } finally {
+            reportEventsPromise = null;
         }
-        reportEvents = data || [];
-        return true;
     }
 
     function destroyCharts() {
@@ -484,7 +527,7 @@
         }
     }
 
-    async function renderReports() {
+    async function renderReports({refreshHistory = false} = {}) {
         setReportsChartLoading(true);
         try {
             normalizeFilterOptions();
@@ -521,7 +564,7 @@
                     ? 'turma no filtro'
                     : 'turmas no filtro'}`;
 
-            const historyReady = await loadEvents();
+            const historyReady = await loadEvents({force: refreshHistory});
             document
                 .getElementById('revenueHistoryNotice')
                 .textContent = historyReady
@@ -557,8 +600,9 @@
     }
 
     window.addEventListener('payment:lifecycle', () => {
+        reportEventsDirty = true;
         if (activeView === 'reports')
-            renderReports();
+            renderReports({refreshHistory: true});
     });
 
     const originalSetView = setView;

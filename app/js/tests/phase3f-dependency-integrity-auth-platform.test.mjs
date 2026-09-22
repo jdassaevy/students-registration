@@ -7,19 +7,18 @@ const index = read('../../index.html');
 const script = read('../core/script.js');
 
 const SUPABASE_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0';
-const SUPABASE_SRI = 'sha384-MmYqhQukJUFGS8Rze+j1LDsjq7FDIilY+xf7tRfGwElMdkS/fKeBCkBDx3xdjhDB';
 const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js';
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-test('Supabase browser SDK is exact-pinned and protected by verified SRI', () => {
+test('Supabase browser SDK remains exact-pinned without unverified CDN integrity metadata', () => {
   const tag = index.match(new RegExp(
     `<script[^>]*src=["']${escapeRegExp(SUPABASE_URL)}["'][^>]*><\\/script>`
   ));
   assert.ok(tag, 'Supabase SDK script tag must exist');
-  assert.match(tag[0], new RegExp(`integrity=["']${escapeRegExp(SUPABASE_SRI)}["']`));
+  assert.doesNotMatch(tag[0], /\sintegrity=["']/);
   assert.match(tag[0], /crossorigin=["']anonymous["']/);
   assert.match(tag[0], /referrerpolicy=["']no-referrer["']/);
 });

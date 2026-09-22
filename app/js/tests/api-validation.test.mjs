@@ -15,6 +15,7 @@ const validationModule = await import(`data:text/javascript;base64,${Buffer.from
 const {
   MAX_JSON_BYTES,
   ApiInputError,
+  readBoundedText,
   readJsonObject,
   requireUuid,
   optionalUuid,
@@ -64,6 +65,22 @@ test('primitive arrays enforce item count and primitive types', () => {
   assert.deepEqual(optionalPrimitiveArray(['a', 2], 'body_parameters', { maxItems: 12 }), ['a', 2]);
   expectInputError(() => optionalPrimitiveArray(Array(13).fill('x'), 'body_parameters', { maxItems: 12 }), 'INVALID_INPUT', 'body_parameters');
   expectInputError(() => optionalPrimitiveArray([{ bad: true }], 'body_parameters', { maxItems: 12 }), 'INVALID_INPUT', 'body_parameters');
+});
+
+test('readBoundedText accepts the exact limit and rejects a declared overflow', async () => {
+  const body = 'x'.repeat(32);
+  const accepted = new Request('https://example.test', { method: 'POST', body });
+  assert.equal(await readBoundedText(accepted, 32), body);
+
+  const oversized = new Request('https://example.test', {
+    method: 'POST',
+    headers: { 'content-length': '33' },
+    body,
+  });
+  await assert.rejects(
+    () => readBoundedText(oversized, 32),
+    error => error instanceof ApiInputError && error.code === 'PAYLOAD_TOO_LARGE' && error.status === 413,
+  );
 });
 
 test('readJsonObject classifies malformed JSON', async () => {

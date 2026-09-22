@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { extractStatuses, verifyMetaSignature } from "../_shared/whatsapp-webhook.ts";
+import { isApiInputError, readBoundedText, validationErrorPayload } from "../_shared/api-validation.ts";
+import { matchesSecret } from "../_shared/request-security.ts";
+import { extractStatuses, MAX_WEBHOOK_BYTES, verifyMetaSignature } from "../_shared/whatsapp-webhook.ts";
 
 function text(body: string, status = 200) {
   return new Response(body, {
@@ -43,7 +45,7 @@ Deno.serve(async (req: Request) => {
       console.error("whatsapp-webhook verify token missing");
       return text("Webhook verify token not configured", 503);
     }
-    if (mode === "subscribe" && token === verifyToken && challenge) {
+    if (mode === "subscribe" && matchesSecret(verifyToken, token) && challenge) {
       console.info("whatsapp-webhook verification accepted");
       return text(challenge, 200);
     }
@@ -63,7 +65,16 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Meta app secret not configured" }, 503);
   }
 
-  const rawBody = await req.text();
+  let rawBody: string;
+  try {
+    rawBody = await readBoundedText(req, MAX_WEBHOOK_BYTES);
+  } catch (error) {
+    if (isApiInputError(error)) {
+      return json(validationErrorPayload(error), error.status);
+    }
+    throw error;
+  }
+
   const signatureHeader = req.headers.get("x-hub-signature-256");
   if (!(await verifyMetaSignature(rawBody, signatureHeader, appSecret))) {
     console.warn("whatsapp-webhook invalid signature", {

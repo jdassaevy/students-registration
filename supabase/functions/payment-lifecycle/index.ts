@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { corsHeadersFor, isAllowedCorsRequest } from "../_shared/cors.ts";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { requestMonthlyReceiptPdf } from "../_shared/monthly-receipt-delegation.mjs";
 import { isUniqueViolation, paymentAmount, paymentIsMarked, paymentLabel, paymentNotificationAmount, paymentReceiptAmount, receiptActionForState, receiptNeedsPdf } from "../_shared/payment-lifecycle.ts";
@@ -17,13 +18,8 @@ import {
   validationErrorPayload,
 } from "../_shared/api-validation.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders } });
+function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeadersFor(req), "Content-Type": "application/json", ...extraHeaders } });
 }
 
 function money(value: number) {
@@ -51,28 +47,30 @@ function parsePaymentLifecycleRequest(body: Record<string, unknown>): PaymentLif
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = corsHeadersFor(req);
+  if (!isAllowedCorsRequest(req)) return json(req, { error: "Origin not allowed" }, 403);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
 
   let rateHeaders: Record<string, string> = {};
-  const respond = (body: unknown, status = 200) => json(body, status, rateHeaders);
+  const respond = (body: unknown, status = 200) => json(req, body, status, rateHeaders);
 
   const authHeader = req.headers.get("Authorization") || "";
-  if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+  if (!authHeader.startsWith("Bearer ")) return json(req, { error: "Unauthorized" }, 401);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
   const { data: userData, error: userError } = await authClient.auth.getUser();
-  if (userError || !userData.user) return json({ error: "Unauthorized" }, 401);
+  if (userError || !userData.user) return json(req, { error: "Unauthorized" }, 401);
   const user = userData.user;
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
 
   const rateLimit = await checkRateLimit(admin, user.id, "payment-lifecycle");
   if (rateLimit.kind === "limited") {
-    return json(rateLimit.body, rateLimit.status, rateLimit.headers);
+    return json(req, rateLimit.body, rateLimit.status, rateLimit.headers);
   }
   rateHeaders = rateLimit.kind === "allowed" ? rateLimit.headers : {};
 

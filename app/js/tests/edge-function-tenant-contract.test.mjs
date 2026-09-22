@@ -30,8 +30,8 @@ test('process-reminders keeps cron-secret auth and writes academy-scoped logs', 
   const code = source('supabase/functions/process-reminders/index.ts');
   assert.match(code, /AUTOMATION_CRON_SECRET/);
   assert.match(code, /req\.headers\.get\("x-cron-secret"\)/);
-  assert.match(code, /receivedCronSecret\s*!==\s*expectedCronSecret/);
-  assert.ok(code.indexOf('receivedCronSecret !== expectedCronSecret') < code.indexOf('createClient(supabaseUrl, serviceRoleKey)'), 'cron secret must be checked before service-role client creation');
+  assert.match(code, /matchesSecret\(expectedCronSecret, receivedCronSecret\)/);
+  assert.ok(code.indexOf('matchesSecret(expectedCronSecret, receivedCronSecret)') < code.indexOf('createClient(supabaseUrl, serviceRoleKey)'), 'cron secret must be checked before service-role client creation');
   assert.match(code, /academy_id/);
 });
 

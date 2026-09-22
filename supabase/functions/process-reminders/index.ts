@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildTemplatePayload, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { buildReminderCandidates, buildReminderIdempotencyKey } from "../_shared/reminders.js";
 import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
+import { matchesSecret } from "../_shared/request-security.ts";
 
 const templateByType: Record<string, string> = {
   reminder_before_due: TEMPLATE_NAMES.reminderBeforeDue,
@@ -35,7 +36,7 @@ Deno.serve(async (req: Request) => {
   const expectedCronSecret = Deno.env.get("AUTOMATION_CRON_SECRET") || "";
   const receivedCronSecret = req.headers.get("x-cron-secret") || "";
   if (!expectedCronSecret) return json({ error: "Cron secret not configured" }, 503);
-  if (receivedCronSecret !== expectedCronSecret) return json({ error: "Unauthorized" }, 401);
+  if (!matchesSecret(expectedCronSecret, receivedCronSecret)) return json({ error: "Unauthorized" }, 401);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

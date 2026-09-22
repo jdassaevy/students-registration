@@ -28,10 +28,10 @@ for (const [endpoint, firstBusinessTable] of endpoints) {
     assert.ok(limiter >= 0 && limiter < parser);
     assert.ok(business >= 0 && limiter < business);
     assert.match(code, /rateLimit\.kind === ["']limited["']/);
-    assert.match(code, /return json\(rateLimit\.body, rateLimit\.status, rateLimit\.headers\)/);
-    assert.match(code, /function json\(body: unknown, status = 200, extraHeaders: Record<string, string> = \{\}\)/);
-    assert.match(code, /\.\.\.corsHeaders, "Content-Type": "application\/json", \.\.\.extraHeaders/);
-    assert.match(code, /const respond = \(body: unknown, status = 200\) => json\(body, status, rateHeaders\)/);
+    assert.match(code, /return json\(req, rateLimit\.body, rateLimit\.status, rateLimit\.headers\)/);
+    assert.match(code, /function json\(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = \{\}\)/);
+    assert.match(code, /\.\.\.corsHeadersFor\(req\), "Content-Type": "application\/json", \.\.\.extraHeaders/);
+    assert.match(code, /const respond = \(body: unknown, status = 200\) => json\(req, body, status, rateHeaders\)/);
   });
 }
 

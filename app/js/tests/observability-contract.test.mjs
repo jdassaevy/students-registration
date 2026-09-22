@@ -46,10 +46,10 @@ test('shared observability helper emits only allowlisted technical fields', () =
     );
   }
 
-  assert.match(source, /REQUEST_ID_PATTERN/);
-  assert.match(source, /REQUEST_ID_PATTERN = \/\^\[0-9a-f\]\{8\}-/);
-  assert.doesNotMatch(source, /A-Za-z0-9\._:-/);
-  assert.match(source, /crypto\.randomUUID\(\)/);
+  assert.match(source, /const requestId = crypto\.randomUUID\(\)/);
+  assert.doesNotMatch(source, /headers\.get\(["']x-request-id["']\)/i);
+  assert.match(source, /typeof value !== "string" && typeof value !== "number"/);
+  assert.match(source, /typeof value !== "number" \|\| !Number\.isFinite\(value\)/);
   assert.match(source, /"X-Request-ID"/);
 });
 
@@ -61,6 +61,19 @@ test('all Phase 3B Edge Functions return request tracing and avoid raw console l
       source,
       /console\.(?:log|info|warn|error)\s*\(/,
       `${endpoint} must use the safe structured logger instead of raw console output`,
+    );
+  }
+});
+
+test('structured log endpoint and event names stay static literals', () => {
+  for (const endpoint of endpoints) {
+    const source = read(`${endpoint}/index.ts`);
+    const totalCalls = [...source.matchAll(/logSafeEvent\s*\(/g)].length;
+    const literalCalls = [...source.matchAll(/logSafeEvent\s*\(\s*req\s*,\s*["'][^"']+["']\s*,\s*["'][^"']+["']/g)].length;
+    assert.equal(
+      literalCalls,
+      totalCalls,
+      `${endpoint} must not derive endpoint/event log names from request or business data`,
     );
   }
 });

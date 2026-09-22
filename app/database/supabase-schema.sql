@@ -323,8 +323,8 @@ grant select on public.academy_members to authenticated;
 grant select, insert, update, delete on public.academy_profiles to authenticated;
 grant select, insert, update, delete on public.classes to authenticated;
 grant select, insert, update, delete on public.students to authenticated;
-grant select, insert, update, delete on public.payment_events to authenticated;
-grant select, insert, update on public.receipts to authenticated;
+grant select on public.payment_events to authenticated;
+grant select on public.receipts to authenticated;
 grant select, insert, update on public.automation_settings to authenticated;
 grant select on public.automation_messages to authenticated;
 

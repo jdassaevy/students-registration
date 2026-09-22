@@ -5,13 +5,14 @@ import { corsHeadersFor, isAllowedCorsRequest } from "../_shared/cors.ts";
 import { buildRetryIdempotencyKey, canRetryAutomationType, retryEligibility } from "../_shared/retry-policy.ts";
 import { buildDocumentPayload, buildTemplatePayload, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess } from "../_shared/tenant.ts";
+import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
 import { isApiInputError, optionalBoolean, readJsonObject, requireTrimmedString, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
 
 function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeadersFor(req), "Content-Type": "application/json", ...extraHeaders },
+    headers: { ...corsHeadersFor(req), ...traceHeaders(req), "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
@@ -24,7 +25,8 @@ function paymentLabel(kind: string, installment: number) {
 }
 
 Deno.serve(async (req: Request) => {
-  const corsHeaders = corsHeadersFor(req);
+  const startedAt = Date.now();
+  const corsHeaders = { ...corsHeadersFor(req), ...traceHeaders(req) };
   if (!isAllowedCorsRequest(req)) return json(req, { error: "Origin not allowed" }, 403);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
@@ -208,6 +210,7 @@ Deno.serve(async (req: Request) => {
       executed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq("id", retryLog.id);
+    logSafeEvent(req, "retry-automation-message", "retry_succeeded", { status: 200, outcome: "sent", duration_ms: Date.now() - startedAt });
     return respond({ status: "sent", retry_message_id: retryLog.id, provider_message_id: providerMessageId });
   } catch (error: any) {
     const safe = error?.meta || sanitizeMetaError(error);
@@ -218,6 +221,7 @@ Deno.serve(async (req: Request) => {
       executed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq("id", retryLog.id);
+    logSafeEvent(req, "retry-automation-message", "retry_failed", { status: 502, code: safe.code || "send_failed", duration_ms: Date.now() - startedAt }, "error");
     return respond({ error: "Could not resend WhatsApp message", retry_message_id: retryLog.id }, 502);
   }
 });

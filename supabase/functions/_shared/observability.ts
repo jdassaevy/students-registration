@@ -1,4 +1,3 @@
-const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const requestIds = new WeakMap<Request, string>();
 
 export type SafeLogFields = {
@@ -10,21 +9,28 @@ export type SafeLogFields = {
   method?: string | null;
 };
 
-function cleanString(value: unknown, maxLength = 96): string | null {
-  const text = String(value ?? "").trim();
+function cleanPrimitive(value: unknown, maxLength = 96): string | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const text = String(value).trim();
   if (!text) return null;
   return text.slice(0, maxLength);
+}
+
+function cleanStatus(value: unknown): number | string | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return cleanPrimitive(value, 32);
+}
+
+function cleanNonNegativeInteger(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.round(value));
 }
 
 export function requestIdFor(req: Request): string {
   const cached = requestIds.get(req);
   if (cached) return cached;
 
-  const incoming = String(req.headers.get("x-request-id") || "").trim();
-  const requestId = REQUEST_ID_PATTERN.test(incoming)
-    ? incoming
-    : crypto.randomUUID();
-
+  const requestId = crypto.randomUUID();
   requestIds.set(req, requestId);
   return requestId;
 }
@@ -40,21 +46,21 @@ export function logSafeEvent(
   fields: SafeLogFields = {},
   level: "info" | "warn" | "error" = "info",
 ) {
+  const status = fields.status !== undefined ? cleanStatus(fields.status) : undefined;
+  const durationMs = cleanNonNegativeInteger(fields.duration_ms);
+  const count = cleanNonNegativeInteger(fields.count);
+
   const entry = {
     ts: new Date().toISOString(),
     request_id: requestIdFor(req),
-    endpoint: cleanString(endpoint, 64),
-    event: cleanString(event, 96),
-    ...(fields.status !== undefined ? { status: fields.status } : {}),
-    ...(fields.code !== undefined ? { code: cleanString(fields.code, 64) } : {}),
-    ...(fields.outcome !== undefined ? { outcome: cleanString(fields.outcome, 64) } : {}),
-    ...(Number.isFinite(Number(fields.duration_ms))
-      ? { duration_ms: Math.max(0, Math.round(Number(fields.duration_ms))) }
-      : {}),
-    ...(Number.isFinite(Number(fields.count))
-      ? { count: Math.max(0, Math.round(Number(fields.count))) }
-      : {}),
-    ...(fields.method !== undefined ? { method: cleanString(fields.method, 16) } : {}),
+    endpoint: cleanPrimitive(endpoint, 64),
+    event: cleanPrimitive(event, 96),
+    ...(status !== undefined ? { status } : {}),
+    ...(fields.code !== undefined ? { code: cleanPrimitive(fields.code, 64) } : {}),
+    ...(fields.outcome !== undefined ? { outcome: cleanPrimitive(fields.outcome, 64) } : {}),
+    ...(durationMs !== null ? { duration_ms: durationMs } : {}),
+    ...(count !== null ? { count } : {}),
+    ...(fields.method !== undefined ? { method: cleanPrimitive(fields.method, 16) } : {}),
   };
 
   const line = JSON.stringify(entry);

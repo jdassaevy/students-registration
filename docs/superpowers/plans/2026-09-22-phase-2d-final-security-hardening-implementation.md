@@ -42,10 +42,11 @@ Only after DEV and CI are green:
 
 ## Auth operations gate
 
-Leaked-password protection must be enabled in Supabase Auth settings separately because the connected management actions available to this workflow do not expose Auth configuration mutation.
+Supabase's current documentation places leaked-password protection on Pro and above. On the current Free-plan project setup, record the advisor as an accepted platform limitation.
 
-After it is enabled:
+If the project is upgraded to Pro or above:
 
+- enable leaked-password protection in Auth settings;
 - re-run the security advisor;
 - verify signup, sign-in, password recovery and password update;
 - do not weaken the setting to preserve compatibility with a known compromised password.

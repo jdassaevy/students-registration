@@ -65,8 +65,7 @@ test('all Phase 3B Edge Functions return request tracing and avoid raw console l
 
 test('authenticated CORS responses expose X-Request-ID to browser clients', () => {
   const source = read('_shared/cors.ts');
-  assert.match(source, /"X-Request-ID"/);
-  assert.match(source, /Access-Control-Expose-Headers/);
+  assert.match(source, /Access-Control-Expose-Headers[^\n]*X-Request-ID/);
 });
 
 test('webhook observability never logs provider message identifiers', () => {

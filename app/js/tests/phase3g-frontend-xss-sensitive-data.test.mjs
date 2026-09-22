@@ -22,13 +22,37 @@ test('student actions use delegated handlers instead of inline event attributes'
   assert.match(core, /document\.addEventListener\(['"]click['"][\s\S]*data-student-action/);
 });
 
-test('Chart.js is statically pinned and admitted by the exact CSP path', () => {
+test('Chart.js lazy loader stays exact-pinned and admitted by the exact CSP path', () => {
+  assert.doesNotMatch(index, new RegExp(`src=["']${CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\test('Chart.js is statically pinned and admitted by the exact CSP path', () => {
   assert.match(index, new RegExp(`src=["']${CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`));
   assert.doesNotMatch(reports, /createElement\(['"]script['"]\)/);
   assert.doesNotMatch(reports, /cdn\.jsdelivr\.net\/npm\/chart\.js/);
   const rule = vercel.headers?.find(item => item.source === '/(.*)');
   const csp = rule?.headers?.find(item => item.key === 'Content-Security-Policy')?.value || '';
   assert.match(csp, new RegExp(CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});')}["']`));
+  assert.match(reports, new RegExp(`CHART_SCRIPT_URL = ["']${CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\test('Chart.js is statically pinned and admitted by the exact CSP path', () => {
+  assert.match(index, new RegExp(`src=["']${CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`));
+  assert.doesNotMatch(reports, /createElement\(['"]script['"]\)/);
+  assert.doesNotMatch(reports, /cdn\.jsdelivr\.net\/npm\/chart\.js/);
+  const rule = vercel.headers?.find(item => item.source === '/(.*)');
+  const csp = rule?.headers?.find(item => item.key === 'Content-Security-Policy')?.value || '';
+  assert.match(csp, new RegExp(CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});')}["']`));
+  assert.match(reports, /createElement\(['"]script['"]\)/);
+  assert.match(reports, /script\.src = CHART_SCRIPT_URL/);
+  assert.match(reports, /script\.crossOrigin = ['"]anonymous['"]/);
+  assert.match(reports, /script\.referrerPolicy = ['"]no-referrer['"]/);
+  const rule = vercel.headers?.find(item => item.source === '/(.*)');
+  const csp = rule?.headers?.find(item => item.key === 'Content-Security-Policy')?.value || '';
+  assert.match(csp, new RegExp(CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\test('Chart.js is statically pinned and admitted by the exact CSP path', () => {
+  assert.match(index, new RegExp(`src=["']${CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`));
+  assert.doesNotMatch(reports, /createElement\(['"]script['"]\)/);
+  assert.doesNotMatch(reports, /cdn\.jsdelivr\.net\/npm\/chart\.js/);
+  const rule = vercel.headers?.find(item => item.source === '/(.*)');
+  const csp = rule?.headers?.find(item => item.key === 'Content-Security-Policy')?.value || '';
+  assert.match(csp, new RegExp(CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});')));
 });
 
 test('legacy local student/class data is purged only after migration is known complete', () => {

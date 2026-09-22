@@ -163,7 +163,9 @@ Deno.serve(async (req: Request) => {
     const label = paymentLabel(receipt.kind, receipt.installment);
     if (source.automation_type === "payment_confirmation") {
       const confirmationTemplate = buildPaymentConfirmationTemplate({
-        preferredTemplateName: Deno.env.get("META_PAYMENT_CONFIRMATION_TEMPLATE"),
+        preferredTemplateName: Deno.env.get("META_PAYMENT_CONFIRMATION_V2_ENABLED") === "true"
+          ? TEMPLATE_NAMES.paymentConfirmationV2
+          : null,
         studentName: studentName || "Aluno",
         paymentLabel: label,
         amount: money(receipt.amount),

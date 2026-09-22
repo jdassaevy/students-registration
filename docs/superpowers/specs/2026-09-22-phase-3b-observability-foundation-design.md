@@ -20,12 +20,12 @@ Make production failures traceable without adding business-data migrations, copy
 
 Every Edge Function response receives an `X-Request-ID`.
 
-- A valid inbound `x-request-id` can be propagated.
-- Otherwise a random UUID is generated.
+- Only a canonical UUID-shaped inbound `x-request-id` can be propagated.
+- Any missing or non-UUID inbound value is replaced with a random UUID before it can enter logs.
 - Browser CORS responses expose `X-Request-ID`.
 - The same ID is used in structured logs for the request.
 
-This lets a user-visible error be correlated with backend logs without logging names, phone numbers, receipt numbers, students, payloads, or tokens.
+This lets a user-visible error be correlated with backend logs without accepting arbitrary client-controlled identifiers such as names, phone numbers or business IDs into the request-correlation field.
 
 ## Safe structured logs
 
@@ -76,6 +76,7 @@ Phase 3B does not auto-retry the 10 historical failures and does not mutate thos
 - Exact candidate bundles validated in DEV.
 - Authentication and CORS contracts remain unchanged.
 - All responses include `X-Request-ID`.
+- Arbitrary client-controlled request IDs cannot be copied into logs.
 - No raw console logging remains in Edge Function entrypoints.
 - No PII/secret field is accepted by the shared observability helper.
 - DEV tests create no persistent business data.

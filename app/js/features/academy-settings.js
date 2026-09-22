@@ -210,7 +210,7 @@
             .eq('user_id', currentUser.id)
             .maybeSingle();
         if (error) {
-            console.error(error);
+            globalThis.ClientLogging?.report('academy-settings-load', error);
             if (typeof toast === 'function') 
                 toast('Não foi possível carregar as configurações.');
             return;
@@ -257,7 +257,7 @@
             .from('academy_profiles')
             .upsert(payload, {onConflict: 'user_id'});
         if (error) {
-            console.error(error);
+            globalThis.ClientLogging?.report('academy-settings-save', error);
             if (typeof toast === 'function') 
                 toast('Não foi possível salvar as configurações.');
             return;
@@ -297,7 +297,7 @@
             .eq('id', id)
             .single();
         if (error) {
-            console.error(error);
+            globalThis.ClientLogging?.report('academy-settings-student-contact-load', error);
             return;
         }
         byId('p1Phone').value = data.person1_phone || '';
@@ -352,7 +352,7 @@
             };
 
         if (previous.error) {
-            console.error(previous.error);
+            globalThis.ClientLogging?.report('academy-settings-student-contact-previous', previous.error);
             if (typeof toast === 'function') 
                 toast('Não foi possível validar o consentimento atual.');
             return;
@@ -433,7 +433,7 @@
                 .single();
 
         if (result.error) {
-            console.error(result.error);
+            globalThis.ClientLogging?.report('academy-settings-student-contact-save', result.error);
             if (typeof toast === 'function') 
                 toast('Não foi possível salvar.');
             return;

@@ -564,98 +564,10 @@
         }
     }
 
-    async function syncPaymentEvent({
-        student,
-        person,
-        kind,
-        installment = 0,
-        paid
-    }) {
-        try {
-            if (!student)
-                return;
-            const amount = kind === 'entry'
-                ? student
-                    .fees[person]
-                    .entry
-                : student
-                    .fees[person]
-                    .monthly;
-            const match = db
-                .from('payment_events')
-                .delete()
-                .eq('student_id', student.id)
-                .eq('person', person)
-                .eq('kind', kind)
-                .eq('installment', installment);
-            if (!paid) {
-                await match;
-            } else {
-                await match;
-                const {error} = await db
-                    .from('payment_events')
-                    .insert({
-                        student_id: student.id,
-                        class_id: student.classId || null,
-                        person,
-                        kind,
-                        installment,
-                        amount,
-                        paid_at: new Date().toISOString()
-                    });
-                if (error)
-                    throw error;
-            }
-            if (activeView === 'reports')
-                await renderReports();
-        } catch (error) {
-            console.warn('Não foi possível registrar a data do pagamento:', error.message);
-        }
-    }
-
-    const originalToggleEntry = toggleEntry;
-    toggleEntry = async function (id, person) {
-        const student = couples.find(x => x.id === id);
-        const before = Boolean(
-            student
-                ?.entryPayments
-                ?.[person]
-        );
-        await originalToggleEntry(id, person);
-        const after = Boolean(
-            student
-                ?.entryPayments
-                ?.[person]
-        );
-        if (before !== after)
-            await syncPaymentEvent({student, person, kind: 'entry', paid: after});
-    };
-
-    const originalToggleMonth = toggleMonth;
-    toggleMonth = async function (id, person, index) {
-        const student = couples.find(x => x.id === id);
-        const before = Boolean(
-            student
-                ?.payments
-                ?.[person]
-                ?.[index]
-        );
-        await originalToggleMonth(id, person, index);
-        const after = Boolean(
-            student
-                ?.payments
-                ?.[person]
-                ?.[index]
-        );
-        if (before !== after)
-            await syncPaymentEvent({
-                student,
-                person,
-                kind: 'monthly',
-                installment: index + 1,
-                paid: after
-            });
-    };
+    window.addEventListener('payment:lifecycle', () => {
+        if (activeView === 'reports')
+            renderReports();
+    });
 
     const originalSetView = setView;
     setView = function (view) {

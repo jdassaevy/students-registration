@@ -1,0 +1,15 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local service/tool state
+.vercel/
+.supabase/
+node_modules/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

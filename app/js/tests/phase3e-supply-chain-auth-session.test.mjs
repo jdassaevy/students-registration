@@ -9,6 +9,7 @@ const vercel = JSON.parse(read('../../../vercel.json'));
 
 const SUPABASE_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0';
 const DOCX_CDN = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js';
+const CHART_CDN = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
 
 test('browser dependencies are exact-version pinned', () => {
   assert.match(index, new RegExp(`src=["']${SUPABASE_CDN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`));
@@ -18,7 +19,7 @@ test('browser dependencies are exact-version pinned', () => {
 });
 
 test('external scripts do not send the page referrer', () => {
-  for (const url of [SUPABASE_CDN, DOCX_CDN]) {
+  for (const url of [SUPABASE_CDN, DOCX_CDN, CHART_CDN]) {
     const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const tag = index.match(new RegExp(`<script[^>]*src=["']${escaped}["'][^>]*><\\/script>`));
     assert.ok(tag, `missing script tag for ${url}`);
@@ -27,14 +28,14 @@ test('external scripts do not send the page referrer', () => {
   }
 });
 
-test('CSP script-src allows only self and the two reviewed CDN files', () => {
+test('CSP script-src allows only self and the reviewed CDN files', () => {
   const rule = vercel.headers?.find(item => item.source === '/(.*)');
   assert.ok(rule, 'global header rule must exist');
   const csp = rule.headers.find(item => item.key === 'Content-Security-Policy')?.value || '';
   const match = csp.match(/(?:^|;\s*)script-src\s+([^;]+)/);
   assert.ok(match, 'script-src directive must exist');
   const sources = match[1].trim().split(/\s+/);
-  assert.deepEqual(sources, ["'self'", SUPABASE_CDN, DOCX_CDN]);
+  assert.deepEqual(sources, ["'self'", SUPABASE_CDN, DOCX_CDN, CHART_CDN]);
 });
 
 test('Supabase browser session behavior is explicit and recovery-compatible', () => {

@@ -141,6 +141,34 @@ create table if not exists public.automation_messages (
 create index if not exists automation_messages_academy_id_idx
     on public.automation_messages(academy_id);
 
+-- Phase 4A access-path indexes.
+create index if not exists automation_messages_class_id_idx
+    on public.automation_messages(class_id);
+
+create index if not exists automation_messages_receipt_id_idx
+    on public.automation_messages(receipt_id);
+
+create index if not exists payment_events_class_id_idx
+    on public.payment_events(class_id);
+
+create index if not exists receipts_class_id_idx
+    on public.receipts(class_id);
+
+create index if not exists receipts_academy_created_at_idx
+    on public.receipts(academy_id, created_at desc);
+
+create index if not exists students_academy_created_at_idx
+    on public.students(academy_id, created_at desc);
+
+create index if not exists classes_academy_created_at_idx
+    on public.classes(academy_id, created_at asc);
+
+create index if not exists payment_events_academy_paid_at_idx
+    on public.payment_events(academy_id, paid_at asc);
+
+create index if not exists automation_messages_academy_created_at_idx
+    on public.automation_messages(academy_id, created_at desc);
+
 -- Historical snapshot retained when the old students.archived_at column was retired.
 -- No direct client grants: this is internal audit history only.
 create table if not exists public.student_archive_history (

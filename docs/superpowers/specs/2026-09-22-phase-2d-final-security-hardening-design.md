@@ -43,9 +43,9 @@ No existing secret values are printed, copied, or rotated by this phase.
 
 The Supabase security advisor reports leaked-password protection as disabled.
 
-This setting is managed by Supabase Auth configuration, not by the database migration path available to this repository. It remains an operations gate: enable leaked-password protection in Supabase Auth, then re-run the security advisor and verify login/signup/recovery behavior.
+This setting is managed by Supabase Auth configuration, not by the database migration path available to this repository. Supabase's current documentation states that leaked-password protection is available on the Pro Plan and above. The current organization is operating under the free-project limit, so this advisor warning is an accepted platform limitation unless the project is upgraded.
 
-Phase 2D does not substitute a client-only password rule for the server-side protection.
+On the current plan, the review records the limitation explicitly and does not pretend that a client-only password rule is equivalent to server-side leaked-password protection. If the project moves to Pro or above, enable leaked-password protection in Auth settings and re-run the advisor.
 
 ## Data safety
 
@@ -61,4 +61,4 @@ The Phase 2D database migration contains only ALTER FUNCTION, GRANT/REVOKE, and 
 - no tenant/linkage invariant changes;
 - exact validated migration is promoted to PROD;
 - production postflight remains clean;
-- leaked-password protection is enabled and advisor warning cleared before the broader security review is declared fully complete.
+- the leaked-password advisor is either cleared on Pro+ or explicitly recorded as an accepted Free-plan platform limitation.

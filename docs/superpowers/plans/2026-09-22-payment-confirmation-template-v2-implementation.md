@@ -26,7 +26,7 @@ Branch: `feature/payment-confirmation-v2-meta`
 
 ## Gate 4 — Activation
 
-1. Set `META_PAYMENT_CONFIRMATION_TEMPLATE=dassaevy_payment_confirmation_v2` in the Supabase Edge Function environment.
+1. Set `META_PAYMENT_CONFIRMATION_V2_ENABLED=true` in the Supabase Edge Function environment.
 2. Test one real payment confirmation.
 3. Test Retry on a failed confirmation.
 4. Keep the old template available as automatic fallback for academies without a support phone.

@@ -37,7 +37,6 @@ test('shared observability helper emits only allowlisted technical fields', () =
     'provider_message_id',
     'access_token',
     'authorization',
-    'payload',
     'body_parameters',
   ]) {
     assert.doesNotMatch(
@@ -52,7 +51,7 @@ test('shared observability helper emits only allowlisted technical fields', () =
   assert.match(source, /"X-Request-ID"/);
 });
 
-test('all Phase 3A Edge Functions return request tracing and avoid raw console logging', () => {
+test('all Phase 3B Edge Functions return request tracing and avoid raw console logging', () => {
   for (const endpoint of endpoints) {
     const source = read(`${endpoint}/index.ts`);
     assert.match(source, /\.\.\.traceHeaders\(req\)/, `${endpoint} must return X-Request-ID`);

@@ -19,7 +19,7 @@ test('due dates coalesces initial class-start reads per authenticated user', () 
   );
   assert.match(
     dueDates,
-    /classStartsLoadPromise && classStartsLoadUserId === userId[\s\S]*await classStartsLoadPromise[\s\S]*return false/
+    /classStartsLoadPromise && classStartsLoadUserId === userId[\s\S]*try[\s\S]*await classStartsLoadPromise[\s\S]*catch[\s\S]*return false/
   );
 });
 
@@ -52,7 +52,7 @@ test('due dates never marks a failed class-start read as loaded', () => {
   assert.ok(markIndex > awaitIndex);
 });
 
-test('automation ignores repeated Auth events for the same user', () => {
+test('automation reuses its cache for repeated Auth events from the same user', () => {
   const authStart = automation.indexOf('db.auth.onAuthStateChange((event, session) => {');
   assert.ok(authStart >= 0);
   const authBlock = automation.slice(authStart);
@@ -62,7 +62,11 @@ test('automation ignores repeated Auth events for the same user', () => {
   assert.match(authBlock, /const userChanged = previousUserId !== nextUserId/);
   assert.match(
     authBlock,
-    /if \(!userChanged && event !== ['"]INITIAL_SESSION['"]\)[\s\S]*return/
+    /if \(!userChanged && event !== ['"]INITIAL_SESSION['"]\)[\s\S]*refreshAll\(\)[\s\S]*return/
+  );
+  assert.doesNotMatch(
+    authBlock.match(/if \(!userChanged && event !== ['"]INITIAL_SESSION['"]\)[\s\S]*?return/)?.[0] || '',
+    /force:\s*true/
   );
   assert.match(
     authBlock,

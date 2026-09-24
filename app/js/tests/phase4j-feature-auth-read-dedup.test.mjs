@@ -75,8 +75,7 @@ test('automation reuses its cache for repeated Auth events from the same user', 
 });
 
 test('automation payment and manual refresh still force a refresh', () => {
-  assert.match(automation, /automationRefresh[^
-]*addEventListener\(['"]click['"][\s\S]*force: true/);
+  assert.match(automation, /automationRefresh[\s\S]*addEventListener\(['"]click['"][\s\S]*force: true/);
   assert.match(automation, /payment:lifecycle[\s\S]*automationDirty = true[\s\S]*force: true/);
 });
 

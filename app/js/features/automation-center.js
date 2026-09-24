@@ -581,15 +581,26 @@
     });
 
     db.auth.onAuthStateChange((event, session) => {
-        activeUserId = session?.user?.id || null;
-        automationDirty = true;
-        automationLastLoadedAt = 0;
-        if (!session?.user) {
+        const previousUserId = activeUserId;
+        const nextUserId = session?.user?.id || null;
+        const userChanged = previousUserId !== nextUserId;
+        activeUserId = nextUserId;
+
+        if (!nextUserId) {
+            automationDirty = true;
+            automationLastLoadedAt = 0;
             currentMessages = [];
             currentStudents = [];
             studentsById.clear();
-        } else if (activeView === 'automation') {
-            setTimeout(() => refreshAll({force: true}), 0);
+            return;
         }
+
+        if (!userChanged && event !== 'INITIAL_SESSION')
+            return;
+
+        automationDirty = true;
+        automationLastLoadedAt = 0;
+        if (activeView === 'automation')
+            setTimeout(() => refreshAll({force: true}), 0);
     });
 })();

@@ -130,6 +130,28 @@
     const legacySubmit = document.getElementById('academyBootstrapSubmit');
     const legacyMessage = document.getElementById('academyBootstrapMessage');
     let pendingLegacyAuth = null;
+    let resolvedAcademy = null;
+
+    const clearResolvedAcademy = () => {
+        resolvedAcademy = null;
+        window.currentAcademyId = null;
+    };
+
+    const rememberResolvedAcademy = (userId, academyId) => {
+        if (!userId || !academyId) {
+            clearResolvedAcademy();
+            return;
+        }
+
+        resolvedAcademy = { userId, academyId };
+        window.currentAcademyId = academyId;
+    };
+
+    const resolvedAcademyIdFor = userId => (
+        resolvedAcademy?.userId === userId
+            ? resolvedAcademy.academyId
+            : null
+    );
 
     const isRegisterMode = () => authTitle?.textContent?.trim() === 'Criar conta da academia';
 
@@ -260,9 +282,9 @@
                     throw new Error('Academy bootstrap returned no id');
                 }
 
-                window.currentAcademyId = academyId;
                 const auth = pendingLegacyAuth;
                 pendingLegacyAuth = null;
+                rememberResolvedAcademy(auth.session?.user?.id, academyId);
                 await hideLegacyView();
                 setLegacyLoading(false);
                 legacyMessage.textContent = '';
@@ -309,13 +331,25 @@
 
         const processAuthStateChange = async (event, session, callback) => {
             if (!session?.user) {
-                window.currentAcademyId = null;
+                clearResolvedAcademy();
                 pendingLegacyAuth = null;
                 await hideLegacyView();
                 return callback(event, session);
             }
 
             if (event !== 'PASSWORD_RECOVERY') {
+                const userId = session.user.id;
+                const cachedAcademyId = resolvedAcademyIdFor(userId);
+
+                if (cachedAcademyId) {
+                    window.currentAcademyId = cachedAcademyId;
+                    return callback(event, session);
+                }
+
+                if (resolvedAcademy && resolvedAcademy.userId !== userId) {
+                    clearResolvedAcademy();
+                }
+
                 try {
                     const resolved = await academyContext.resolve(client, session.user);
                     let academyId = resolved.academyId;
@@ -327,7 +361,7 @@
                         academyId = await academyContext.bootstrap(client, academyName);
                     }
 
-                    window.currentAcademyId = academyId || null;
+                    rememberResolvedAcademy(userId, academyId);
 
                     if (!academyId && !academyName) {
                         if (showLegacyView(client, event, session, callback)) {
@@ -335,7 +369,7 @@
                         }
                     }
                 } catch (error) {
-                    window.currentAcademyId = null;
+                    clearResolvedAcademy();
                     globalThis.ClientLogging?.report('academy-onboarding-resolve', error);
                 }
             }

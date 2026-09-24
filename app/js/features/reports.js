@@ -301,10 +301,13 @@
             return reportEventsPromise;
 
         reportEventsPromise = (async () => {
-            const {data, error} = await db
+            const read = () => db
                 .from('payment_events')
                 .select('*')
                 .order('paid_at', {ascending: true});
+            const {data, error} = await (globalThis.ReadResilience?.run
+                ? globalThis.ReadResilience.run(read)
+                : read());
             if (error) {
                 globalThis.ClientLogging?.report('reports-payment-history', error);
                 return reportEventsLoaded;

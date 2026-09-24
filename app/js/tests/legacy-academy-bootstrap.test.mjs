@@ -282,3 +282,67 @@ test('existing academy still bypasses legacy onboarding', async () => {
     assert.equal(coreEvents.length, 1);
     assert.equal(h.document.getElementById('academyBootstrapView')?.hidden ?? true, true);
 });
+
+
+test('resolved academy is reused for repeated auth events from the same user', async () => {
+    const h = createHarness({ resolvedAcademyId: 'academy-existing' });
+    const db = h.context.window.supabase.createClient('url', 'key');
+    const coreEvents = [];
+    db.auth.onAuthStateChange((event, session) => coreEvents.push([event, session]));
+
+    await h.authCallbacks[0]('SIGNED_IN', legacySession);
+    await h.authCallbacks[0]('TOKEN_REFRESHED', legacySession);
+
+    assert.equal(h.resolveCalls.length, 1);
+    assert.equal(h.context.window.currentAcademyId, 'academy-existing');
+    assert.equal(coreEvents.length, 2);
+});
+
+test('logout clears the onboarding academy resolution so the next sign-in resolves again', async () => {
+    const h = createHarness({ resolvedAcademyId: 'academy-existing' });
+    const db = h.context.window.supabase.createClient('url', 'key');
+    db.auth.onAuthStateChange(() => {});
+
+    await h.authCallbacks[0]('SIGNED_IN', legacySession);
+    await h.authCallbacks[0]('SIGNED_OUT', null);
+    await h.authCallbacks[0]('SIGNED_IN', legacySession);
+
+    assert.equal(h.resolveCalls.length, 2);
+    assert.equal(h.context.window.currentAcademyId, 'academy-existing');
+});
+
+test('switching authenticated users always resolves the academy for the new user', async () => {
+    const h = createHarness({ resolvedAcademyId: 'academy-existing' });
+    const db = h.context.window.supabase.createClient('url', 'key');
+    db.auth.onAuthStateChange(() => {});
+
+    await h.authCallbacks[0]('SIGNED_IN', legacySession);
+    await h.authCallbacks[0]('SIGNED_IN', {
+        user: {
+            id: 'second-user',
+            email: 'second@example.com',
+            user_metadata: {}
+        }
+    });
+
+    assert.equal(h.resolveCalls.length, 2);
+    assert.equal(h.resolveCalls[0][1].id, 'legacy-user');
+    assert.equal(h.resolveCalls[1][1].id, 'second-user');
+});
+
+test('successful legacy bootstrap is remembered for later auth events from the same user', async () => {
+    const h = createHarness();
+    const db = h.context.window.supabase.createClient('url', 'key');
+    const coreEvents = [];
+    db.auth.onAuthStateChange((event, session) => coreEvents.push([event, session]));
+
+    await h.authCallbacks[0]('SIGNED_IN', legacySession);
+    h.document.getElementById('academyBootstrapName').value = 'Academia Legada';
+    await h.document.getElementById('academyBootstrapForm').trigger('submit');
+    await h.authCallbacks[0]('TOKEN_REFRESHED', legacySession);
+
+    assert.equal(h.resolveCalls.length, 1);
+    assert.equal(h.bootstrapCalls.length, 1);
+    assert.equal(h.context.window.currentAcademyId, 'academy-created');
+    assert.equal(coreEvents.length, 2);
+});

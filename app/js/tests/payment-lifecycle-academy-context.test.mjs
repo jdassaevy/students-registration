@@ -10,7 +10,7 @@ const source = fs.readFileSync(
 test('payment lifecycle loads academy_id with the student', () => {
     assert.match(
         source,
-        /select\(["']id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent["']\)/,
+        /select\(["']id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,class_row:classes!students_class_id_fkey\(name,academy_id\)["']\)/,
         'student lookup must include academy_id'
     );
 });

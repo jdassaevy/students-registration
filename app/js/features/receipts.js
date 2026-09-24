@@ -46,6 +46,8 @@
     const client = typeof db !== 'undefined'
         ? db
         : root.db;
+    let receiptHistoryLoaded = false;
+    let receiptLoadPromise = null;
     const api = {
         items: [],
         paymentLabel,
@@ -56,23 +58,35 @@
         async load() {
             if (!client)
                 return [];
-            const read = () => client
-                .from('receipts')
-                .select('*')
-                .order('created_at', {ascending: false});
-            const {data, error} = await (globalThis.ReadResilience?.run
-                ? globalThis.ReadResilience.run(read)
-                : read());
-            if (error) {
-                globalThis.ClientLogging?.report('receipts-load', error);
+            if (receiptLoadPromise)
+                return receiptLoadPromise;
+
+            receiptLoadPromise = (async () => {
+                const read = () => client
+                    .from('receipts')
+                    .select('*')
+                    .order('created_at', {ascending: false});
+                const {data, error} = await (globalThis.ReadResilience?.run
+                    ? globalThis.ReadResilience.run(read)
+                    : read());
+                if (error) {
+                    globalThis.ClientLogging?.report('receipts-load', error);
+                    renderHistory();
+                    return api.items;
+                }
+                api.items = data || [];
+                receiptHistoryLoaded = true;
                 renderHistory();
+                root.dispatchEvent
+                    ?.(new CustomEvent('receipts:loaded', {detail: api.items}));
                 return api.items;
+            })();
+
+            try {
+                return await receiptLoadPromise;
+            } finally {
+                receiptLoadPromise = null;
             }
-            api.items = data || [];
-            renderHistory();
-            root.dispatchEvent
-                ?.(new CustomEvent('receipts:loaded', {detail: api.items}));
-            return api.items;
         },
         forStudent(studentId) {
             return api
@@ -210,14 +224,32 @@
         }).join('')}</tbody></table></div>`;
     }
 
+    const originalSetView = typeof setView === 'function'
+        ? setView
+        : null;
+
+    if (originalSetView) {
+        setView = function (view) {
+            const result = originalSetView(view);
+            if (view === 'financial' && !receiptHistoryLoaded)
+                void api.load();
+            return result;
+        };
+    }
+
+    if (
+        typeof activeView !== 'undefined' &&
+        activeView === 'financial' &&
+        !receiptHistoryLoaded
+    )
+        void api.load();
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             ensureHistoryPanel();
-            api.load();
         }, {once: true});
     } else {
         ensureHistoryPanel();
-        api.load();
     }
 })(
     typeof window !== 'undefined'

@@ -14,6 +14,9 @@ const readMaybe = path => {
 const index = read('../../index.html');
 const core = read('../core/script.js');
 const financialUi = readMaybe('../features/financial-ui.js');
+const financialDetails = readMaybe('../features/financial-details.js');
+const dueDates = readMaybe('../features/due-dates.js');
+const config = read('../core/supabase-config.js');
 const css = readMaybe('../../css/ui-v2/pages/financial.css');
 
 test('financial keeps the existing business-logic targets and adds a mobile cards surface', () => {
@@ -82,4 +85,17 @@ test('financial UI module loads after core and before dashboard wrappers', () =>
   const dashboardIndex = index.indexOf('./js/features/dashboard.js');
   assert.ok(financialIndex > coreIndex, 'financial UI must load after core');
   assert.ok(financialIndex < dashboardIndex, 'financial UI must load before dashboard');
+});
+
+
+test('financial detail modal uses semantic theme surfaces with readable state contrast', () => {
+  assert.match(financialDetails, /#financialDetailModal[\s\S]*background:var\(--surface-card\)/);
+  assert.match(financialDetails, /\.financial-student-card[\s\S]*background:var\(--surface-elevated\)/);
+  assert.match(financialDetails, /\.financial-month-chip\.ok[\s\S]*var\(--status-success\)/);
+  assert.match(financialDetails, /\.financial-month-chip\.bad[\s\S]*var\(--status-danger\)/);
+  assert.match(financialDetails, /color:var\(--text-primary\)/);
+  assert.doesNotMatch(financialDetails, /#faf7f2|rgba\(255,253,248|#e6f4ec|#fbeae7|var\(--wine-dark\)|var\(--green\)|var\(--red\)|var\(--muted\)/);
+  assert.match(dueDates, /\.financial-due-banner[\s\S]*background:var\(--surface-elevated\)/);
+  assert.doesNotMatch(dueDates, /\.financial-due-banner\{[^}]*#faf7f2/s);
+  assert.match(config, /features\/financial-details\.js\?v=2/);
 });

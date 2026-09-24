@@ -15,8 +15,13 @@ const db = window
 const LOCAL_COUPLES_KEY = 'arteNativaCasais_v1';
 const LOCAL_CLASSES_KEY = 'arteNativaTurmas_v1';
 const MIN_NEW_PASSWORD_LENGTH = 8;
+const AUTH_DATA_RELOAD_DEDUP_MS = 15_000;
 const $ = id => document.getElementById(id);
 let currentUser = null;
+let authDataLoadedUserId = null;
+let authDataLoadedAt = 0;
+let authDataLoadPromise = null;
+let authDataLoadUserId = null;
 let couples = [];
 let classes = [];
 let authMode = 'login';
@@ -814,6 +819,38 @@ async function toggleEntry(id, person) {
     c.entryPayments = entryPayments;
     render();
 }
+async function ensureAuthDataLoaded(userId) {
+    const recentlyLoaded =
+        authDataLoadedUserId === userId &&
+        Date.now() - authDataLoadedAt < AUTH_DATA_RELOAD_DEDUP_MS;
+
+    if (recentlyLoaded)
+        return false;
+
+    if (authDataLoadPromise && authDataLoadUserId === userId) {
+        await authDataLoadPromise;
+        return false;
+    }
+
+    const request = loadData();
+    authDataLoadPromise = request;
+    authDataLoadUserId = userId;
+
+    try {
+        await request;
+        if (currentUser?.id === userId) {
+            authDataLoadedUserId = userId;
+            authDataLoadedAt = Date.now();
+        }
+        return true;
+    } finally {
+        if (authDataLoadPromise === request) {
+            authDataLoadPromise = null;
+            authDataLoadUserId = null;
+        }
+    }
+}
+
 function updatePerson2Fields() {
     $('person2Payments').hidden = !$('person2')
         .value
@@ -1082,6 +1119,8 @@ db
         }
 
         if (!currentUser) {
+            authDataLoadedUserId = null;
+            authDataLoadedAt = 0;
             showAuth();
             couples = [];
             classes = [];
@@ -1091,7 +1130,7 @@ db
         showApp();
 
         try {
-            await loadData();
+            await ensureAuthDataLoaded(currentUser.id);
         } catch (error) {
             globalThis.ClientLogging?.report('auth-state-load', error);
             toast(

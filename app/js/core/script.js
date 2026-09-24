@@ -301,22 +301,27 @@ async function handleAuth(event) {
                 throw error;
             }
         } catch (error) {
-        authMessage(translateError(error.message));
+        authMessage(translateAuthError(error));
     } finally {
         setLoading(button, false, '');
     }
 }
 
-function translateError(message = '') {
-    if (message.includes('Invalid login')) 
+function translateAuthError(error = {}) {
+    const code = String(error?.code || '');
+    const message = String(error?.message || error || '');
+
+    if (code === 'weak_password')
+        return 'Essa senha é considerada vulnerável ou já apareceu em vazamentos. Escolha uma senha diferente.';
+    if (message.includes('Invalid login'))
         return 'E-mail ou senha incorretos.';
-    if (message.includes('Email not confirmed')) 
+    if (message.includes('Email not confirmed'))
         return 'Confirme seu e-mail antes de entrar.';
-    if (message.includes('already registered')) 
+    if (message.includes('already registered'))
         return 'Este e-mail já possui uma conta.';
-    if (message.includes('Password should')) 
+    if (message.includes('Password should'))
         return `A senha precisa ter pelo menos ${MIN_NEW_PASSWORD_LENGTH} caracteres.`;
-    if (message.includes('Passwords do not match')) 
+    if (message.includes('Passwords do not match'))
         return 'As senhas digitadas não são iguais.';
     return message || 'Não foi possível concluir a operação.';
 }

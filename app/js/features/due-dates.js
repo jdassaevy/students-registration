@@ -64,6 +64,9 @@
     const document = root.document;
     const starts = new Map();
     let activeFinancialClassId = null;
+    let classStartsLoadedUserId = null;
+    let classStartsLoadPromise = null;
+    let classStartsLoadUserId = null;
 
     root.DueDates = {
         calculateMonthlyDueDates,
@@ -95,21 +98,52 @@
     }
 
     async function loadClassStarts() {
+        const {data, error} = await db
+            .from('classes')
+            .select('id,start_date');
+        if (error)
+            throw error;
+        return data || [];
+    }
+
+    async function ensureClassStartsLoaded(userId) {
+        if (!userId)
+            return false;
+        if (classStartsLoadedUserId === userId)
+            return false;
+        if (classStartsLoadPromise && classStartsLoadUserId === userId) {
+            await classStartsLoadPromise;
+            return false;
+        }
+
+        const request = loadClassStarts();
+        classStartsLoadPromise = request;
+        classStartsLoadUserId = userId;
+
         try {
-            const {data, error} = await db
-                .from('classes')
-                .select('id,start_date');
-            if (error) 
-                throw error;
+            const items = await request;
+            if (
+                typeof currentUser !== 'undefined' &&
+                currentUser?.id !== userId
+            )
+                return false;
+
             starts.clear();
-            (data || []).forEach(item => {
-                if (item.start_date) 
+            items.forEach(item => {
+                if (item.start_date)
                     starts.set(item.id, item.start_date);
-                }
-            );
+            });
+            classStartsLoadedUserId = userId;
             decorateClassList();
+            return true;
         } catch (error) {
             globalThis.ClientLogging?.report('due-dates-load', error);
+            return false;
+        } finally {
+            if (classStartsLoadPromise === request) {
+                classStartsLoadPromise = null;
+                classStartsLoadUserId = null;
+            }
         }
     }
 
@@ -279,28 +313,30 @@
     db
         .auth
         .onAuthStateChange((event, session) => {
-            if (
-                session
-                    ?.user
-            ) 
-                setTimeout(loadClassStarts, 0);
-            else 
+            if (!session?.user) {
+                classStartsLoadedUserId = null;
                 starts.clear();
+                return;
             }
-        );
+
+            const shouldLoad =
+                event === 'INITIAL_SESSION' || event === 'SIGNED_IN';
+
+            if (!shouldLoad)
+                return;
+
+            setTimeout(() => {
+                void ensureClassStartsLoaded(session.user.id);
+            }, 0);
+        });
 
     db
         .auth
         .getSession()
         .then(({data}) => {
-            if (
-                data
-                    ?.session
-                        ?.user
-            ) 
-                loadClassStarts();
-            }
-        );
+            if (data?.session?.user)
+                void ensureClassStartsLoaded(data.session.user.id);
+        });
 })(
     typeof window !== 'undefined'
         ? window

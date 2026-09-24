@@ -20,7 +20,7 @@ test('secondary read resilience helper exists, parses and stays bounded', () => 
 
 test('helper loads after auth core and before secondary feature modules', () => {
   const index = read('../../index.html');
-  const coreIndex = index.indexOf('./js/core/script.js?v=10');
+  const coreIndex = index.indexOf('./js/core/script.js?v=11');
   const resilience = index.indexOf('./js/core/read-resilience.js?v=2');
   const profile = index.indexOf('./js/features/academy-profile.js?v=3');
   assert.ok(coreIndex >= 0);

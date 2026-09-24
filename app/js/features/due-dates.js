@@ -112,7 +112,11 @@
         if (classStartsLoadedUserId === userId)
             return false;
         if (classStartsLoadPromise && classStartsLoadUserId === userId) {
-            await classStartsLoadPromise;
+            try {
+                await classStartsLoadPromise;
+            } catch {
+                // The owner request reports the failure and leaves the cache unmarked.
+            }
             return false;
         }
 

@@ -183,10 +183,13 @@ Deno.serve(async (req: Request) => {
     const { studentId, person, kind, installment } = input;
 
     const { data: student, error: studentError } = await admin.from("students")
-      .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent")
+      .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,class_row:classes!students_class_id_fkey(name,academy_id)")
       .eq("id", studentId).single();
     if (studentError || !student) return respond({ error: "Student not found" }, 404);
     if (!student.academy_id) return respond({ error: "Academy not resolved" }, 409);
+    if (student.class_row && student.class_row.academy_id !== student.academy_id) {
+      return respond({ error: "Class tenant mismatch" }, 409);
+    }
 
     try {
       await requireAcademyAccess(admin, user.id, student.academy_id);
@@ -230,13 +233,11 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
     }
 
-    const [{ data: academy, error: academyError }, { data: clazz }, { data: settingsRow }] = await Promise.all([
+    const [{ data: academy, error: academyError }, { data: settingsRow }] = await Promise.all([
       admin.from("academies").select("name,display_name,responsible_name,support_phone").eq("id", student.academy_id).single(),
-      student.class_id ? admin.from("classes").select("name,academy_id").eq("id", student.class_id).maybeSingle() : Promise.resolve({ data: null }),
       admin.from("automation_settings").select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled").eq("user_id", user.id).maybeSingle(),
     ]);
     if (academyError || !academy) return respond({ error: "Academy not found" }, 404);
-    if (clazz && clazz.academy_id !== student.academy_id) return respond({ error: "Class tenant mismatch" }, 409);
 
     const settings = normalizeAutomationSettings(settingsRow);
     const studentName = (person === "person2" ? student.person2 : student.person1) || "Aluno(a)";
@@ -280,7 +281,7 @@ Deno.serve(async (req: Request) => {
         responsibleName: academy.responsible_name,
         supportPhone: academy.support_phone,
         studentName,
-        className: clazz?.name || "Sem turma",
+        className: student.class_row?.name || "Sem turma",
         paymentLabel: label,
         amount: receiptAmount,
         paidAt: receipt.paid_at,

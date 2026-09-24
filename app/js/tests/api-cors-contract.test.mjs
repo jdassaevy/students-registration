@@ -15,26 +15,28 @@ process.emitWarning = previousEmitWarning;
 const corsModule = await import(`data:text/javascript;base64,${Buffer.from(jsSource).toString('base64')}`);
 const { ALLOWED_BROWSER_ORIGINS, corsHeadersFor, isAllowedCorsRequest } = corsModule;
 
-const productionOrigins = [
+const approvedBrowserOrigins = [
   'https://alunos.dassaevylabs.com.br',
   'https://students-registration-multi-academy.vercel.app',
+  'https://students-registration-git-4ab233-jdassaevy12345-6044s-projects.vercel.app',
 ];
 
-test('CORS allowlist contains only approved production aliases plus local Live Server origins', () => {
+test('CORS allowlist contains only approved app origins plus local Live Server origins', () => {
   assert.deepEqual(
     [...ALLOWED_BROWSER_ORIGINS],
     [
-      ...productionOrigins,
+      ...approvedBrowserOrigins,
       'http://localhost:5500',
       'http://127.0.0.1:5500',
     ],
   );
   assert.equal(tsSource.includes('*.vercel.app'), false);
+  assert.equal(tsSource.includes('endsWith(".vercel.app")'), false);
   assert.equal(tsSource.includes('"*"'), false);
 });
 
 test('allowed browser origin is echoed exactly with required Supabase headers', () => {
-  for (const origin of productionOrigins) {
+  for (const origin of approvedBrowserOrigins) {
     const req = new Request('https://functions.example.test', { headers: { origin } });
     assert.equal(isAllowedCorsRequest(req), true);
     const headers = corsHeadersFor(req);

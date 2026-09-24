@@ -2,7 +2,8 @@ const assert = require('node:assert/strict');
 const {
     collectPaymentChanges,
     processSavedStudent,
-    paymentLifecycleMessage
+    paymentLifecycleMessage,
+    invokeWithSessionRecovery
 } = require('../features/payment-automation.js');
 
 const unpaid = {
@@ -102,6 +103,83 @@ assert.equal(
     ]);
 
     console.log('payment automation trigger tests passed');
+})().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});
+
+
+(async () => {
+    let invokes = 0;
+    let refreshes = 0;
+    const result = await invokeWithSessionRecovery({
+        invoke: async accessToken => {
+            invokes += 1;
+            if (invokes === 1) {
+                return {
+                    data: null,
+                    error: {context: {status: 401}}
+                };
+            }
+            assert.equal(accessToken, 'fresh-access-token');
+            return {data: {action: 'create'}, error: null};
+        },
+        refreshSession: async () => {
+            refreshes += 1;
+            return {
+                data: {session: {access_token: 'fresh-access-token'}},
+                error: null
+            };
+        }
+    });
+
+    assert.equal(invokes, 2, '401 must retry exactly once');
+    assert.equal(refreshes, 1, '401 must refresh the auth session once');
+    assert.equal(result.error, null);
+    assert.equal(result.data.action, 'create');
+})().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});
+
+(async () => {
+    let invokes = 0;
+    let refreshes = 0;
+    const originalError = {context: {status: 500}};
+    const result = await invokeWithSessionRecovery({
+        invoke: async () => {
+            invokes += 1;
+            return {data: null, error: originalError};
+        },
+        refreshSession: async () => {
+            refreshes += 1;
+            return {data: {session: {access_token: 'unused'}}, error: null};
+        }
+    });
+
+    assert.equal(invokes, 1, 'non-401 failures must not retry');
+    assert.equal(refreshes, 0, 'non-401 failures must not refresh auth');
+    assert.equal(result.error, originalError);
+})().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});
+
+(async () => {
+    let invokes = 0;
+    const result = await invokeWithSessionRecovery({
+        invoke: async () => {
+            invokes += 1;
+            return {data: null, error: {context: {status: 401}}};
+        },
+        refreshSession: async () => ({
+            data: {session: null},
+            error: {code: 'session_not_found'}
+        })
+    });
+
+    assert.equal(invokes, 1, 'a dead session must not retry with the revoked token');
+    assert.equal(result.error?.code, 'AUTH_SESSION_EXPIRED');
 })().catch(error => {
     console.error(error);
     process.exitCode = 1;

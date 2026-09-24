@@ -71,12 +71,58 @@ async function processSavedStudent(before, after, processor) {
     return results;
 }
 
+function functionErrorStatus(error) {
+    const contextStatus = Number(error?.context?.status);
+    if (Number.isFinite(contextStatus)) return contextStatus;
+
+    const status = Number(error?.status);
+    return Number.isFinite(status) ? status : null;
+}
+
+function isUnauthorizedFunctionError(error) {
+    return functionErrorStatus(error) === 401;
+}
+
+function expiredSessionError(cause) {
+    const error = new Error('Authentication session expired');
+    error.code = 'AUTH_SESSION_EXPIRED';
+    error.cause = cause;
+    return error;
+}
+
+async function invokeWithSessionRecovery({invoke, refreshSession}) {
+    const first = await invoke(null);
+    if (!first?.error || !isUnauthorizedFunctionError(first.error)) {
+        return first;
+    }
+
+    const refreshed = await refreshSession();
+    const accessToken = refreshed?.data?.session?.access_token;
+    if (refreshed?.error || !accessToken) {
+        return {
+            data: null,
+            error: expiredSessionError(refreshed?.error || first.error)
+        };
+    }
+
+    const retry = await invoke(accessToken);
+    if (retry?.error && isUnauthorizedFunctionError(retry.error)) {
+        return {
+            data: null,
+            error: expiredSessionError(retry.error)
+        };
+    }
+
+    return retry;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         collectPaymentChanges,
         paymentAutomationSummary,
         paymentLifecycleMessage,
-        processSavedStudent
+        processSavedStudent,
+        invokeWithSessionRecovery
     };
 }
 
@@ -84,10 +130,25 @@ if (typeof window !== 'undefined') {
     (() => {
         if (typeof toggleEntry !== 'function' || typeof toggleMonth !== 'function' || typeof db === 'undefined') return;
 
+        async function invokeLifecycle(body) {
+            return invokeWithSessionRecovery({
+                invoke: accessToken => db.functions.invoke('payment-lifecycle', {
+                    body,
+                    ...(accessToken
+                        ? {headers: {Authorization: `Bearer ${accessToken}`}}
+                        : {})
+                }),
+                refreshSession: () => db.auth.refreshSession()
+            });
+        }
+
         async function processLifecycle({studentId, person, kind, installment = 0}) {
             try {
-                const {data, error} = await db.functions.invoke('payment-lifecycle', {
-                    body: {student_id: studentId, person, kind, installment}
+                const {data, error} = await invokeLifecycle({
+                    student_id: studentId,
+                    person,
+                    kind,
+                    installment
                 });
                 if (error) throw error;
                 if (window.Receipts?.load) await window.Receipts.load();
@@ -97,15 +158,20 @@ if (typeof window !== 'undefined') {
                 return data || {};
             } catch (error) {
                 globalThis.ClientLogging?.report('payment-lifecycle', error);
-                toast('Pagamento atualizado, mas a automação do recibo precisa ser verificada.');
+                toast(
+                    error?.code === 'AUTH_SESSION_EXPIRED'
+                        ? 'Pagamento atualizado, mas sua sessão expirou. Entre novamente para concluir a automação.'
+                        : 'Pagamento atualizado, mas a automação do recibo precisa ser verificada.'
+                );
                 return null;
             }
         }
 
         async function repairMonthlyReceipt(receiptId) {
             try {
-                const {data, error} = await db.functions.invoke('payment-lifecycle', {
-                    body: {operation: 'repair_monthly_receipt', receipt_id: receiptId}
+                const {data, error} = await invokeLifecycle({
+                    operation: 'repair_monthly_receipt',
+                    receipt_id: receiptId
                 });
                 if (error) throw error;
                 const message = paymentLifecycleMessage(data);

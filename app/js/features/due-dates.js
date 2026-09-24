@@ -64,6 +64,9 @@
     const document = root.document;
     const starts = new Map();
     let activeFinancialClassId = null;
+    let classStartsLoadedUserId = null;
+    let classStartsLoadPromise = null;
+    let classStartsLoadUserId = null;
 
     root.DueDates = {
         calculateMonthlyDueDates,
@@ -74,10 +77,10 @@
 
     const style = document.createElement('style');
     style.textContent = `
-    .class-start-helper{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.4}
-    .due-date-caption{display:block;margin-top:4px;color:var(--muted);font-size:9px;font-weight:700}
-    .financial-due-banner{margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:#faf7f2;color:var(--muted);font-size:11px}
-    .financial-due-banner strong{color:var(--wine-dark)}
+    .class-start-helper{margin:4px 0 0;color:var(--text-muted);font-size:11px;line-height:1.4}
+    .due-date-caption{display:block;margin-top:4px;color:var(--text-muted);font-size:9px;font-weight:700}
+    .financial-due-banner{margin:0 0 14px;padding:12px 14px;border:1px solid var(--border-default);border-radius:13px;background:var(--surface-elevated);color:var(--text-muted);font-size:11px}
+    .financial-due-banner strong{color:var(--text-primary)}
   `;
     document
         .head
@@ -95,21 +98,56 @@
     }
 
     async function loadClassStarts() {
+        const {data, error} = await db
+            .from('classes')
+            .select('id,start_date');
+        if (error)
+            throw error;
+        return data || [];
+    }
+
+    async function ensureClassStartsLoaded(userId) {
+        if (!userId)
+            return false;
+        if (classStartsLoadedUserId === userId)
+            return false;
+        if (classStartsLoadPromise && classStartsLoadUserId === userId) {
+            try {
+                await classStartsLoadPromise;
+            } catch {
+                // The owner request reports the failure and leaves the cache unmarked.
+            }
+            return false;
+        }
+
+        const request = loadClassStarts();
+        classStartsLoadPromise = request;
+        classStartsLoadUserId = userId;
+
         try {
-            const {data, error} = await db
-                .from('classes')
-                .select('id,start_date');
-            if (error) 
-                throw error;
+            const items = await request;
+            if (
+                typeof currentUser !== 'undefined' &&
+                currentUser?.id !== userId
+            )
+                return false;
+
             starts.clear();
-            (data || []).forEach(item => {
-                if (item.start_date) 
+            items.forEach(item => {
+                if (item.start_date)
                     starts.set(item.id, item.start_date);
-                }
-            );
+            });
+            classStartsLoadedUserId = userId;
             decorateClassList();
+            return true;
         } catch (error) {
             globalThis.ClientLogging?.report('due-dates-load', error);
+            return false;
+        } finally {
+            if (classStartsLoadPromise === request) {
+                classStartsLoadPromise = null;
+                classStartsLoadUserId = null;
+            }
         }
     }
 
@@ -133,7 +171,7 @@
             info.className = 'class-due-info';
             info.style.display = 'block';
             info.style.marginTop = '4px';
-            info.style.color = 'var(--muted)';
+            info.style.color = 'var(--text-muted)';
             info.textContent = `Início: ${formatDate(start)} • Vencimentos: ${due
                 .map(
                     formatDate
@@ -279,28 +317,30 @@
     db
         .auth
         .onAuthStateChange((event, session) => {
-            if (
-                session
-                    ?.user
-            ) 
-                setTimeout(loadClassStarts, 0);
-            else 
+            if (!session?.user) {
+                classStartsLoadedUserId = null;
                 starts.clear();
+                return;
             }
-        );
+
+            const shouldLoad =
+                event === 'INITIAL_SESSION' || event === 'SIGNED_IN';
+
+            if (!shouldLoad)
+                return;
+
+            setTimeout(() => {
+                void ensureClassStartsLoaded(session.user.id);
+            }, 0);
+        });
 
     db
         .auth
         .getSession()
         .then(({data}) => {
-            if (
-                data
-                    ?.session
-                        ?.user
-            ) 
-                loadClassStarts();
-            }
-        );
+            if (data?.session?.user)
+                void ensureClassStartsLoaded(data.session.user.id);
+        });
 })(
     typeof window !== 'undefined'
         ? window

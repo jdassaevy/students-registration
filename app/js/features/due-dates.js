@@ -77,8 +77,8 @@
 
     const style = document.createElement('style');
     style.textContent = `
-    .class-start-helper{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.4}
-    .due-date-caption{display:block;margin-top:4px;color:var(--muted);font-size:9px;font-weight:700}
+    .class-start-helper{margin:4px 0 0;color:var(--text-muted);font-size:11px;line-height:1.4}
+    .due-date-caption{display:block;margin-top:4px;color:var(--text-muted);font-size:9px;font-weight:700}
     .financial-due-banner{margin:0 0 14px;padding:12px 14px;border:1px solid var(--border-default);border-radius:13px;background:var(--surface-elevated);color:var(--text-muted);font-size:11px}
     .financial-due-banner strong{color:var(--text-primary)}
   `;
@@ -171,7 +171,7 @@
             info.className = 'class-due-info';
             info.style.display = 'block';
             info.style.marginTop = '4px';
-            info.style.color = 'var(--muted)';
+            info.style.color = 'var(--text-muted)';
             info.textContent = `Início: ${formatDate(start)} • Vencimentos: ${due
                 .map(
                     formatDate

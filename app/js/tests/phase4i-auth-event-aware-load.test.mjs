@@ -45,7 +45,7 @@ test('only initial/sign-in auth events may trigger the full dataset load', () =>
 
   assert.match(
     authBlock,
-    /const shouldLoadData = event === ['"]INITIAL_SESSION['"] \|\| event === ['"]SIGNED_IN['"]/
+    /const shouldLoadData =\s*event === ['"]INITIAL_SESSION['"]\s*\|\|\s*event === ['"]SIGNED_IN['"]/
   );
   assert.match(authBlock, /if \(!shouldLoadData\)[\s\S]*return/);
   assert.match(authBlock, /await ensureAuthDataLoaded\(currentUser\.id\)/);

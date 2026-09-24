@@ -595,8 +595,11 @@
             return;
         }
 
-        if (!userChanged && event !== 'INITIAL_SESSION')
+        if (!userChanged && event !== 'INITIAL_SESSION') {
+            if (activeView === 'automation')
+                setTimeout(() => refreshAll(), 0);
             return;
+        }
 
         automationDirty = true;
         automationLastLoadedAt = 0;

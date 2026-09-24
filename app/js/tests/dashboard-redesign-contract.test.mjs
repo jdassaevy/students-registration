@@ -39,7 +39,7 @@ test('redesign keeps existing functional module includes', () => {
     assert.ok(html.includes(src), `missing script ${src}`);
   }
   assert.equal(html.includes('./js/features/automation-center.js'), false);
-  assert.ok(tabBar().includes('./js/features/automation-center.js?v=5'), 'automation lazy loader missing');
+  assert.ok(tabBar().includes('./js/features/automation-center.js?v=6'), 'automation lazy loader missing');
 });
 
 test('core still owns current loading and view behavior', () => {

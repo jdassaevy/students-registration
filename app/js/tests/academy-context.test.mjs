@@ -76,6 +76,160 @@ test('resolve surfaces Supabase membership errors', async () => {
     );
 });
 
+
+test('resolve coalesces concurrent and immediate duplicate membership reads', async () => {
+    const AcademyContext = loadAcademyContext();
+    let readCount = 0;
+    let releaseRead;
+    const pendingRead = new Promise(resolve => {
+        releaseRead = resolve;
+    });
+    const query = {
+        select() {
+            return this;
+        },
+        eq() {
+            return this;
+        },
+        maybeSingle() {
+            readCount += 1;
+            return pendingRead;
+        }
+    };
+    const db = {
+        from(table) {
+            assert.equal(table, 'academy_members');
+            return query;
+        }
+    };
+    const user = { id: 'user-a' };
+
+    const first = AcademyContext.resolve(db, user);
+    const second = AcademyContext.resolve(db, user);
+
+    assert.equal(readCount, 1);
+    releaseRead({ data: { academy_id: 'academy-a' }, error: null });
+
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    assert.equal(firstResult.academyId, 'academy-a');
+    assert.equal(secondResult.academyId, 'academy-a');
+
+    const immediate = await AcademyContext.resolve(db, user);
+    assert.equal(immediate.academyId, 'academy-a');
+    assert.equal(readCount, 1);
+});
+
+test('resolve never caches a missing academy', async () => {
+    const AcademyContext = loadAcademyContext();
+    let readCount = 0;
+    const query = {
+        select() {
+            return this;
+        },
+        eq() {
+            return this;
+        },
+        maybeSingle() {
+            readCount += 1;
+            return Promise.resolve({ data: null, error: null });
+        }
+    };
+    const db = {
+        from() {
+            return query;
+        }
+    };
+
+    const first = await AcademyContext.resolve(db, { id: 'new-user' });
+    const second = await AcademyContext.resolve(db, { id: 'new-user' });
+
+    assert.equal(first.academyId, null);
+    assert.equal(second.academyId, null);
+    assert.equal(readCount, 2);
+});
+
+test('resolve cache is scoped to the authenticated user', async () => {
+    const AcademyContext = loadAcademyContext();
+    let readCount = 0;
+    let activeUser = null;
+    const query = {
+        select() {
+            return this;
+        },
+        eq(column, value) {
+            if (column === 'user_id') activeUser = value;
+            return this;
+        },
+        maybeSingle() {
+            readCount += 1;
+            return Promise.resolve({
+                data: { academy_id: `academy-for-${activeUser}` },
+                error: null
+            });
+        }
+    };
+    const db = {
+        from() {
+            return query;
+        }
+    };
+
+    const first = await AcademyContext.resolve(db, { id: 'user-a' });
+    const second = await AcademyContext.resolve(db, { id: 'user-b' });
+
+    assert.equal(first.academyId, 'academy-for-user-a');
+    assert.equal(second.academyId, 'academy-for-user-b');
+    assert.equal(readCount, 2);
+});
+
+test('bootstrap invalidates a previously resolved academy cache', async () => {
+    const AcademyContext = loadAcademyContext();
+    let readCount = 0;
+    let academyId = 'academy-a';
+    const query = {
+        select() {
+            return this;
+        },
+        eq() {
+            return this;
+        },
+        maybeSingle() {
+            readCount += 1;
+            return Promise.resolve({
+                data: { academy_id: academyId },
+                error: null
+            });
+        }
+    };
+    const db = {
+        from() {
+            return query;
+        },
+        rpc() {
+            academyId = 'academy-b';
+            return Promise.resolve({ data: academyId, error: null });
+        }
+    };
+
+    assert.equal(
+        (await AcademyContext.resolve(db, { id: 'user-a' })).academyId,
+        'academy-a'
+    );
+    assert.equal(
+        (await AcademyContext.resolve(db, { id: 'user-a' })).academyId,
+        'academy-a'
+    );
+    assert.equal(readCount, 1);
+
+    await AcademyContext.bootstrap(db, 'Academia Atualizada');
+
+    assert.equal(
+        (await AcademyContext.resolve(db, { id: 'user-a' })).academyId,
+        'academy-b'
+    );
+    assert.equal(readCount, 2);
+});
+
 test('bootstrap calls bootstrap_academy and returns its uuid', async () => {
     const AcademyContext = loadAcademyContext();
     const calls = [];

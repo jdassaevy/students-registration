@@ -163,7 +163,7 @@
             ? 'ok'
             : 'bad'}">Inscrição ${summary.entryPaid
                 ? 'paga'
-                : 'pendente'}</span><small style="display:block;color:var(--muted);margin-top:3px">${formatMoney(
+                : 'pendente'}</span><small style="display:block;color:var(--text-muted);margin-top:3px">${formatMoney(
                     fees.entry
                 )}</small></div>
       <div class="financial-month-statuses">${summary

@@ -6,10 +6,12 @@ const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const script = read('../core/script.js');
 
 test('weak-password readiness keeps existing login flow unchanged', () => {
-  const loginStart = script.indexOf("db\n                .auth\n                .signInWithPassword");
-  assert.ok(loginStart >= 0, 'password login call must remain present');
-  const loginBlock = script.slice(loginStart, loginStart + 350);
-  assert.match(loginBlock, /const \{error\} = await db/);
+  const call = script.indexOf('.signInWithPassword({email, password})');
+  assert.ok(call >= 0, 'password login call must remain present');
+  const loginStart = script.lastIndexOf('const {error} = await db', call);
+  assert.ok(loginStart >= 0, 'login result contract must remain unchanged');
+  const loginBlock = script.slice(loginStart, call + 220);
+  assert.match(loginBlock, /const \{error\} = await db[\s\S]*\.auth[\s\S]*\.signInWithPassword\(\{email, password\}\)/);
   assert.match(loginBlock, /if \(error\)[\s\S]*throw error/);
   assert.doesNotMatch(loginBlock, /signOut|resetPasswordForEmail|updateUser/);
 });

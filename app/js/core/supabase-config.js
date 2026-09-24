@@ -83,7 +83,7 @@ window.addEventListener('load', () => {
             return;
         }
         const script = document.createElement('script');
-        script.src = './js/features/financial-details.js?v=1';
+        script.src = './js/features/financial-details.js?v=2';
         script.dataset.financialDetails = 'true';
         script.addEventListener('load', loadDueDates, {once: true});
         document

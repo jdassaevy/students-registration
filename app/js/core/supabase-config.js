@@ -42,7 +42,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-automation-center]')) 
             return;
         const centerScript = document.createElement('script');
-        centerScript.src = './js/features/automation-center.js?v=1';
+        centerScript.src = './js/features/automation-center.js?v=7';
         centerScript.dataset.automationCenter = 'true';
         document
             .body
@@ -64,7 +64,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-due-dates]')) 
             return;
         const dueScript = document.createElement('script');
-        dueScript.src = './js/features/due-dates.js?v=1';
+        dueScript.src = './js/features/due-dates.js?v=2';
         dueScript.dataset.dueDates = 'true';
         document
             .body

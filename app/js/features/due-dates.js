@@ -79,8 +79,8 @@
     style.textContent = `
     .class-start-helper{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.4}
     .due-date-caption{display:block;margin-top:4px;color:var(--muted);font-size:9px;font-weight:700}
-    .financial-due-banner{margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:#faf7f2;color:var(--muted);font-size:11px}
-    .financial-due-banner strong{color:var(--wine-dark)}
+    .financial-due-banner{margin:0 0 14px;padding:12px 14px;border:1px solid var(--border-default);border-radius:13px;background:var(--surface-elevated);color:var(--text-muted);font-size:11px}
+    .financial-due-banner strong{color:var(--text-primary)}
   `;
     document
         .head

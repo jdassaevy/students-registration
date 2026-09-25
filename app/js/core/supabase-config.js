@@ -53,7 +53,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-payment-automation]')) 
             return;
         const automationScript = document.createElement('script');
-        automationScript.src = './js/features/payment-automation.js?v=2';
+        automationScript.src = './js/features/payment-automation.js?v=5';
         automationScript.dataset.paymentAutomation = 'true';
         document
             .body
@@ -97,7 +97,7 @@ window.addEventListener('load', () => {
             return;
         }
         const receiptScript = document.createElement('script');
-        receiptScript.src = './js/features/receipts.js?v=2';
+        receiptScript.src = './js/features/receipts.js?v=3';
         receiptScript.dataset.receipts = 'true';
         receiptScript.addEventListener('load', loadFinancialDetails, {once: true});
         document

@@ -151,7 +151,7 @@ if (typeof window !== 'undefined') {
                     installment
                 });
                 if (error) throw error;
-                if (window.Receipts?.load) await window.Receipts.load();
+                if (window.Receipts?.invalidate) await window.Receipts.invalidate();
                 const message = paymentLifecycleMessage(data);
                 if (message) toast(message);
                 window.dispatchEvent(new CustomEvent('payment:lifecycle', {detail: data || {}}));

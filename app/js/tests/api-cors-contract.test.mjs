@@ -18,7 +18,7 @@ const { ALLOWED_BROWSER_ORIGINS, corsHeadersFor, isAllowedCorsRequest } = corsMo
 const approvedBrowserOrigins = [
   'https://alunos.dassaevylabs.com.br',
   'https://students-registration-multi-academy.vercel.app',
-  'https://students-registration-git-4ab233-jdassaevy12345-6044s-projects.vercel.app',
+  'https://students-registration-git-e6e85e-jdassaevy12345-6044s-projects.vercel.app',
 ];
 
 test('CORS allowlist contains only approved app origins plus local Live Server origins', () => {

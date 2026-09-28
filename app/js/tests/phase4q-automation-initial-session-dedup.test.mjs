@@ -6,6 +6,14 @@ const source = fs.readFileSync(
   new URL('../../../app/js/features/automation-center.js', import.meta.url),
   'utf8'
 );
+const config = fs.readFileSync(
+  new URL('../../../app/js/core/supabase-config.js', import.meta.url),
+  'utf8'
+);
+const tabBar = fs.readFileSync(
+  new URL('../../../app/js/features/tab-bar.js', import.meta.url),
+  'utf8'
+);
 
 test('same-user auth events reuse automation cache instead of forcing another full refresh', () => {
   const authStart = source.indexOf('db.auth.onAuthStateChange');
@@ -41,4 +49,13 @@ test('logout still clears cached automation identity and rendered data inputs', 
   assert.match(authBlock, /currentMessages = \[\]/);
   assert.match(authBlock, /currentStudents = \[\]/);
   assert.match(authBlock, /studentsById\.clear\(\)/);
+});
+
+
+test('automation center has one lazy loader and one global runtime instance', () => {
+  assert.doesNotMatch(config, /automation-center\.js/);
+  assert.match(tabBar, /script\.src = ['"]\.\/js\/features\/automation-center\.js\?v=9['"]/);
+  assert.match(tabBar, /script\.dataset\.automationCenter = ['"]true['"]/);
+  assert.match(source, /if \(globalThis\.__automationCenterInitialized\) return;/);
+  assert.match(source, /globalThis\.__automationCenterInitialized = true;/);
 });

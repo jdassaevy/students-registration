@@ -8,7 +8,7 @@ import { isUniqueViolation, paymentAmount, paymentIsMarked, paymentLabel, paymen
 import { normalizeAutomationSettings } from "../_shared/automation-settings.ts";
 import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { buildDocumentPayload, buildPaymentConfirmationTemplate, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
-import { requireAcademyAccess } from "../_shared/tenant.ts";
+import { requireAcademyAccess, requireAcademyContext } from "../_shared/tenant.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
 import {
   isApiInputError,
@@ -187,8 +187,9 @@ Deno.serve(async (req: Request) => {
       return respond({ error: "Class tenant mismatch" }, 409);
     }
 
+    let academyAccess: any = null;
     try {
-      await requireAcademyAccess(admin, user.id, student.academy_id);
+      academyAccess = await requireAcademyContext(admin, user.id, student.academy_id);
     } catch {
       return respond({ error: "Forbidden" }, 403);
     }
@@ -229,11 +230,11 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
     }
 
-    const [{ data: academy, error: academyError }, { data: settingsRow }] = await Promise.all([
-      admin.from("academies").select("name,display_name,responsible_name,support_phone").eq("id", student.academy_id).single(),
-      admin.from("automation_settings").select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled").eq("user_id", user.id).maybeSingle(),
-    ]);
-    if (academyError || !academy) return respond({ error: "Academy not found" }, 404);
+    const academy = academyAccess.academy;
+    const { data: settingsRow } = await admin.from("automation_settings")
+      .select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
     const settings = normalizeAutomationSettings(settingsRow);
     const studentName = (person === "person2" ? student.person2 : student.person1) || "Aluno(a)";

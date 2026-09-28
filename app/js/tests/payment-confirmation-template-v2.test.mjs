@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const whatsapp = read('../../../supabase/functions/_shared/whatsapp.ts');
 const lifecycle = read('../../../supabase/functions/payment-lifecycle/index.ts');
+const tenant = read('../../../supabase/functions/_shared/tenant.ts');
 const retry = read('../../../supabase/functions/retry-automation-message/index.ts');
 
 test('payment confirmation v2 is staged under a new Meta template name', () => {
@@ -26,7 +27,11 @@ test('v2 falls back to the approved v1 template when phone is missing or v2 is n
 });
 
 test('normal payment confirmation reads academy profile name and support phone through the shared helper', () => {
-  assert.match(lifecycle, /select\(["']name,display_name,responsible_name,support_phone["']\)/);
+  assert.match(
+    tenant,
+    /academy:academies!academy_members_academy_id_fkey\(name,display_name,responsible_name,support_phone\)/
+  );
+  assert.match(lifecycle, /const academy = academyAccess\.academy/);
   assert.match(lifecycle, /const academyMessageName = academy\.display_name \|\| academy\.name/);
   assert.match(lifecycle, /buildPaymentConfirmationTemplate\(\{[\s\S]*studentName,[\s\S]*paymentLabel: label,[\s\S]*amount: money\(notificationAmount\),[\s\S]*academyName: academyMessageName,[\s\S]*supportPhone: academy\.support_phone/);
   assert.match(lifecycle, /Deno\.env\.get\(["']META_PAYMENT_CONFIRMATION_V2_ENABLED["']\) === ["']true["']/);

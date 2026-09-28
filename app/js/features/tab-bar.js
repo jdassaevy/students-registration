@@ -55,7 +55,8 @@
             fallbackTab.remove();
 
             const script = document.createElement('script');
-            script.src = './js/features/automation-center.js?v=8';
+            script.src = './js/features/automation-center.js?v=9';
+            script.dataset.automationCenter = 'true';
             script.dataset.automationCenterRecovery = 'true';
             script.onload = () => {
                 const recoveredTab = document.getElementById('automationTab');

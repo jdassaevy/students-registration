@@ -42,7 +42,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-automation-center]')) 
             return;
         const centerScript = document.createElement('script');
-        centerScript.src = './js/features/automation-center.js?v=7';
+        centerScript.src = './js/features/automation-center.js?v=8';
         centerScript.dataset.automationCenter = 'true';
         document
             .body

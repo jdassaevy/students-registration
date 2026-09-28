@@ -52,9 +52,9 @@ for (const [name, startMarker, endMarker] of [
   });
 }
 
-test('payment lifecycle keeps unique-violation detection for concurrent duplicate claims', () => {
+test('payment lifecycle keeps the shared unique-violation helper for concurrent claims', () => {
   assert.match(
     source,
-    /function isUniqueViolation\([\s\S]*23505/
+    /import \{[^}]*isUniqueViolation[^}]*\} from ["']\.\.\/_shared\/payment-lifecycle\.ts["']/
   );
 });

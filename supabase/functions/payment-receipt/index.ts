@@ -5,6 +5,7 @@ import { corsHeadersFor, isAllowedCorsRequest } from "../_shared/cors.ts";
 import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { isApiInputError, readJsonObject, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
+import { requireAcademyContext } from "../_shared/tenant.ts";
 
 function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -57,25 +58,20 @@ Deno.serve(async (req: Request) => {
     if (receipt.status !== "active") return respond({ error: "Active receipt required" }, 400);
     if (!receipt.academy_id) return respond({ error: "Academy not resolved" }, 409);
 
-    const { data: membership, error: membershipError } = await admin
-      .from("academy_members")
-      .select("academy_id,is_active")
-      .eq("academy_id", receipt.academy_id)
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (membershipError) throw membershipError;
-    if (!membership) return respond({ error: "Forbidden" }, 403);
+    let academyAccess: any = null;
+    try {
+      academyAccess = await requireAcademyContext(admin, user.id, receipt.academy_id);
+    } catch {
+      return respond({ error: "Forbidden" }, 403);
+    }
+    const academy = academyAccess.academy;
 
-    const [{ data: student, error: studentError }, { data: academy, error: academyError }] = await Promise.all([
-      admin.from("students").select("id,person1,person2,academy_id").eq("id", receipt.student_id).single(),
-      admin.from("academies")
-        .select("name,display_name,responsible_name,support_phone")
-        .eq("id", receipt.academy_id)
-        .single(),
-    ]);
+    const { data: student, error: studentError } = await admin
+      .from("students")
+      .select("id,person1,person2,academy_id")
+      .eq("id", receipt.student_id)
+      .single();
     if (studentError || !student) return respond({ error: "Student not found" }, 404);
-    if (academyError || !academy) return respond({ error: "Academy not found" }, 404);
     if (student.academy_id !== receipt.academy_id) return respond({ error: "Receipt tenant mismatch" }, 409);
 
     let className = "Sem turma";

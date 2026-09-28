@@ -12,18 +12,15 @@ test('payment-receipt accepts only active monthly receipts', () => {
     assert.match(source, /receipt\.status\s*!==\s*["']active["']/);
 });
 
-test('payment-receipt authorizes through active academy membership', () => {
-    assert.match(source, /from\(["']academy_members["']\)/);
-    assert.match(source, /eq\(["']academy_id["'],\s*receipt\.academy_id\)/);
-    assert.match(source, /eq\(["']user_id["'],\s*user\.id\)/);
-    assert.match(source, /eq\(["']is_active["'],\s*true\)/);
+test('payment-receipt authorizes through active academy membership context', () => {
+    assert.match(source, /requireAcademyContext/);
+    assert.match(source, /requireAcademyContext\(admin,\s*user\.id,\s*receipt\.academy_id\)/);
     assert.doesNotMatch(source, /receipt\.user_id\s*!==\s*user\.id/);
 });
 
-test('payment-receipt uses tenant academy identity', () => {
-    assert.match(source, /from\(["']academies["']\)/);
-    assert.match(source, /select\(["']name,display_name,responsible_name,support_phone["']\)/);
-    assert.match(source, /eq\(["']id["'],\s*receipt\.academy_id\)/);
+test('payment-receipt reuses tenant academy identity from membership context', () => {
+    assert.match(source, /const academy = academyAccess\.academy/);
+    assert.doesNotMatch(source, /from\(["']academies["']\)/);
     assert.doesNotMatch(source, /from\(["']academy_profiles["']\)/);
     assert.match(source, /academyName:\s*academy\.name/);
 });

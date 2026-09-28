@@ -62,10 +62,10 @@ test('automation reuses its cache for repeated Auth events from the same user', 
   assert.match(authBlock, /const userChanged = previousUserId !== nextUserId/);
   assert.match(
     authBlock,
-    /if \(!userChanged && event !== ['"]INITIAL_SESSION['"]\)[\s\S]*refreshAll\(\)[\s\S]*return/
+    /if \(!userChanged\)[\s\S]*refreshAll\(\)[\s\S]*return/
   );
   assert.doesNotMatch(
-    authBlock.match(/if \(!userChanged && event !== ['"]INITIAL_SESSION['"]\)[\s\S]*?return/)?.[0] || '',
+    authBlock.match(/if \(!userChanged\)[\s\S]*?return/)?.[0] || '',
     /force:\s*true/
   );
   assert.match(
@@ -79,8 +79,8 @@ test('automation payment and manual refresh still force a refresh', () => {
   assert.match(automation, /payment:lifecycle[\s\S]*automationDirty = true[\s\S]*force: true/);
 });
 
-test('updated feature cache keys are consistent across loaders', () => {
+test('updated feature cache keys keep automation on one lazy loader', () => {
   assert.match(config, /features\/due-dates\.js\?v=2/);
-  assert.match(config, /features\/automation-center\.js\?v=7/);
-  assert.match(tabBar, /features\/automation-center\.js\?v=7/);
+  assert.doesNotMatch(config, /features\/automation-center\.js/);
+  assert.match(tabBar, /features\/automation-center\.js\?v=9/);
 });

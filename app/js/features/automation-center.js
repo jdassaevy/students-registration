@@ -595,7 +595,7 @@
             return;
         }
 
-        if (!userChanged && event !== 'INITIAL_SESSION') {
+        if (!userChanged) {
             if (activeView === 'automation')
                 setTimeout(() => refreshAll(), 0);
             return;

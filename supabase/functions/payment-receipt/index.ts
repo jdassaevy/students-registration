@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
     const receiptId = requireUuid(body?.receipt_id, "receipt_id");
     const { data: receipt, error: receiptError } = await admin
       .from("receipts")
-      .select("*")
+      .select("*,student_row:students!receipts_student_id_fkey(id,person1,person2,academy_id),class_row:classes!receipts_class_id_fkey(name,academy_id)")
       .eq("id", receiptId)
       .single();
     if (receiptError || !receipt) return respond({ error: "Receipt not found" }, 404);
@@ -66,22 +66,16 @@ Deno.serve(async (req: Request) => {
     }
     const academy = academyAccess.academy;
 
-    const { data: student, error: studentError } = await admin
-      .from("students")
-      .select("id,person1,person2,academy_id")
-      .eq("id", receipt.student_id)
-      .single();
-    if (studentError || !student) return respond({ error: "Student not found" }, 404);
+    const student = receipt.student_row;
+    if (!student) return respond({ error: "Student not found" }, 404);
     if (student.academy_id !== receipt.academy_id) return respond({ error: "Receipt tenant mismatch" }, 409);
 
-    let className = "Sem turma";
-    if (receipt.class_id) {
-      const { data: classRow } = await admin.from("classes").select("name,academy_id").eq("id", receipt.class_id).maybeSingle();
-      if (classRow && classRow.academy_id !== receipt.academy_id) return respond({ error: "Receipt tenant mismatch" }, 409);
-      if (classRow?.name) className = classRow.name;
-    }
+    const classRow = receipt.class_row;
+    if (classRow && classRow.academy_id !== receipt.academy_id) return respond({ error: "Receipt tenant mismatch" }, 409);
+    const className = classRow?.name || "Sem turma";
 
-    if (receipt.storage_path) return respond({ receipt });
+    const { student_row: _studentRow, class_row: _classRow, ...publicReceipt } = receipt;
+    if (receipt.storage_path) return respond({ receipt: publicReceipt });
 
     const studentName = receipt.person === "person2" ? (student.person2 || student.person1) : student.person1;
     const paymentLabel = `${Number(receipt.installment || 0)}ª Mensalidade`;

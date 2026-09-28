@@ -152,6 +152,8 @@
     const nav = document.querySelector('.view-tabs');
     const main = document.querySelector('main.app');
     if (!nav || !main || document.getElementById('automationView')) return;
+    if (globalThis.__automationCenterInitialized) return;
+    globalThis.__automationCenterInitialized = true;
 
     const tab = document.createElement('button');
     tab.type = 'button';

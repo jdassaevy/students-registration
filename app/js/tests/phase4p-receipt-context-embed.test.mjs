@@ -17,11 +17,11 @@ test('payment-receipt embeds student and class context in the receipt read', () 
 test('payment-receipt does not issue separate student or class reads', () => {
   assert.doesNotMatch(
     source,
-    /admin\.from\(["']students["']\)\.select\(["']id,person1,person2,academy_id["']\)/
+    /admin\s*\.from\(["']students["']\)[\s\S]*?\.select\(["']id,person1,person2,academy_id["']\)/
   );
   assert.doesNotMatch(
     source,
-    /admin\.from\(["']classes["']\)\.select\(["']name,academy_id["']\)/
+    /admin\s*\.from\(["']classes["']\)[\s\S]*?\.select\(["']name,academy_id["']\)/
   );
 });
 

@@ -12,8 +12,8 @@ const tenantHelper = fs.readFileSync(
 );
 
 test('payment lifecycle authorizes through the shared active academy membership helper', () => {
-    assert.match(source, /import\s*\{\s*requireAcademyAccess\s*\}\s*from\s*["']\.\.\/_shared\/tenant\.ts["']/);
-    assert.match(source, /requireAcademyAccess\(admin,\s*user\.id,\s*student\.academy_id\)/);
+    assert.match(source, /import\s*\{[^}]*requireAcademyAccess[^}]*requireAcademyContext[^}]*\}\s*from\s*["']\.\.\/_shared\/tenant\.ts["']/);
+    assert.match(source, /requireAcademyContext\(admin,\s*user\.id,\s*student\.academy_id\)/);
     assert.doesNotMatch(source, /student\.user_id\s*!==\s*user\.id/);
 
     assert.match(tenantHelper, /from\(["']academy_members["']\)/);
@@ -22,10 +22,13 @@ test('payment lifecycle authorizes through the shared active academy membership 
     assert.match(tenantHelper, /eq\(["']is_active["'],\s*true\)/);
 });
 
-test('payment lifecycle loads identity from academies instead of academy_profiles', () => {
-    assert.match(source, /from\(["']academies["']\)/);
-    assert.match(source, /select\(["']name,display_name,responsible_name,support_phone["']\)/);
-    assert.match(source, /eq\(["']id["'],\s*student\.academy_id\)/);
+test('payment lifecycle loads identity from academies through the membership context', () => {
+    assert.match(
+        tenantHelper,
+        /academy:academies!academy_members_academy_id_fkey\(name,display_name,responsible_name,support_phone\)/
+    );
+    assert.match(source, /const academy = academyAccess\.academy/);
+    assert.doesNotMatch(source, /admin\.from\(["']academies["']\)/);
     assert.doesNotMatch(source, /from\(["']academy_profiles["']\)/);
 });
 

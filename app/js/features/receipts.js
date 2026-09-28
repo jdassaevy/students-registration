@@ -47,6 +47,8 @@
         ? db
         : root.db;
     let receiptHistoryLoaded = false;
+    let receiptHistoryDirty = false;
+    let receiptHistoryInvalidationVersion = 0;
     let receiptLoadPromise = null;
     const api = {
         items: [],
@@ -61,6 +63,7 @@
             if (receiptLoadPromise)
                 return receiptLoadPromise;
 
+            const loadVersion = receiptHistoryInvalidationVersion;
             receiptLoadPromise = (async () => {
                 const read = () => client
                     .from('receipts')
@@ -76,6 +79,8 @@
                 }
                 api.items = data || [];
                 receiptHistoryLoaded = true;
+                if (receiptHistoryInvalidationVersion === loadVersion)
+                    receiptHistoryDirty = false;
                 renderHistory();
                 root.dispatchEvent
                     ?.(new CustomEvent('receipts:loaded', {detail: api.items}));
@@ -87,6 +92,24 @@
             } finally {
                 receiptLoadPromise = null;
             }
+        },
+        async invalidate() {
+            receiptHistoryDirty = true;
+            receiptHistoryInvalidationVersion += 1;
+
+            if (
+                typeof activeView !== 'undefined' &&
+                activeView === 'financial'
+            ) {
+                if (receiptLoadPromise) {
+                    await receiptLoadPromise;
+                    if (!receiptHistoryDirty)
+                        return api.items;
+                }
+                return api.load();
+            }
+
+            return api.items;
         },
         forStudent(studentId) {
             return api
@@ -231,7 +254,10 @@
     if (originalSetView) {
         setView = function (view) {
             const result = originalSetView(view);
-            if (view === 'financial' && !receiptHistoryLoaded)
+            if (
+                view === 'financial' &&
+                (!receiptHistoryLoaded || receiptHistoryDirty)
+            )
                 void api.load();
             return result;
         };
@@ -240,7 +266,7 @@
     if (
         typeof activeView !== 'undefined' &&
         activeView === 'financial' &&
-        !receiptHistoryLoaded
+        (!receiptHistoryLoaded || receiptHistoryDirty)
     )
         void api.load();
 

@@ -31,11 +31,12 @@ test('receipt reads are request-deduplicated without turning api.load into a sta
   assert.match(receipts, /finally[\s\S]*receiptLoadPromise = null/);
 });
 
-test('payment automation can still force a receipt refresh', () => {
+test('payment automation invalidates receipt history without forcing an offscreen refresh', () => {
   const paymentAutomation = read('../features/payment-automation.js');
-  assert.match(paymentAutomation, /window\.Receipts\?\.load[\s\S]*window\.Receipts\.load\(\)/);
+  assert.match(paymentAutomation, /window\.Receipts\?\.invalidate[\s\S]*window\.Receipts\.invalidate\(\)/);
+  assert.doesNotMatch(paymentAutomation, /window\.Receipts\?\.load[\s\S]*window\.Receipts\.load\(\)/);
 });
 
 test('receipts cache key is bumped for the lazy-load behavior', () => {
-  assert.match(config, /features\/receipts\.js\?v=2/);
+  assert.match(config, /features\/receipts\.js\?v=3/);
 });

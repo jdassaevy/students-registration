@@ -133,10 +133,6 @@ Deno.serve(async (req: Request) => {
       if (!receiptMatchesStudent(repairedReceipt, repairStudent)) return respond({ error: "Receipt tenant mismatch" }, 409);
 
       async function sendRepairDocument(payload: unknown, idempotencyKey: string) {
-        const { data: existing } = await admin.from("automation_messages").select("id,status")
-          .eq("academy_id", receipt.academy_id).eq("user_id", user.id).eq("idempotency_key", idempotencyKey).maybeSingle();
-        if (existing) return existing.status;
-
         const { data: log, error: logError } = await admin.from("automation_messages").insert({
           user_id: user.id,
           academy_id: receipt.academy_id,
@@ -318,9 +314,6 @@ Deno.serve(async (req: Request) => {
     };
 
     async function sendLogged(automationType: string, payload: unknown, idempotencyKey: string) {
-      const { data: existing } = await admin.from("automation_messages").select("id,status")
-        .eq("academy_id", student.academy_id).eq("user_id", user.id).eq("idempotency_key", idempotencyKey).maybeSingle();
-      if (existing) return existing.status;
       const { data: log, error: logError } = await admin.from("automation_messages").insert({
         user_id: user.id,
         academy_id: student.academy_id,

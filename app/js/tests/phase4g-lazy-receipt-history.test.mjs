@@ -23,11 +23,15 @@ test('receipt history lazy-loads on the first financial view', () => {
   );
 });
 
-test('receipt reads are request-deduplicated without turning api.load into a stale cache', () => {
+test('receipt reads are request-deduplicated with a short invalidation-aware cache', () => {
+  assert.match(receipts, /const RECEIPT_HISTORY_CACHE_MS = 30_000/);
   assert.match(receipts, /let receiptLoadPromise = null/);
+  assert.match(receipts, /let receiptLastLoadedAt = 0/);
   assert.match(receipts, /if \(receiptLoadPromise\)[\s\S]*return receiptLoadPromise/);
   assert.match(receipts, /receiptLoadPromise = \(async \(\) =>/);
   assert.match(receipts, /receiptHistoryLoaded = true/);
+  assert.match(receipts, /receiptLastLoadedAt = Date\.now\(\)/);
+  assert.match(receipts, /receiptHistoryDirty = true/);
   assert.match(receipts, /finally[\s\S]*receiptLoadPromise = null/);
 });
 
@@ -38,5 +42,5 @@ test('payment automation invalidates receipt history without forcing an offscree
 });
 
 test('receipts cache key is bumped for the lazy-load behavior', () => {
-  assert.match(config, /features\/receipts\.js\?v=4/);
+  assert.match(config, /features\/receipts\.js\?v=5/);
 });

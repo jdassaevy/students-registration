@@ -118,8 +118,24 @@ const fromClass = row => ({
     id: row.id,
     name: row.name,
     place: row.place || '',
-    schedule: row.schedule || ''
+    schedule: row.schedule || '',
+    startDate: row.start_date || ''
 });
+
+function publishClassStartContext() {
+    globalThis.ClassStartContext = {
+        userId: currentUser?.id || null,
+        items: classes.map(item => ({
+            id: item.id,
+            startDate: item.startDate || ''
+        }))
+    };
+    document.dispatchEvent(new CustomEvent('classes:loaded', {
+        detail: {
+            userId: currentUser?.id || null
+        }
+    }));
+}
 
 function toast(message) {
     clearTimeout(toastTimer);
@@ -349,6 +365,7 @@ async function loadData() {
     couples = studentResult
         .data
         .map(fromStudent);
+    publishClassStartContext();
     await migrateLocalData();
     render();
 }
@@ -1115,6 +1132,7 @@ db
             showAuth();
             couples = [];
             classes = [];
+            globalThis.ClassStartContext = null;
             return;
         }
 

@@ -866,6 +866,14 @@ async function toggleEntry(id, person) {
         return toast('Erro ao atualizar.');
     c.entryPayments = entryPayments;
     render();
+    window.dispatchEvent(new CustomEvent('payment:changed', {
+        detail: {
+            studentId: id,
+            person,
+            kind: 'entry',
+            installment: 0
+        }
+    }));
 }
 async function ensureAuthDataLoaded(userId) {
     if (authDataLoadedUserId === userId)
@@ -930,6 +938,14 @@ async function toggleMonth(id, person, index) {
         return toast('Erro ao atualizar.');
     c.payments = payments;
     render();
+    window.dispatchEvent(new CustomEvent('payment:changed', {
+        detail: {
+            studentId: id,
+            person,
+            kind: 'monthly',
+            installment: index + 1
+        }
+    }));
 }
 async function removeCouple(id) {
     const c = couples.find(x => x.id === id);

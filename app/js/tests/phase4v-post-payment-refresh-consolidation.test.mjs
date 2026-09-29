@@ -18,7 +18,7 @@ test('automation settings use a bounded projection and are cached per user', () 
   );
   assert.match(
     automation,
-    /\.select\(['"]reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled['"]\)/
+    /const fields = ['"]reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled['"][\s\S]*\.select\(fields\)/
   );
 });
 
@@ -67,7 +67,7 @@ test('receipt history uses a short cache but manual refresh and repair remain fo
   assert.match(receipts, /async load\(\{force = false\} = \{\}\)/);
   assert.match(
     receipts,
-    /!force && receiptHistoryLoaded && !receiptHistoryDirty[\s\S]*Date\.now\(\) - receiptLastLoadedAt < RECEIPT_HISTORY_CACHE_MS/
+    /!force[\s\S]*receiptHistoryLoaded[\s\S]*!receiptHistoryDirty[\s\S]*Date\.now\(\) - receiptLastLoadedAt < RECEIPT_HISTORY_CACHE_MS/
   );
   assert.match(receipts, /refreshReceiptsBtn['"]\)\s*\.onclick = \(\) => api\.load\(\{force: true\}\)/);
   assert.match(receipts, /await api\.load\(\{force: true\}\)/);

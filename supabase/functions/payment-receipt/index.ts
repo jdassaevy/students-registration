@@ -6,6 +6,7 @@ import { generateReceiptPdf } from "../_shared/receipt.ts";
 import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { isApiInputError, readJsonObject, requireUuid, validationErrorPayload } from "../_shared/api-validation.ts";
 import { requireAcademyContext } from "../_shared/tenant.ts";
+import { RECEIPT_RUNTIME_SELECT, RECEIPT_WITH_CONTEXT_SELECT } from "../_shared/payment-projections.ts";
 
 function json(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -50,7 +51,7 @@ Deno.serve(async (req: Request) => {
     const receiptId = requireUuid(body?.receipt_id, "receipt_id");
     const { data: receipt, error: receiptError } = await admin
       .from("receipts")
-      .select("*,student_row:students!receipts_student_id_fkey(id,person1,person2,academy_id),class_row:classes!receipts_class_id_fkey(name,academy_id)")
+      .select(RECEIPT_WITH_CONTEXT_SELECT)
       .eq("id", receiptId)
       .single();
     if (receiptError || !receipt) return respond({ error: "Receipt not found" }, 404);
@@ -108,7 +109,7 @@ Deno.serve(async (req: Request) => {
       .update({ storage_path: storagePath })
       .eq("id", receipt.id)
       .eq("academy_id", receipt.academy_id)
-      .select("*")
+      .select(RECEIPT_RUNTIME_SELECT)
       .single();
     if (updateError) throw updateError;
 

@@ -7,6 +7,11 @@ const source = fs.readFileSync(
     'utf8'
 );
 
+const projections = fs.readFileSync(
+    new URL('../../../supabase/functions/_shared/payment-projections.ts', import.meta.url),
+    'utf8'
+);
+
 test('payment-receipt accepts only active monthly receipts', () => {
     assert.match(source, /receipt\.kind\s*!==\s*["']monthly["']/);
     assert.match(source, /receipt\.status\s*!==\s*["']active["']/);
@@ -26,12 +31,13 @@ test('payment-receipt reuses tenant academy identity from membership context', (
 });
 
 test('payment-receipt fails closed on embedded student and class tenant mismatches before PDF reuse', () => {
+    assert.match(source, /\.select\(RECEIPT_WITH_CONTEXT_SELECT\)/);
     assert.match(
-        source,
+        projections,
         /student_row:students!receipts_student_id_fkey\(id,person1,person2,academy_id\)/
     );
     assert.match(
-        source,
+        projections,
         /class_row:classes!receipts_class_id_fkey\(name,academy_id\)/
     );
     assert.match(source, /student\.academy_id\s*!==\s*receipt\.academy_id/);

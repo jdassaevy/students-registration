@@ -7,10 +7,20 @@ const source = fs.readFileSync(
   'utf8'
 );
 
+const projections = fs.readFileSync(
+  new URL('../../../supabase/functions/_shared/payment-projections.ts', import.meta.url),
+  'utf8'
+);
+
 test('payment-receipt embeds student and class context in the receipt read', () => {
+  assert.match(source, /\.select\(RECEIPT_WITH_CONTEXT_SELECT\)/);
   assert.match(
-    source,
-    /select\(["']\*,student_row:students!receipts_student_id_fkey\(id,person1,person2,academy_id\),class_row:classes!receipts_class_id_fkey\(name,academy_id\)["']\)/
+    projections,
+    /student_row:students!receipts_student_id_fkey\(id,person1,person2,academy_id\)/
+  );
+  assert.match(
+    projections,
+    /class_row:classes!receipts_class_id_fkey\(name,academy_id\)/
   );
 });
 

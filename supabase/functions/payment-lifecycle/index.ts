@@ -10,6 +10,7 @@ import { logSafeEvent, traceHeaders } from "../_shared/observability.ts";
 import { buildDocumentPayload, buildPaymentConfirmationTemplate, buildTemplatePayload, isWhatsappEligible, normalizeRecipientPhone, sanitizeMetaError, sendMetaPayload, TEMPLATE_NAMES } from "../_shared/whatsapp.ts";
 import { requireAcademyAccess, requireAcademyContext } from "../_shared/tenant.ts";
 import { receiptMatchesStudent } from "../_shared/tenant-linkage.mjs";
+import { PAYMENT_EVENT_RUNTIME_SELECT, RECEIPT_RUNTIME_SELECT } from "../_shared/payment-projections.ts";
 import {
   isApiInputError,
   readJsonObject,
@@ -83,7 +84,7 @@ Deno.serve(async (req: Request) => {
       const repairReceiptId = input.receiptId;
 
       const { data: receipt, error: receiptError } = await admin.from("receipts")
-        .select("*").eq("id", repairReceiptId).single();
+        .select(RECEIPT_RUNTIME_SELECT).eq("id", repairReceiptId).single();
       if (receiptError || !receipt) return respond({ error: "Receipt not found" }, 404);
       if (receipt.kind !== "monthly") return respond({ error: "Monthly receipt required" }, 400);
       if (receipt.status !== "active") return respond({ error: "Active receipt required" }, 400);
@@ -179,7 +180,7 @@ Deno.serve(async (req: Request) => {
     const { studentId, person, kind, installment } = input;
 
     const { data: student, error: studentError } = await admin.from("students")
-      .select("id,user_id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,class_row:classes!students_class_id_fkey(name,academy_id)")
+      .select("id,academy_id,class_id,person1,person2,entry_payments,payments,fees,person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,class_row:classes!students_class_id_fkey(name,academy_id)")
       .eq("id", studentId).single();
     if (studentError || !student) return respond({ error: "Student not found" }, 404);
     if (!student.academy_id) return respond({ error: "Academy not resolved" }, 409);
@@ -196,7 +197,7 @@ Deno.serve(async (req: Request) => {
 
     const paid = paymentIsMarked(student, person, kind, installment);
     const amount = paymentAmount(student, person, kind);
-    const { data: activeReceipt } = await admin.from("receipts").select("*")
+    const { data: activeReceipt } = await admin.from("receipts").select(RECEIPT_RUNTIME_SELECT)
       .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment)
       .eq("status", "active").maybeSingle();
     if (activeReceipt && !receiptMatchesStudent(activeReceipt, student)) return respond({ error: "Receipt tenant mismatch" }, 409);
@@ -204,7 +205,7 @@ Deno.serve(async (req: Request) => {
 
     let paymentEvent: any = null;
     if (paid) {
-      const { data: existingEvent } = await admin.from("payment_events").select("*")
+      const { data: existingEvent } = await admin.from("payment_events").select(PAYMENT_EVENT_RUNTIME_SELECT)
         .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).maybeSingle();
       if (existingEvent) {
         if (existingEvent.academy_id !== student.academy_id) return respond({ error: "Payment tenant mismatch" }, 409);
@@ -212,11 +213,11 @@ Deno.serve(async (req: Request) => {
       } else {
         const { data, error } = await admin.from("payment_events").insert({
           user_id: user.id, academy_id: student.academy_id, student_id: studentId, class_id: student.class_id, person, kind, installment, amount,
-        }).select().single();
+        }).select(PAYMENT_EVENT_RUNTIME_SELECT).single();
         if (error && !isUniqueViolation(error)) throw error;
         if (data) paymentEvent = data;
         else {
-          const { data: concurrentEvent, error: concurrentError } = await admin.from("payment_events").select("*")
+          const { data: concurrentEvent, error: concurrentError } = await admin.from("payment_events").select(PAYMENT_EVENT_RUNTIME_SELECT)
             .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).single();
           if (concurrentError) throw concurrentError;
           if (concurrentEvent.academy_id !== student.academy_id) return respond({ error: "Payment tenant mismatch" }, 409);
@@ -255,11 +256,11 @@ Deno.serve(async (req: Request) => {
         installment,
         amount,
         paid_at: paymentEvent?.paid_at || new Date().toISOString(),
-      }).select().single();
+      }).select(RECEIPT_RUNTIME_SELECT).single();
       if (error && !isUniqueViolation(error)) throw error;
       if (data) receipt = data;
       else {
-        const { data: concurrentReceipt, error: concurrentError } = await admin.from("receipts").select("*")
+        const { data: concurrentReceipt, error: concurrentError } = await admin.from("receipts").select(RECEIPT_RUNTIME_SELECT)
           .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment)
           .eq("status", "active").single();
         if (concurrentError) throw concurrentError;
@@ -287,13 +288,13 @@ Deno.serve(async (req: Request) => {
       const storagePath = `${user.id}/${receipt.id}.pdf`;
       const { error: uploadError } = await admin.storage.from("receipts").upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
       if (uploadError) throw uploadError;
-      const { data: updated, error: updateError } = await admin.from("receipts").update({ storage_path: storagePath }).eq("id", receipt.id).eq("academy_id", student.academy_id).select().single();
+      const { data: updated, error: updateError } = await admin.from("receipts").update({ storage_path: storagePath }).eq("id", receipt.id).eq("academy_id", student.academy_id).select(RECEIPT_RUNTIME_SELECT).single();
       if (updateError) throw updateError;
       receipt = updated;
       repairedPdf = true;
       pdfStatus = "ready";
     } else if (action === "void" && receipt) {
-      const { data, error } = await admin.from("receipts").update({ status: "voided" }).eq("id", receipt.id).eq("academy_id", student.academy_id).eq("status", "active").select().single();
+      const { data, error } = await admin.from("receipts").update({ status: "voided" }).eq("id", receipt.id).eq("academy_id", student.academy_id).eq("status", "active").select(RECEIPT_RUNTIME_SELECT).single();
       if (error) throw error;
       receipt = data;
     }

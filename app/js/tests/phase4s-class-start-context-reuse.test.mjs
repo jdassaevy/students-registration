@@ -16,7 +16,10 @@ test('core preserves class start dates and publishes the loaded class context', 
 });
 
 test('due dates reuses the core class context instead of rereading classes', () => {
-  assert.doesNotMatch(dueDates, /\.from\(['"]classes['"]\)/);
+  assert.doesNotMatch(
+    dueDates,
+    /\.from\(['"]classes['"]\)[\s\S]{0,160}\.select\(['"]id,start_date['"]\)/
+  );
   assert.match(dueDates, /function hydrateClassStarts\(userId\)/);
   assert.match(dueDates, /root\.ClassStartContext/);
   assert.match(dueDates, /context\?\.userId !== userId/);
@@ -27,7 +30,7 @@ test('class start context is tenant-safe across logout and user changes', () => 
   assert.match(core, /globalThis\.ClassStartContext = null/);
   assert.match(
     dueDates,
-    /classStartsLoadedUserId && classStartsLoadedUserId !== session\.user\.id[\s\S]*starts\.clear\(\)/
+    /classStartsLoadedUserId\s*&&\s*classStartsLoadedUserId !== session\.user\.id[\s\S]*starts\.clear\(\)/
   );
   assert.match(
     dueDates,

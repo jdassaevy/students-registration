@@ -46,10 +46,12 @@
     const client = typeof db !== 'undefined'
         ? db
         : root.db;
+    const RECEIPT_HISTORY_CACHE_MS = 30_000;
     let receiptHistoryLoaded = false;
     let receiptHistoryDirty = false;
     let receiptHistoryInvalidationVersion = 0;
     let receiptLoadPromise = null;
+    let receiptLastLoadedAt = 0;
     const api = {
         items: [],
         paymentLabel,
@@ -57,9 +59,16 @@
         canVoidReceipt,
         canRepairReceipt,
         buildReceiptIdentity,
-        async load() {
+        async load({force = false} = {}) {
             if (!client)
                 return [];
+            if (
+                !force &&
+                receiptHistoryLoaded &&
+                !receiptHistoryDirty &&
+                Date.now() - receiptLastLoadedAt < RECEIPT_HISTORY_CACHE_MS
+            )
+                return api.items;
             if (receiptLoadPromise)
                 return receiptLoadPromise;
 
@@ -79,6 +88,7 @@
                 }
                 api.items = data || [];
                 receiptHistoryLoaded = true;
+                receiptLastLoadedAt = Date.now();
                 if (receiptHistoryInvalidationVersion === loadVersion)
                     receiptHistoryDirty = false;
                 renderHistory();
@@ -177,7 +187,7 @@
         financialView.appendChild(panel);
         document
             .getElementById('refreshReceiptsBtn')
-            .onclick = () => api.load();
+            .onclick = () => api.load({force: true});
         panel.addEventListener('click', async event => {
             const button = event.target.closest('[data-repair-receipt]');
             if (button) {
@@ -197,7 +207,7 @@
                 button.setAttribute('aria-busy', 'true');
                 try {
                     await repairMonthlyReceipt(receipt.id);
-                    await api.load();
+                    await api.load({force: true});
                 } finally {
                     button.disabled = false;
                     button.removeAttribute('aria-busy');

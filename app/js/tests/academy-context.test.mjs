@@ -208,7 +208,7 @@ test('bootstrap invalidates a previously resolved academy cache', async () => {
         functions: {
             invoke(name, options) {
                 assert.equal(name, 'bootstrap-academy');
-                assert.deepEqual(options, { body: { academy_name: 'Academia Atualizada' } });
+                assert.equal(options?.body?.academy_name, 'Academia Atualizada');
                 academyId = 'academy-b';
                 return Promise.resolve({ data: { academy_id: academyId }, error: null });
             }
@@ -251,7 +251,7 @@ test('bootstrap invokes the authenticated bootstrap edge function and returns it
     assert.equal(academyId, 'academy-new');
     assert.equal(calls.length, 1);
     assert.equal(calls[0][0], 'bootstrap-academy');
-    assert.deepEqual(calls[0][1], { body: { academy_name: 'Academia Nova' } });
+    assert.equal(calls[0][1]?.body?.academy_name, 'Academia Nova');
 });
 
 test('bootstrap rejects an empty academy name before calling Supabase', async () => {

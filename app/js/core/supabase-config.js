@@ -53,7 +53,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-due-dates]')) 
             return;
         const dueScript = document.createElement('script');
-        dueScript.src = './js/features/due-dates.js?v=2';
+        dueScript.src = './js/features/due-dates.js?v=3';
         dueScript.dataset.dueDates = 'true';
         document
             .body

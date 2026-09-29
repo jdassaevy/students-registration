@@ -8,22 +8,19 @@ const automation = read('../features/automation-center.js');
 const config = read('../core/supabase-config.js');
 const tabBar = read('../features/tab-bar.js');
 
-test('due dates coalesces initial class-start reads per authenticated user', () => {
+test('due dates hydrates class starts from the shared core context', () => {
   assert.match(dueDates, /let classStartsLoadedUserId = null/);
-  assert.match(dueDates, /let classStartsLoadPromise = null/);
-  assert.match(dueDates, /let classStartsLoadUserId = null/);
-  assert.match(dueDates, /async function ensureClassStartsLoaded\(userId\)/);
-  assert.match(
+  assert.match(dueDates, /function hydrateClassStarts\(userId\)/);
+  assert.match(dueDates, /const context = root\.ClassStartContext/);
+  assert.match(dueDates, /context\?\.userId !== userId[\s\S]*return false/);
+  assert.match(dueDates, /classStartsLoadedUserId = userId/);
+  assert.doesNotMatch(
     dueDates,
-    /if \(classStartsLoadedUserId === userId\)[\s\S]*return false/
-  );
-  assert.match(
-    dueDates,
-    /classStartsLoadPromise && classStartsLoadUserId === userId[\s\S]*try[\s\S]*await classStartsLoadPromise[\s\S]*catch[\s\S]*return false/
+    /\.from\(['"]classes['"]\)[\s\S]{0,160}\.select\(['"]id,start_date['"]\)/
   );
 });
 
-test('due dates only reacts to initial/sign-in Auth events and resets on logout', () => {
+test('due dates reacts to shared class data and resets on auth changes', () => {
   const authStart = dueDates.indexOf('.onAuthStateChange((event, session) => {');
   assert.ok(authStart >= 0);
   const authBlock = dueDates.slice(authStart);
@@ -34,22 +31,22 @@ test('due dates only reacts to initial/sign-in Auth events and resets on logout'
   );
   assert.match(
     authBlock,
-    /const shouldLoad =\s*event === ['"]INITIAL_SESSION['"]\s*\|\|\s*event === ['"]SIGNED_IN['"]/
+    /const shouldHydrate =\s*event === ['"]INITIAL_SESSION['"]\s*\|\|\s*event === ['"]SIGNED_IN['"]/
   );
-  assert.match(authBlock, /if \(!shouldLoad\)[\s\S]*return/);
-  assert.match(authBlock, /ensureClassStartsLoaded\(session\.user\.id\)/);
-  assert.match(dueDates, /getSession\(\)[\s\S]*ensureClassStartsLoaded\(data\.session\.user\.id\)/);
+  assert.match(authBlock, /hydrateClassStarts\(session\.user\.id\)/);
+  assert.match(dueDates, /document\.addEventListener\(['"]classes:loaded['"][\s\S]*hydrateClassStarts\(userId\)/);
+  assert.doesNotMatch(dueDates, /\.auth\s*\.getSession\(\)/);
 });
 
-test('due dates never marks a failed class-start read as loaded', () => {
-  const start = dueDates.indexOf('async function ensureClassStartsLoaded(userId)');
+test('due dates only marks a matching user context as loaded', () => {
+  const start = dueDates.indexOf('function hydrateClassStarts(userId)');
   const end = dueDates.indexOf('\n    function decorateClassList()', start);
   assert.ok(start >= 0 && end > start);
   const block = dueDates.slice(start, end);
-  const awaitIndex = block.indexOf('await request');
+  const guardIndex = block.indexOf('context?.userId !== userId');
   const markIndex = block.indexOf('classStartsLoadedUserId = userId');
-  assert.ok(awaitIndex >= 0);
-  assert.ok(markIndex > awaitIndex);
+  assert.ok(guardIndex >= 0);
+  assert.ok(markIndex > guardIndex);
 });
 
 test('automation reuses its cache for repeated Auth events from the same user', () => {
@@ -80,7 +77,7 @@ test('automation payment and manual refresh still force a refresh', () => {
 });
 
 test('updated feature cache keys keep automation on one lazy loader', () => {
-  assert.match(config, /features\/due-dates\.js\?v=2/);
+  assert.match(config, /features\/due-dates\.js\?v=3/);
   assert.doesNotMatch(config, /features\/automation-center\.js/);
   assert.match(tabBar, /features\/automation-center\.js\?v=9/);
 });

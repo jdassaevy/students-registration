@@ -55,6 +55,6 @@ test('a failed data load is not marked as successfully loaded', () => {
 });
 
 test('core cache key is bumped without changing the password login contract', () => {
-  assert.match(index, /\.\/js\/core\/script\.js\?v=11/);
+  assert.match(index, /\.\/js\/core\/script\.js\?v=12/);
   assert.match(script, /\.signInWithPassword\(\{email, password\}\)/);
 });

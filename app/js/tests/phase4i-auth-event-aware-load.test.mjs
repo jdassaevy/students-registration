@@ -74,6 +74,6 @@ test('failed initial load is never marked as loaded', () => {
 });
 
 test('core cache key advances while password login contract stays intact', () => {
-  assert.match(index, /\.\/js\/core\/script\.js\?v=11/);
+  assert.match(index, /\.\/js\/core\/script\.js\?v=12/);
   assert.match(script, /\.signInWithPassword\(\{email, password\}\)/);
 });

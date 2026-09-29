@@ -65,8 +65,6 @@
     const starts = new Map();
     let activeFinancialClassId = null;
     let classStartsLoadedUserId = null;
-    let classStartsLoadPromise = null;
-    let classStartsLoadUserId = null;
 
     root.DueDates = {
         calculateMonthlyDueDates,
@@ -97,58 +95,22 @@
         }
     }
 
-    async function loadClassStarts() {
-        const {data, error} = await db
-            .from('classes')
-            .select('id,start_date');
-        if (error)
-            throw error;
-        return data || [];
-    }
-
-    async function ensureClassStartsLoaded(userId) {
-        if (!userId)
+    function hydrateClassStarts(userId) {
+        const context = root.ClassStartContext;
+        if (!userId || context?.userId !== userId)
             return false;
-        if (classStartsLoadedUserId === userId)
-            return false;
-        if (classStartsLoadPromise && classStartsLoadUserId === userId) {
-            try {
-                await classStartsLoadPromise;
-            } catch {
-                // The owner request reports the failure and leaves the cache unmarked.
-            }
-            return false;
-        }
 
-        const request = loadClassStarts();
-        classStartsLoadPromise = request;
-        classStartsLoadUserId = userId;
-
-        try {
-            const items = await request;
-            if (
-                typeof currentUser !== 'undefined' &&
-                currentUser?.id !== userId
-            )
-                return false;
-
-            starts.clear();
-            items.forEach(item => {
-                if (item.start_date)
-                    starts.set(item.id, item.start_date);
-            });
-            classStartsLoadedUserId = userId;
-            decorateClassList();
-            return true;
-        } catch (error) {
-            globalThis.ClientLogging?.report('due-dates-load', error);
-            return false;
-        } finally {
-            if (classStartsLoadPromise === request) {
-                classStartsLoadPromise = null;
-                classStartsLoadUserId = null;
-            }
-        }
+        starts.clear();
+        const items = Array.isArray(context.items)
+            ? context.items
+            : [];
+        items.forEach(item => {
+            if (item?.id && item?.startDate)
+                starts.set(item.id, item.startDate);
+        });
+        classStartsLoadedUserId = userId;
+        decorateClassList();
+        return true;
     }
 
     function decorateClassList() {
@@ -314,6 +276,12 @@
         setTimeout(decorateFinancialDetails, 0);
     }, true);
 
+    document.addEventListener('classes:loaded', event => {
+        const userId = event.detail?.userId || null;
+        if (userId)
+            hydrateClassStarts(userId);
+    });
+
     db
         .auth
         .onAuthStateChange((event, session) => {
@@ -323,24 +291,27 @@
                 return;
             }
 
-            const shouldLoad =
+            if (
+                classStartsLoadedUserId &&
+                classStartsLoadedUserId !== session.user.id
+            ) {
+                classStartsLoadedUserId = null;
+                starts.clear();
+            }
+
+            const shouldHydrate =
                 event === 'INITIAL_SESSION' || event === 'SIGNED_IN';
 
-            if (!shouldLoad)
+            if (!shouldHydrate || classStartsLoadedUserId === session.user.id)
                 return;
 
             setTimeout(() => {
-                void ensureClassStartsLoaded(session.user.id);
+                hydrateClassStarts(session.user.id);
             }, 0);
         });
 
-    db
-        .auth
-        .getSession()
-        .then(({data}) => {
-            if (data?.session?.user)
-                void ensureClassStartsLoaded(data.session.user.id);
-        });
+    if (typeof currentUser !== 'undefined' && currentUser?.id)
+        hydrateClassStarts(currentUser.id);
 })(
     typeof window !== 'undefined'
         ? window

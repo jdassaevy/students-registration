@@ -21,6 +21,7 @@
   if (!root.document) return;
 
   const byId = id => document.getElementById(id);
+  let loadedContactContext = null;
 
   function injectStyles() {
     if (byId('studentWhatsappContactStyles')) return;
@@ -94,16 +95,21 @@
 
   async function populateStudentContactFields(id) {
     clearContactFields();
-    if (!id) return;
+    loadedContactContext = null;
+    if (!id) {
+      loadedContactContext = null;
+      return;
+    }
     const { data, error } = await db
       .from('students')
-      .select('person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent')
+      .select('person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,person1_whatsapp_consent_at,person2_whatsapp_consent_at')
       .eq('id', id)
       .single();
     if (error) {
       globalThis.ClientLogging?.report('whatsapp-contact-load', error);
       return;
     }
+    loadedContactContext = { studentId: id, ...data };
     byId('p1Phone').value = data.person1_phone || '';
     byId('p2Phone').value = data.person2_phone || '';
     byId('p1WhatsappConsent').checked = Boolean(data.person1_phone && data.person1_whatsapp_consent);
@@ -132,10 +138,12 @@
       ? structuredClone(couples.find(student => student.id === id) || null)
       : null;
     const previous = id
-      ? await db.from('students')
-          .select('person1_whatsapp_consent,person2_whatsapp_consent,person1_whatsapp_consent_at,person2_whatsapp_consent_at')
-          .eq('id', id)
-          .single()
+      ? loadedContactContext?.studentId === id
+        ? { data: loadedContactContext, error: null }
+        : await db.from('students')
+            .select('person1_whatsapp_consent,person2_whatsapp_consent,person1_whatsapp_consent_at,person2_whatsapp_consent_at')
+            .eq('id', id)
+            .single()
       : { data: null, error: null };
 
     if (previous.error) {
@@ -200,6 +208,7 @@
     if (id) couples = couples.map(couple => couple.id === id ? mapped : couple);
     else couples.unshift(mapped);
 
+    loadedContactContext = null;
     closeDialog(byId('modal'));
     render();
     toast('Cadastro salvo!');
@@ -216,6 +225,7 @@
     byId('person2')?.addEventListener('input', keepSecondPersonFieldsVisible);
 
     byId('newBtn')?.addEventListener('click', () => {
+      loadedContactContext = null;
       clearContactFields();
       syncConsent('p1Phone', 'p1WhatsappConsent');
       syncConsent('p2Phone', 'p2WhatsappConsent');

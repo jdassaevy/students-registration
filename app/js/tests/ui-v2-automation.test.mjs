@@ -18,7 +18,7 @@ test('automation center remains parseable in the browser', () => {
 
 test('automation keeps existing persistence, readiness, Meta and retry ownership', () => {
   for (const contract of [
-    'function ensureSettings()',
+    'function ensureSettings(',
     'function loadMessages()',
     'function loadReadiness(',
     'function retryMessage(button)',

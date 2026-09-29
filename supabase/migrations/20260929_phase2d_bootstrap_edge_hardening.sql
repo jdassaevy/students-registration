@@ -108,10 +108,7 @@ begin
 end;
 $function$;
 
--- The browser must never execute either privileged bootstrap RPC directly.
-revoke execute on function public.bootstrap_academy(text) from public, anon, authenticated;
+-- Stage 1 is backwards-compatible: the legacy browser RPC remains available
+-- until the new frontend is deployed. The new service RPC is server-only.
 revoke execute on function public.bootstrap_academy_service(uuid, text) from public, anon, authenticated;
-
--- Only trusted server-side code may execute the service RPC.
 grant execute on function public.bootstrap_academy_service(uuid, text) to service_role;
-grant execute on function public.bootstrap_academy(text) to service_role;

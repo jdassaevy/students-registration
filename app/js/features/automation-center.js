@@ -336,10 +336,7 @@
             settingsLoadedUserId = userId;
             return currentSettings;
         }
-        const {data: created, error: createError} = await db.from('automation_settings')
-            .insert({user_id: userId, ...DEFAULT_SETTINGS})
-            .select(fields)
-            .single();
+        const {data: created, error: createError} = await db.from('automation_settings').insert({user_id: userId, ...DEFAULT_SETTINGS}).select(fields).single();
         if (createError) throw createError;
         currentSettings = {...DEFAULT_SETTINGS, ...created};
         settingsLoadedUserId = userId;

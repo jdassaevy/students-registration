@@ -291,6 +291,25 @@
         return activeUserId;
     }
 
+    function studentsFromSharedContext(userId) {
+        const context = globalThis.StudentDataContext;
+        const academyId = String(globalThis.currentAcademyId || '').trim() || null;
+        if (
+            !context ||
+            context?.userId !== userId ||
+            context?.academyId !== academyId ||
+            !Array.isArray(context.items)
+        )
+            return null;
+        return context.items.map(item => ({
+            id: item.id,
+            person1: item.person1,
+            person2: item.person2 || '',
+            person1_phone: item.person1_phone || '',
+            person2_phone: item.person2_phone || ''
+        }));
+    }
+
     async function ensureSettings() {
         const userId = await getUserId();
         if (!userId) return null;
@@ -341,16 +360,21 @@
     }
 
     async function loadMessages() {
+        const userId = await getUserId();
+        const sharedStudents = studentsFromSharedContext(userId);
+        const studentRead = sharedStudents !== null
+            ? Promise.resolve({data: sharedStudents, error: null})
+            : read(() => db
+                .from('students')
+                .select('id,person1,person2,person1_phone,person2_phone')
+                .limit(500));
         const [{data: messages, error: messageError}, {data: students, error: studentError}] = await Promise.all([
             read(() => db
                 .from('automation_messages')
                 .select('id,student_id,person,automation_type,status,error_code,error_message,provider_message_id,created_at,executed_at,receipt_id')
                 .order('created_at', {ascending: false})
                 .limit(50)),
-            read(() => db
-                .from('students')
-                .select('id,person1,person2,person1_phone,person2_phone')
-                .limit(500))
+            studentRead
         ]);
         if (messageError) throw messageError;
         if (studentError) throw studentError;
@@ -415,6 +439,22 @@
             </div>`;
         }).join('');
     }
+
+    document.addEventListener('students:loaded', event => {
+        const userId = event.detail?.userId || null;
+        if (!userId || (activeUserId && activeUserId !== userId))
+            return;
+        const sharedStudents = studentsFromSharedContext(userId);
+        if (sharedStudents === null)
+            return;
+        currentStudents = sharedStudents;
+        studentsById = new Map(currentStudents.map(item => [item.id, item]));
+        automationDirty = true;
+        if (automationReady) {
+            renderActivity();
+            renderIntegrationStatus();
+        }
+    });
 
     async function loadReadiness(settingsReady = false) {
         const userId = await getUserId();

@@ -38,5 +38,5 @@ test('payment automation invalidates receipt history without forcing an offscree
 });
 
 test('receipts cache key is bumped for the lazy-load behavior', () => {
-  assert.match(config, /features\/receipts\.js\?v=3/);
+  assert.match(config, /features\/receipts\.js\?v=4/);
 });

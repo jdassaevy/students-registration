@@ -67,7 +67,7 @@
             receiptLoadPromise = (async () => {
                 const read = () => client
                     .from('receipts')
-                    .select('*')
+                    .select('id,receipt_number,student_id,person,kind,installment,amount,paid_at,status,storage_path,created_at')
                     .order('created_at', {ascending: false});
                 const {data, error} = await (globalThis.ReadResilience?.run
                     ? globalThis.ReadResilience.run(read)

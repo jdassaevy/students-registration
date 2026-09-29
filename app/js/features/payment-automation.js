@@ -128,7 +128,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
 if (typeof window !== 'undefined') {
     (() => {
-        if (typeof toggleEntry !== 'function' || typeof toggleMonth !== 'function' || typeof db === 'undefined') return;
+        if (typeof db === 'undefined') return;
 
         async function invokeLifecycle(body) {
             return invokeWithSessionRecovery({
@@ -185,25 +185,16 @@ if (typeof window !== 'undefined') {
             }
         }
 
-        const previousToggleEntry = toggleEntry;
-        toggleEntry = async function (id, person) {
-            const student = couples.find(item => item.id === id);
-            const before = Boolean(student?.entryPayments?.[person]);
-            await previousToggleEntry(id, person);
-            const after = Boolean(student?.entryPayments?.[person]);
-            if (before !== after) await processLifecycle({studentId: id, person, kind: 'entry'});
-        };
-
-        const previousToggleMonth = toggleMonth;
-        toggleMonth = async function (id, person, index) {
-            const student = couples.find(item => item.id === id);
-            const before = Boolean(student?.payments?.[person]?.[index]);
-            await previousToggleMonth(id, person, index);
-            const after = Boolean(student?.payments?.[person]?.[index]);
-            if (before !== after) {
-                await processLifecycle({studentId: id, person, kind: 'monthly', installment: index + 1});
-            }
-        };
+        window.addEventListener('payment:changed', event => {
+            const detail = event.detail || {};
+            if (
+                !detail.studentId ||
+                !['person1', 'person2'].includes(detail.person) ||
+                !['entry', 'monthly'].includes(detail.kind)
+            )
+                return;
+            void processLifecycle(detail);
+        });
 
         window.PaymentAutomation = {
             collectPaymentChanges,

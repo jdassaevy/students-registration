@@ -112,6 +112,12 @@ const fromStudent = row => ({
     ),
     fees: normalizeFees(row.fees),
     payments: normalizePayments(row.payments),
+    person1Phone: row.person1_phone || '',
+    person2Phone: row.person2_phone || '',
+    person1WhatsappConsent: Boolean(row.person1_whatsapp_consent),
+    person2WhatsappConsent: Boolean(row.person2_whatsapp_consent),
+    person1WhatsappConsentAt: row.person1_whatsapp_consent_at || null,
+    person2WhatsappConsentAt: row.person2_whatsapp_consent_at || null,
     createdAt: new Date(row.created_at).toLocaleDateString('pt-BR')
 });
 const fromClass = row => ({
@@ -121,6 +127,32 @@ const fromClass = row => ({
     schedule: row.schedule || '',
     startDate: row.start_date || ''
 });
+
+function publishStudentDataContext() {
+    const academyId = typeof currentAcademyId !== 'undefined'
+        ? String(currentAcademyId || '').trim() || null
+        : null;
+    const userId = currentUser?.id || null;
+    globalThis.StudentDataContext = {
+        userId,
+        academyId,
+        items: couples.map(item => ({
+            id: item.id,
+            person1: item.person1,
+            person2: item.person2 || '',
+            person1_phone: item.person1Phone || '',
+            person2_phone: item.person2Phone || '',
+            person1_whatsapp_consent: Boolean(item.person1WhatsappConsent),
+            person2_whatsapp_consent: Boolean(item.person2WhatsappConsent),
+            person1_whatsapp_consent_at: item.person1WhatsappConsentAt || null,
+            person2_whatsapp_consent_at: item.person2WhatsappConsentAt || null
+        }))
+    };
+    document.dispatchEvent(new CustomEvent('students:loaded', {
+        detail: {userId, academyId}
+    }));
+}
+globalThis.publishStudentDataContext = publishStudentDataContext;
 
 function publishClassStartContext() {
     globalThis.ClassStartContext = {
@@ -367,6 +399,7 @@ async function loadData() {
         .map(fromStudent);
     publishClassStartContext();
     await migrateLocalData();
+    publishStudentDataContext();
     render();
 }
 
@@ -833,6 +866,14 @@ async function toggleEntry(id, person) {
         return toast('Erro ao atualizar.');
     c.entryPayments = entryPayments;
     render();
+    window.dispatchEvent(new CustomEvent('payment:changed', {
+        detail: {
+            studentId: id,
+            person,
+            kind: 'entry',
+            installment: 0
+        }
+    }));
 }
 async function ensureAuthDataLoaded(userId) {
     if (authDataLoadedUserId === userId)
@@ -897,6 +938,14 @@ async function toggleMonth(id, person, index) {
         return toast('Erro ao atualizar.');
     c.payments = payments;
     render();
+    window.dispatchEvent(new CustomEvent('payment:changed', {
+        detail: {
+            studentId: id,
+            person,
+            kind: 'monthly',
+            installment: index + 1
+        }
+    }));
 }
 async function removeCouple(id) {
     const c = couples.find(x => x.id === id);
@@ -913,6 +962,7 @@ async function removeCouple(id) {
     if (error) 
         return toast('Erro ao excluir.');
     couples = couples.filter(x => x.id !== id);
+    publishStudentDataContext();
     render();
     toast('Cadastro excluído.');
 }
@@ -1013,6 +1063,7 @@ $('form').addEventListener('submit', async event => {
         );
     else 
         couples.unshift(mapped);
+    publishStudentDataContext();
     closeDialog($('modal'));
     render();
     toast('Cadastro salvo!');
@@ -1133,6 +1184,7 @@ db
             couples = [];
             classes = [];
             globalThis.ClassStartContext = null;
+            globalThis.StudentDataContext = null;
             return;
         }
 

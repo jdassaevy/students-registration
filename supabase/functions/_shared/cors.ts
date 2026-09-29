@@ -1,7 +1,7 @@
 export const ALLOWED_BROWSER_ORIGINS = new Set([
   "https://alunos.dassaevylabs.com.br",
   "https://students-registration-multi-academy.vercel.app",
-  "https://students-registration-git-a51363-jdassaevy12345-6044s-projects.vercel.app",
+  "https://students-registration-git-e03a29-jdassaevy12345-6044s-projects.vercel.app",
   "http://localhost:5500",
   "http://127.0.0.1:5500",
 ]);

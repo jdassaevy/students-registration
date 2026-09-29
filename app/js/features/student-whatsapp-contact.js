@@ -93,6 +93,21 @@
     });
   }
 
+  function sharedStudentContact(id) {
+    const context = root.StudentDataContext;
+    const userId = typeof currentUser !== 'undefined'
+      ? currentUser?.id || null
+      : null;
+    const academyId = String(root.currentAcademyId || '').trim() || null;
+    if (
+      !context ||
+      context?.userId !== userId ||
+      context?.academyId !== academyId ||
+      !Array.isArray(context.items)
+    ) return null;
+    return context.items.find(item => item.id === id) || null;
+  }
+
   async function populateStudentContactFields(id) {
     clearContactFields();
     loadedContactContext = null;
@@ -100,11 +115,14 @@
       loadedContactContext = null;
       return;
     }
-    const { data, error } = await db
-      .from('students')
-      .select('person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,person1_whatsapp_consent_at,person2_whatsapp_consent_at')
-      .eq('id', id)
-      .single();
+    const shared = sharedStudentContact(id);
+    const { data, error } = shared
+      ? { data: shared, error: null }
+      : await db
+          .from('students')
+          .select('person1_phone,person2_phone,person1_whatsapp_consent,person2_whatsapp_consent,person1_whatsapp_consent_at,person2_whatsapp_consent_at')
+          .eq('id', id)
+          .single();
     if (error) {
       globalThis.ClientLogging?.report('whatsapp-contact-load', error);
       return;
@@ -207,6 +225,7 @@
     };
     if (id) couples = couples.map(couple => couple.id === id ? mapped : couple);
     else couples.unshift(mapped);
+    globalThis.publishStudentDataContext?.();
 
     loadedContactContext = null;
     closeDialog(byId('modal'));

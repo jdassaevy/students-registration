@@ -31,7 +31,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-student-whatsapp-contact]'))
             return;
         const contactScript = document.createElement('script');
-        contactScript.src = './js/features/student-whatsapp-contact.js?v=2';
+        contactScript.src = './js/features/student-whatsapp-contact.js?v=3';
         contactScript.dataset.studentWhatsappContact = 'true';
         document
             .body
@@ -42,7 +42,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-payment-automation]')) 
             return;
         const automationScript = document.createElement('script');
-        automationScript.src = './js/features/payment-automation.js?v=5';
+        automationScript.src = './js/features/payment-automation.js?v=6';
         automationScript.dataset.paymentAutomation = 'true';
         document
             .body
@@ -86,7 +86,7 @@ window.addEventListener('load', () => {
             return;
         }
         const receiptScript = document.createElement('script');
-        receiptScript.src = './js/features/receipts.js?v=3';
+        receiptScript.src = './js/features/receipts.js?v=4';
         receiptScript.dataset.receipts = 'true';
         receiptScript.addEventListener('load', loadFinancialDetails, {once: true});
         document

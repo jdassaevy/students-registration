@@ -14,7 +14,7 @@ test('heavy optional features are not downloaded by the initial HTML', () => {
   assert.doesNotMatch(index, /chart\.js@4\.4\.7\/dist\/chart\.umd\.min\.js/);
   assert.doesNotMatch(index, /features\/automation-center\.js/);
   assert.match(tabBar, /createAutomationFallback\(\)/);
-  assert.match(tabBar, /script\.src = ['"]\.\/js\/features\/automation-center\.js\?v=10['"]/);
+  assert.match(tabBar, /script\.src = ['"]\.\/js\/features\/automation-center\.js\?v=11['"]/);
   assert.match(reports, new RegExp(CHART_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
@@ -42,7 +42,7 @@ test('automation uses one student read for activity names and readiness phones',
   assert.match(automation, /select\(['"]id,person1,person2,person1_phone,person2_phone['"]\)/);
   assert.match(automation, /let currentStudents = \[\]/);
   const readiness = automation.slice(
-    automation.indexOf('async function loadReadiness'),
+    automation.indexOf('function renderReadiness'),
     automation.indexOf('async function refreshAll'),
   );
   assert.doesNotMatch(readiness, /\.from\(['"]students['"]\)/);
@@ -54,10 +54,11 @@ test('automation uses one student read for activity names and readiness phones',
 test('automation refreshes are cached briefly but invalidate on important events', () => {
   assert.match(automation, /const AUTOMATION_CACHE_MS = 30_000/);
   assert.match(automation, /let automationDirty = true/);
+  assert.match(automation, /let activityDirty = true/);
   assert.match(automation, /let automationRefreshPromise = null/);
   assert.match(automation, /if \(!force && fresh\)[\s\S]*return true/);
   assert.match(automation, /if \(automationRefreshPromise\)[\s\S]*return automationRefreshPromise/);
   assert.match(automation, /automationRefresh[^\n]*addEventListener\(['"]click['"][\s\S]*force: true/);
-  assert.match(automation, /payment:lifecycle[\s\S]*automationDirty = true[\s\S]*force: true/);
+  assert.match(automation, /payment:lifecycle[\s\S]*activityDirty = true[\s\S]*refreshActivity\(\{force: true\}\)/);
   assert.match(automation, /onAuthStateChange[\s\S]*automationDirty = true[\s\S]*automationLastLoadedAt = 0/);
 });

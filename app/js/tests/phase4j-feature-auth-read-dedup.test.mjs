@@ -79,5 +79,5 @@ test('automation payment and manual refresh still force a refresh', () => {
 test('updated feature cache keys keep automation on one lazy loader', () => {
   assert.match(config, /features\/due-dates\.js\?v=3/);
   assert.doesNotMatch(config, /features\/automation-center\.js/);
-  assert.match(tabBar, /features\/automation-center\.js\?v=10/);
+  assert.match(tabBar, /features\/automation-center\.js\?v=11/);
 });

@@ -54,7 +54,7 @@ test('logout still clears cached automation identity and rendered data inputs', 
 
 test('automation center has one lazy loader and one global runtime instance', () => {
   assert.doesNotMatch(config, /automation-center\.js/);
-  assert.match(tabBar, /script\.src = ['"]\.\/js\/features\/automation-center\.js\?v=10['"]/);
+  assert.match(tabBar, /script\.src = ['"]\.\/js\/features\/automation-center\.js\?v=11['"]/);
   assert.match(tabBar, /script\.dataset\.automationCenter = ['"]true['"]/);
   assert.match(source, /if \(globalThis\.__automationCenterInitialized\) return;/);
   assert.match(source, /globalThis\.__automationCenterInitialized = true;/);

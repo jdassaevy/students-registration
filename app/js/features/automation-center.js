@@ -269,6 +269,8 @@
     }
 
     const AUTOMATION_CACHE_MS = 30_000;
+    const AUTOMATION_ACTIVITY_CACHE_MS = 5_000;
+    const AUTOMATION_READINESS_CACHE_MS = 300_000;
     let currentSettings = {...DEFAULT_SETTINGS};
     let currentMessages = [];
     let currentStudents = [];
@@ -277,8 +279,14 @@
         ? currentUser?.id || null
         : null;
     let automationDirty = true;
+    let activityDirty = true;
     let automationLastLoadedAt = 0;
+    let activityLastLoadedAt = 0;
     let automationRefreshPromise = null;
+    let activityRefreshPromise = null;
+    let settingsLoadedUserId = null;
+    let readinessCache = null;
+    let readinessRefreshPromise = null;
 
     async function getUserId() {
         if (activeUserId) return activeUserId;
@@ -310,23 +318,29 @@
         }));
     }
 
-    async function ensureSettings() {
+    async function ensureSettings({force = false} = {}) {
         const userId = await getUserId();
         if (!userId) return null;
+        if (!force && settingsLoadedUserId === userId)
+            return currentSettings;
+
+        const fields = 'reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled';
         const {data, error} = await read(() => db
             .from('automation_settings')
-            .select('*')
+            .select(fields)
             .eq('user_id', userId)
             .maybeSingle());
         if (error) throw error;
         if (data) {
             currentSettings = {...DEFAULT_SETTINGS, ...data};
-            return data;
+            settingsLoadedUserId = userId;
+            return currentSettings;
         }
-        const {data: created, error: createError} = await db.from('automation_settings').insert({user_id: userId, ...DEFAULT_SETTINGS}).select().single();
+        const {data: created, error: createError} = await db.from('automation_settings').insert({user_id: userId, ...DEFAULT_SETTINGS}).select(fields).single();
         if (createError) throw createError;
         currentSettings = {...DEFAULT_SETTINGS, ...created};
-        return created;
+        settingsLoadedUserId = userId;
+        return currentSettings;
     }
 
     function renderSettings() {
@@ -449,37 +463,21 @@
             return;
         currentStudents = sharedStudents;
         studentsById = new Map(currentStudents.map(item => [item.id, item]));
-        automationDirty = true;
         if (automationReady) {
             renderActivity();
             renderIntegrationStatus();
+            if (readinessCache)
+                renderReadiness(Boolean(settingsLoadedUserId));
         }
     });
 
-    async function loadReadiness(settingsReady = false) {
-        const userId = await getUserId();
-        if (!userId) return;
-        const [profileResult, receiptsResult, duplicatesResult] = await Promise.all([
-            read(() => db
-                .from('academy_profiles')
-                .select('academy_name,responsible_name,support_phone')
-                .eq('user_id', userId)
-                .maybeSingle()),
-            read(() => db
-                .from('receipts')
-                .select('id,storage_path,status')
-                .limit(1)),
-            read(() => db
-                .rpc('find_duplicate_active_receipts'))
-                .catch(() => ({data: null, error: new Error('rpc unavailable')}))
-        ]);
-        const profile = profileResult.data || {};
+    function renderReadiness(settingsReady = false) {
+        if (!readinessCache)
+            return;
+        const profile = readinessCache.profile || {};
         const students = currentStudents;
         const hasWithWhatsapp = students.some(s => Boolean(s.person1_phone || s.person2_phone));
         const hasWithoutWhatsapp = students.some(s => !s.person1_phone || !s.person2_phone);
-        const duplicateSafe = !duplicatesResult.error && Array.isArray(duplicatesResult.data)
-            ? duplicatesResult.data.length === 0
-            : true;
         const metaState = metaConnectionState(currentMessages);
         const checks = [
             {ok: Boolean(profile.academy_name), title: 'Nome da academia', detail: 'Usado nas mensagens e recibos.'},
@@ -487,9 +485,9 @@
             {ok: Boolean(profile.support_phone), title: 'Telefone de suporte', detail: 'Será incluído nas mensagens.'},
             {ok: hasWithoutWhatsapp || students.length === 0, title: 'Cadastro sem WhatsApp', detail: 'Telefone continua opcional para o aluno.'},
             {ok: hasWithWhatsapp, title: 'Cadastro com WhatsApp', detail: 'Tenha ao menos um aluno com telefone para o teste real.'},
-            {ok: !receiptsResult.error, title: 'Fluxo de recibos', detail: 'Histórico de recibos acessível.'},
+            {ok: readinessCache.receiptsOk, title: 'Fluxo de recibos', detail: 'Histórico de recibos acessível.'},
             {ok: Boolean(settingsReady), title: 'Preferências de automação', detail: 'Configurações individuais da academia criadas.'},
-            {ok: duplicateSafe, title: 'Recibos sem duplicidade', detail: 'Proteção de recibo ativo permanece válida.'},
+            {ok: readinessCache.duplicateSafe, title: 'Recibos sem duplicidade', detail: 'Proteção de recibo ativo permanece válida.'},
             {ok: metaState.ok, title: 'Conexão com a Meta', detail: metaState.detail}
         ];
         document.getElementById('automationReadiness').innerHTML = checks.map(check => `
@@ -497,9 +495,95 @@
         ).join('');
     }
 
+    async function loadReadiness(settingsReady = false, {force = false} = {}) {
+        const userId = await getUserId();
+        if (!userId) return null;
+        const academyId = String(globalThis.currentAcademyId || '').trim() || null;
+        const fresh =
+            readinessCache &&
+            readinessCache.userId === userId &&
+            readinessCache.academyId === academyId &&
+            Date.now() - readinessCache.loadedAt < AUTOMATION_READINESS_CACHE_MS;
+        if (!force && fresh) {
+            renderReadiness(settingsReady);
+            return readinessCache;
+        }
+        if (readinessRefreshPromise) {
+            await readinessRefreshPromise;
+            renderReadiness(settingsReady);
+            return readinessCache;
+        }
+
+        readinessRefreshPromise = (async () => {
+            const [profileResult, receiptsResult, duplicatesResult] = await Promise.all([
+                read(() => db
+                    .from('academy_profiles')
+                    .select('academy_name,responsible_name,support_phone')
+                    .eq('user_id', userId)
+                    .maybeSingle()),
+                read(() => db
+                    .from('receipts')
+                    .select('id,storage_path,status')
+                    .limit(1)),
+                read(() => db
+                    .rpc('find_duplicate_active_receipts'))
+                    .catch(() => ({data: null, error: new Error('rpc unavailable')}))
+            ]);
+            const duplicateSafe = !duplicatesResult.error && Array.isArray(duplicatesResult.data)
+                ? duplicatesResult.data.length === 0
+                : true;
+            readinessCache = {
+                userId,
+                academyId,
+                profile: profileResult.data || {},
+                receiptsOk: !receiptsResult.error,
+                duplicateSafe,
+                loadedAt: Date.now()
+            };
+            return readinessCache;
+        })();
+
+        try {
+            await readinessRefreshPromise;
+        } finally {
+            readinessRefreshPromise = null;
+        }
+        renderReadiness(settingsReady);
+        return readinessCache;
+    }
+
+    async function refreshActivity({force = false} = {}) {
+        const fresh =
+            !activityDirty &&
+            Date.now() - activityLastLoadedAt < AUTOMATION_ACTIVITY_CACHE_MS;
+        if (!force && fresh) {
+            if (readinessCache)
+                renderReadiness(Boolean(settingsLoadedUserId));
+            return true;
+        }
+        if (activityRefreshPromise)
+            return activityRefreshPromise;
+
+        activityRefreshPromise = (async () => {
+            await loadMessages();
+            activityDirty = false;
+            activityLastLoadedAt = Date.now();
+            if (readinessCache)
+                renderReadiness(Boolean(settingsLoadedUserId));
+            return true;
+        })();
+
+        try {
+            return await activityRefreshPromise;
+        } finally {
+            activityRefreshPromise = null;
+        }
+    }
+
     async function refreshAll({force = false} = {}) {
         const fresh = automationReady &&
             !automationDirty &&
+            !activityDirty &&
             Date.now() - automationLastLoadedAt < AUTOMATION_CACHE_MS;
         if (!force && fresh)
             return true;
@@ -509,10 +593,10 @@
         automationRefreshPromise = (async () => {
             setAutomationLoading(true);
             try {
-                const settings = await ensureSettings();
+                const settings = await ensureSettings({force});
                 renderSettings();
-                await loadMessages();
-                await loadReadiness(Boolean(settings));
+                await refreshActivity({force});
+                await loadReadiness(Boolean(settings), {force});
                 automationReady = true;
                 automationDirty = false;
                 automationLastLoadedAt = Date.now();
@@ -617,9 +701,9 @@
 
     tab.addEventListener('click', () => setView('automation'));
     window.addEventListener('payment:lifecycle', () => {
-        automationDirty = true;
+        activityDirty = true;
         if (activeView === 'automation')
-            void refreshAll({force: true});
+            void refreshActivity({force: true});
     });
 
     db.auth.onAuthStateChange((event, session) => {
@@ -630,7 +714,11 @@
 
         if (!nextUserId) {
             automationDirty = true;
+            activityDirty = true;
             automationLastLoadedAt = 0;
+            activityLastLoadedAt = 0;
+            settingsLoadedUserId = null;
+            readinessCache = null;
             currentMessages = [];
             currentStudents = [];
             studentsById.clear();
@@ -644,7 +732,11 @@
         }
 
         automationDirty = true;
+        activityDirty = true;
         automationLastLoadedAt = 0;
+        activityLastLoadedAt = 0;
+        settingsLoadedUserId = null;
+        readinessCache = null;
         if (activeView === 'automation')
             setTimeout(() => refreshAll({force: true}), 0);
     });

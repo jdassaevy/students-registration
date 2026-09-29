@@ -79,5 +79,5 @@ test('critical functional modules remain loaded', () => {
     assert.ok(index.includes(src), `missing ${src}`);
   }
   assert.equal(index.includes('./js/features/automation-center.js'), false);
-  assert.ok(tabBar.includes('./js/features/automation-center.js?v=10'), 'automation lazy loader missing');
+  assert.ok(tabBar.includes('./js/features/automation-center.js?v=11'), 'automation lazy loader missing');
 });

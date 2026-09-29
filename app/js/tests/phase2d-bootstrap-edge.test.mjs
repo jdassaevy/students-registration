@@ -6,18 +6,18 @@ const migrationUrl = new URL(
   '../../../supabase/migrations/20260929_phase2d_bootstrap_edge_hardening.sql',
   import.meta.url
 );
+const revokeMigrationUrl = new URL(
+  '../../../supabase/migrations/20260929235900_phase2d_revoke_legacy_bootstrap.sql',
+  import.meta.url
+);
 const functionUrl = new URL(
   '../../../supabase/functions/bootstrap-academy/index.ts',
   import.meta.url
 );
 
-test('phase 2d removes browser execute access from privileged bootstrap RPCs', () => {
+test('phase 2d stage 1 adds a service-only bootstrap path without disabling legacy onboarding', () => {
   const sql = fs.readFileSync(migrationUrl, 'utf8').toLowerCase();
 
-  assert.match(
-    sql,
-    /revoke execute on function public\.bootstrap_academy\(text\) from public, anon, authenticated/
-  );
   assert.match(
     sql,
     /revoke execute on function public\.bootstrap_academy_service\(uuid, text\) from public, anon, authenticated/
@@ -28,7 +28,20 @@ test('phase 2d removes browser execute access from privileged bootstrap RPCs', (
   );
   assert.doesNotMatch(
     sql,
-    /grant execute on function public\.bootstrap_academy_service\(uuid, text\) to authenticated/
+    /revoke execute on function public\.bootstrap_academy\(text\) from public, anon, authenticated/
+  );
+});
+
+test('phase 2d stage 2 revokes direct browser access only after the new path is live', () => {
+  const sql = fs.readFileSync(revokeMigrationUrl, 'utf8').toLowerCase();
+
+  assert.match(
+    sql,
+    /revoke execute on function public\.bootstrap_academy\(text\) from public, anon, authenticated/
+  );
+  assert.match(
+    sql,
+    /grant execute on function public\.bootstrap_academy\(text\) to service_role/
   );
 });
 

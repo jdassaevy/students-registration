@@ -197,32 +197,35 @@ Deno.serve(async (req: Request) => {
 
     const paid = paymentIsMarked(student, person, kind, installment);
     const amount = paymentAmount(student, person, kind);
-    const { data: activeReceipt } = await admin.from("receipts").select(RECEIPT_RUNTIME_SELECT)
-      .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment)
-      .eq("status", "active").maybeSingle();
-    if (activeReceipt && !receiptMatchesStudent(activeReceipt, student)) return respond({ error: "Receipt tenant mismatch" }, 409);
-    const action = receiptActionForState({ paid, hasActiveReceipt: Boolean(activeReceipt) });
+    let activeReceipt: any = null;
+    let action = paid ? "create" : "none";
+
+    if (!paid) {
+      const { data, error } = await admin.from("receipts").select(RECEIPT_RUNTIME_SELECT)
+        .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment)
+        .eq("status", "active").maybeSingle();
+      if (error) throw error;
+      activeReceipt = data || null;
+      if (activeReceipt && !receiptMatchesStudent(activeReceipt, student)) {
+        return respond({ error: "Receipt tenant mismatch" }, 409);
+      }
+      action = receiptActionForState({ paid, hasActiveReceipt: Boolean(activeReceipt) });
+    }
 
     let paymentEvent: any = null;
     if (paid) {
-      const { data: existingEvent } = await admin.from("payment_events").select(PAYMENT_EVENT_RUNTIME_SELECT)
-        .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).maybeSingle();
-      if (existingEvent) {
-        if (existingEvent.academy_id !== student.academy_id) return respond({ error: "Payment tenant mismatch" }, 409);
-        paymentEvent = existingEvent;
+      const { data, error } = await admin.from("payment_events").insert({
+        user_id: user.id, academy_id: student.academy_id, student_id: studentId, class_id: student.class_id, person, kind, installment, amount,
+      }).select(PAYMENT_EVENT_RUNTIME_SELECT).single();
+      if (error && !isUniqueViolation(error)) throw error;
+      if (data) {
+        paymentEvent = data;
       } else {
-        const { data, error } = await admin.from("payment_events").insert({
-          user_id: user.id, academy_id: student.academy_id, student_id: studentId, class_id: student.class_id, person, kind, installment, amount,
-        }).select(PAYMENT_EVENT_RUNTIME_SELECT).single();
-        if (error && !isUniqueViolation(error)) throw error;
-        if (data) paymentEvent = data;
-        else {
-          const { data: concurrentEvent, error: concurrentError } = await admin.from("payment_events").select(PAYMENT_EVENT_RUNTIME_SELECT)
-            .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).single();
-          if (concurrentError) throw concurrentError;
-          if (concurrentEvent.academy_id !== student.academy_id) return respond({ error: "Payment tenant mismatch" }, 409);
-          paymentEvent = concurrentEvent;
-        }
+        const { data: concurrentEvent, error: concurrentError } = await admin.from("payment_events").select(PAYMENT_EVENT_RUNTIME_SELECT)
+          .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment).single();
+        if (concurrentError) throw concurrentError;
+        if (concurrentEvent.academy_id !== student.academy_id) return respond({ error: "Payment tenant mismatch" }, 409);
+        paymentEvent = concurrentEvent;
       }
     } else {
       const { error } = await admin.from("payment_events").delete()
@@ -245,7 +248,7 @@ Deno.serve(async (req: Request) => {
     let receipt: any = activeReceipt || null;
     let repairedPdf = false;
     let pdfStatus: "ready" | "pending" | "not_applicable" = "not_applicable";
-    if (action === "create") {
+    if (paid) {
       const { data, error } = await admin.from("receipts").insert({
         user_id: user.id,
         academy_id: student.academy_id,
@@ -258,13 +261,16 @@ Deno.serve(async (req: Request) => {
         paid_at: paymentEvent?.paid_at || new Date().toISOString(),
       }).select(RECEIPT_RUNTIME_SELECT).single();
       if (error && !isUniqueViolation(error)) throw error;
-      if (data) receipt = data;
-      else {
+      if (data) {
+        receipt = data;
+        action = "create";
+      } else {
         const { data: concurrentReceipt, error: concurrentError } = await admin.from("receipts").select(RECEIPT_RUNTIME_SELECT)
           .eq("student_id", studentId).eq("person", person).eq("kind", kind).eq("installment", installment)
           .eq("status", "active").single();
         if (concurrentError) throw concurrentError;
         receipt = concurrentReceipt;
+        action = "keep";
       }
     }
 

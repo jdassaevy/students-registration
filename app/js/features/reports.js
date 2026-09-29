@@ -303,7 +303,7 @@
         reportEventsPromise = (async () => {
             const read = () => db
                 .from('payment_events')
-                .select('*')
+                .select('class_id,paid_at,amount')
                 .order('paid_at', {ascending: true});
             const {data, error} = await (globalThis.ReadResilience?.run
                 ? globalThis.ReadResilience.run(read)

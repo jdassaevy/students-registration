@@ -1,15 +1,7 @@
-const PHASE_5A_DEV_PREVIEW_HOST = 'students-registration-git-7f76bb-jdassaevy12345-6044s-projects.vercel.app';
-const isPhase5ADevPreview = window.location.hostname === PHASE_5A_DEV_PREVIEW_HOST;
-
-const SUPABASE_CONFIG = isPhase5ADevPreview
-    ? {
-        url: 'https://lulvvkrrysfmiqtefwnf.supabase.co',
-        publishableKey: 'sb_publishable_ePxmJIkapB3AFctwbvrs2A_fe2DwoOk'
-    }
-    : {
-        url: 'https://gswcruzlvkcoclbcrjvp.supabase.co',
-        publishableKey: 'sb_publishable_jkMQ0iiFYuOwe7VXZiby_A_f1ptfG91'
-    };
+const SUPABASE_CONFIG = {
+    url: 'https://gswcruzlvkcoclbcrjvp.supabase.co',
+    publishableKey: 'sb_publishable_jkMQ0iiFYuOwe7VXZiby_A_f1ptfG91'
+};
 
 if (
     window.supabase

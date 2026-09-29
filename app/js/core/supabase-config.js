@@ -31,7 +31,7 @@ window.addEventListener('load', () => {
         if (document.querySelector('script[data-student-whatsapp-contact]'))
             return;
         const contactScript = document.createElement('script');
-        contactScript.src = './js/features/student-whatsapp-contact.js?v=1';
+        contactScript.src = './js/features/student-whatsapp-contact.js?v=2';
         contactScript.dataset.studentWhatsappContact = 'true';
         document
             .body

@@ -26,7 +26,7 @@ test('core preserves WhatsApp fields and publishes a tenant-scoped student conte
   assert.match(core, /function publishStudentDataContext\(\)/);
   assert.match(core, /globalThis\.StudentDataContext\s*=\s*\{/);
   assert.match(core, /userId:\s*currentUser\?\.id\s*\|\|\s*null/);
-  assert.match(core, /academyId:/);
+  assert.match(core, /academyId[,}]/);
   assert.match(core, /items:\s*couples\.map/);
   assert.match(core, /globalThis\.publishStudentDataContext\s*=\s*publishStudentDataContext/);
   assert.match(core, /globalThis\.StudentDataContext = null/);

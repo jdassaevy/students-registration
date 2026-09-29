@@ -10,15 +10,15 @@ const projections = read('../../../supabase/functions/_shared/payment-projection
 test('shared payment projections define bounded receipt and event payloads', () => {
   assert.match(
     projections,
-    /export const RECEIPT_RUNTIME_SELECT = ["']id,user_id,academy_id,student_id,person,kind,installment,amount,paid_at,receipt_number,status,storage_path["']/
+    /export const RECEIPT_RUNTIME_SELECT\s*=\s*["']id,user_id,academy_id,student_id,person,kind,installment,amount,paid_at,receipt_number,status,storage_path["']/
   );
   assert.match(
     projections,
-    /export const PAYMENT_EVENT_RUNTIME_SELECT = ["']academy_id,paid_at["']/
+    /export const PAYMENT_EVENT_RUNTIME_SELECT\s*=\s*["']academy_id,paid_at["']/
   );
   assert.match(
     projections,
-    /export const RECEIPT_WITH_CONTEXT_SELECT = .*student_row:students!receipts_student_id_fkey\(id,person1,person2,academy_id\).*class_row:classes!receipts_class_id_fkey\(name,academy_id\)/
+    /export const RECEIPT_WITH_CONTEXT_SELECT\s*=\s*[\s\S]*student_row:students!receipts_student_id_fkey\(id,person1,person2,academy_id\)[\s\S]*class_row:classes!receipts_class_id_fkey\(name,academy_id\)/
   );
 });
 

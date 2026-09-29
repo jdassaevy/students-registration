@@ -86,7 +86,7 @@ window.addEventListener('load', () => {
             return;
         }
         const receiptScript = document.createElement('script');
-        receiptScript.src = './js/features/receipts.js?v=4';
+        receiptScript.src = './js/features/receipts.js?v=5';
         receiptScript.dataset.receipts = 'true';
         receiptScript.addEventListener('load', loadFinancialDetails, {once: true});
         document

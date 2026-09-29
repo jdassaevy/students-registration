@@ -205,9 +205,13 @@ test('bootstrap invalidates a previously resolved academy cache', async () => {
         from() {
             return query;
         },
-        rpc() {
-            academyId = 'academy-b';
-            return Promise.resolve({ data: academyId, error: null });
+        functions: {
+            invoke(name, options) {
+                assert.equal(name, 'bootstrap-academy');
+                assert.equal(options?.body?.academy_name, 'Academia Atualizada');
+                academyId = 'academy-b';
+                return Promise.resolve({ data: { academy_id: academyId }, error: null });
+            }
         }
     };
 
@@ -230,13 +234,15 @@ test('bootstrap invalidates a previously resolved academy cache', async () => {
     assert.equal(readCount, 2);
 });
 
-test('bootstrap calls bootstrap_academy and returns its uuid', async () => {
+test('bootstrap invokes the authenticated bootstrap edge function and returns its uuid', async () => {
     const AcademyContext = loadAcademyContext();
     const calls = [];
     const db = {
-        rpc(name, params) {
-            calls.push([name, params]);
-            return Promise.resolve({ data: 'academy-new', error: null });
+        functions: {
+            invoke(name, options) {
+                calls.push([name, options]);
+                return Promise.resolve({ data: { academy_id: 'academy-new' }, error: null });
+            }
         }
     };
 
@@ -244,17 +250,19 @@ test('bootstrap calls bootstrap_academy and returns its uuid', async () => {
 
     assert.equal(academyId, 'academy-new');
     assert.equal(calls.length, 1);
-    assert.equal(calls[0][0], 'bootstrap_academy');
-    assert.equal(calls[0][1].academy_name, 'Academia Nova');
+    assert.equal(calls[0][0], 'bootstrap-academy');
+    assert.equal(calls[0][1]?.body?.academy_name, 'Academia Nova');
 });
 
 test('bootstrap rejects an empty academy name before calling Supabase', async () => {
     const AcademyContext = loadAcademyContext();
     let called = false;
     const db = {
-        rpc() {
-            called = true;
-            return Promise.resolve({ data: null, error: null });
+        functions: {
+            invoke() {
+                called = true;
+                return Promise.resolve({ data: null, error: null });
+            }
         }
     };
 

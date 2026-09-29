@@ -76,16 +76,25 @@
             throw new Error('Academy name is required');
         }
 
-        const { data, error } = await db.rpc('bootstrap_academy', {
-            academy_name: name
+        if (!db?.functions?.invoke) {
+            throw new Error('Academy bootstrap service is unavailable');
+        }
+
+        const { data, error } = await db.functions.invoke('bootstrap-academy', {
+            body: { academy_name: name }
         });
 
         if (error) {
             throw error;
         }
 
+        const academyId = data?.academy_id || null;
+        if (!academyId) {
+            throw new Error('Academy bootstrap returned no id');
+        }
+
         resolvedCache.clear();
-        return data;
+        return academyId;
     }
 
     global.AcademyContext = Object.freeze({

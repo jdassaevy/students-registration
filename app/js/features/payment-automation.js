@@ -130,9 +130,14 @@ if (typeof window !== 'undefined') {
     (() => {
         if (typeof db === 'undefined') return;
 
+        const lifecycleFunctionName =
+            window.location.hostname === 'students-registration-git-7f76bb-jdassaevy12345-6044s-projects.vercel.app'
+                ? 'payment-lifecycle-phase5a'
+                : 'payment-lifecycle';
+
         async function invokeLifecycle(body) {
             return invokeWithSessionRecovery({
-                invoke: accessToken => db.functions.invoke('payment-lifecycle', {
+                invoke: accessToken => db.functions.invoke(lifecycleFunctionName, {
                     body,
                     ...(accessToken
                         ? {headers: {Authorization: `Bearer ${accessToken}`}}

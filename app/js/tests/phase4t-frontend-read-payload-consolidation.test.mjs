@@ -72,7 +72,7 @@ test('receipt history requests only fields used by history, repair and visibilit
 });
 
 test('phase 4T cache keys force the consolidated frontend bundle to refresh', () => {
-  assert.match(index, /\.\/js\/core\/supabase-config\.js\?v=5/);
+  assert.match(index, /\.\/js\/core\/supabase-config\.js\?v=6/);
   assert.match(index, /\.\/js\/core\/script\.js\?v=13/);
   assert.match(index, /\.\/js\/features\/reports\.js\?v=6/);
   assert.match(index, /\.\/js\/features\/tab-bar\.js\?v=8/);

@@ -1,7 +1,45 @@
-const SUPABASE_CONFIG = {
-    url: 'https://gswcruzlvkcoclbcrjvp.supabase.co',
-    publishableKey: 'sb_publishable_jkMQ0iiFYuOwe7VXZiby_A_f1ptfG91'
-};
+const SUPABASE_PRODUCTION_HOSTS = new Set([
+    'alunos.dassaevylabs.com.br',
+    'students-registration-multi-academy.vercel.app'
+]);
+
+const SUPABASE_LOCAL_HOSTS = new Set([
+    'localhost',
+    '127.0.0.1'
+]);
+
+function resolveSupabaseRuntimeConfig(hostname = window.location.hostname) {
+    const normalizedHost = String(hostname || '')
+        .trim()
+        .toLowerCase();
+
+    if (
+        !SUPABASE_PRODUCTION_HOSTS.has(normalizedHost) &&
+        !SUPABASE_LOCAL_HOSTS.has(normalizedHost)
+    ) {
+        return null;
+    }
+
+    return {
+        url: 'https://gswcruzlvkcoclbcrjvp.supabase.co',
+        publishableKey: 'sb_publishable_jkMQ0iiFYuOwe7VXZiby_A_f1ptfG91'
+    };
+}
+
+const SUPABASE_CONFIG = resolveSupabaseRuntimeConfig();
+
+if (!SUPABASE_CONFIG) {
+    window.__supabaseProductionHostBlocked = true;
+    window.addEventListener('DOMContentLoaded', () => {
+        document.body.innerHTML = `
+            <main style="max-width:680px;margin:15vh auto;padding:24px;font-family:system-ui,sans-serif;text-align:center">
+                <h1>Ambiente de pré-visualização bloqueado</h1>
+                <p>Este endereço não tem permissão para acessar os dados de produção.</p>
+            </main>
+        `;
+    }, {once: true});
+    throw new Error('Supabase production access blocked for unapproved host');
+}
 
 if (
     window.supabase

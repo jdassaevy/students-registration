@@ -19,14 +19,18 @@ test('monthly PDF generation is delegated with the original auth context', () =>
     );
 });
 
-test('registration keeps direct PDF generation while monthly delegates it', () => {
+test('registration keeps direct PDF generation while monthly delegates it through the overlapped task', () => {
     assert.match(
         source,
         /if\s*\(paid\s*&&\s*kind\s*===\s*["']entry["']\s*&&\s*receiptNeedsPdf\(receipt\)\)[\s\S]*?generateReceiptPdf/
     );
     assert.match(
         source,
-        /if\s*\(paid\s*&&\s*kind\s*===\s*["']monthly["']\s*&&\s*receipt\)[\s\S]*?requestMonthlyReceiptPdf/
+        /const monthlyPdfTask\s*=\s*paid\s*&&\s*kind\s*===\s*["']monthly["'][\s\S]*?requestMonthlyReceiptPdf/
+    );
+    assert.match(
+        source,
+        /if\s*\(paid\s*&&\s*kind\s*===\s*["']monthly["']\s*&&\s*receipt\)[\s\S]*?await monthlyPdfTask/
     );
 });
 

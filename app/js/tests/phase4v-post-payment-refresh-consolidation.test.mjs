@@ -74,7 +74,7 @@ test('receipt history uses a short cache but manual refresh and repair remain fo
 });
 
 test('phase 4V cache keys refresh automation and receipt bundles', () => {
-  assert.match(index, /\.\/js\/core\/supabase-config\.js\?v=5/);
+  assert.match(index, /\.\/js\/core\/supabase-config\.js\?v=6/);
   assert.match(index, /\.\/js\/features\/tab-bar\.js\?v=8/);
   assert.match(config, /receipts\.js\?v=5/);
   assert.match(tabBar, /automation-center\.js\?v=11/);

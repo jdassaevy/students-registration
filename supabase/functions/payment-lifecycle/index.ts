@@ -195,6 +195,11 @@ Deno.serve(async (req: Request) => {
       return respond({ error: "Forbidden" }, 403);
     }
 
+    const settingsPromise = admin.from("automation_settings")
+      .select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
     const paid = paymentIsMarked(student, person, kind, installment);
     const amount = paymentAmount(student, person, kind);
     let activeReceipt: any = null;
@@ -235,12 +240,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const academy = academyAccess.academy;
-    const { data: settingsRow } = await admin.from("automation_settings")
-      .select("reminders_enabled,payment_confirmation_enabled,receipt_delivery_enabled,void_notification_enabled")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const settings = normalizeAutomationSettings(settingsRow);
     const studentName = (person === "person2" ? student.person2 : student.person1) || "Aluno(a)";
     const academyMessageName = academy.display_name || academy.name;
     const label = paymentLabel(kind, installment);
@@ -276,6 +275,12 @@ Deno.serve(async (req: Request) => {
 
     if (receipt && !receiptMatchesStudent(receipt, student)) return respond({ error: "Receipt tenant mismatch" }, 409);
 
+    const monthlyPdfTask = paid && kind === "monthly" && receipt && !receipt.storage_path
+      ? requestMonthlyReceiptPdf({ supabaseUrl, anonKey, authHeader, receiptId: receipt.id })
+          .then(generatedReceipt => ({ receipt: generatedReceipt, error: null }))
+          .catch(error => ({ receipt: null, error }))
+      : null;
+
     if (paid && kind === "entry" && receiptNeedsPdf(receipt)) {
       const receiptAmount = paymentReceiptAmount(receipt, amount);
       const pdfBytes = await generateReceiptPdf({
@@ -306,6 +311,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (paid && kind === "entry" && receipt?.storage_path) pdfStatus = "ready";
+
+    const { data: settingsRow } = await settingsPromise;
+    const settings = normalizeAutomationSettings(settingsRow);
 
     const notificationAmount = paymentNotificationAmount(action, receipt, amount);
     const phone = person === "person2" ? student.person2_phone : student.person1_phone;
@@ -377,16 +385,17 @@ Deno.serve(async (req: Request) => {
     if (paid && kind === "monthly" && receipt) {
       if (receipt.storage_path) {
         pdfStatus = "ready";
-      } else {
-        try {
-          receipt = await requestMonthlyReceiptPdf({ supabaseUrl, anonKey, authHeader, receiptId: receipt.id });
-          if (receipt && !receiptMatchesStudent(receipt, student)) return respond({ error: "Receipt tenant mismatch" }, 409);
-          pdfStatus = receipt?.storage_path ? "ready" : "pending";
-          repairedPdf = pdfStatus === "ready";
-        } catch (error: any) {
+      } else if (monthlyPdfTask) {
+        const monthlyPdfResult = await monthlyPdfTask;
+        if (monthlyPdfResult.error) {
           logSafeEvent(req, "payment-lifecycle", "monthly_receipt_pdf_pending", { outcome: "pending_pdf", duration_ms: Date.now() - startedAt }, "warn");
           pdfStatus = "pending";
           whatsapp.receipt_document = settings.receipt_delivery_enabled ? "pending_pdf" : "disabled";
+        } else {
+          receipt = monthlyPdfResult.receipt;
+          if (receipt && !receiptMatchesStudent(receipt, student)) return respond({ error: "Receipt tenant mismatch" }, 409);
+          pdfStatus = receipt?.storage_path ? "ready" : "pending";
+          repairedPdf = pdfStatus === "ready";
         }
       }
     }

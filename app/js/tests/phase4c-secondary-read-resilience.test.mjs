@@ -46,7 +46,9 @@ test('automation retries reads but never wraps settings writes or message retry 
   assert.match(automation, /const read = factory => globalThis\.ReadResilience\?\.run/);
   assert.match(automation, /read\(\(\) => db[\s\S]*\.from\(['"]automation_messages['"]\)/);
   assert.match(automation, /read\(\(\) => db[\s\S]*\.from\(['"]students['"]\)/);
-  assert.match(automation, /read\(\(\) => db[\s\S]*\.rpc\(['"]find_duplicate_active_receipts['"]\)/);
+  assert.match(automation, /read\(\(\) => db[\s\S]*\.from\(['"]academies['"]\)/);
+  assert.match(automation, /read\(\(\) => db[\s\S]*\.from\(['"]receipts['"]\)/);
+  assert.doesNotMatch(automation, /find_duplicate_active_receipts/);
   assert.doesNotMatch(automation, /read\(\(\) => db[\s\S]{0,220}\.(?:insert|update|delete)\s*\(/);
   assert.doesNotMatch(automation, /read\(\(\) => db[\s\S]{0,220}functions\.invoke\s*\(/);
   assert.match(automation, /\.from\(['"]automation_settings['"]\)\.insert\(/);

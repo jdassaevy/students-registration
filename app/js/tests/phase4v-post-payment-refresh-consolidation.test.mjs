@@ -28,7 +28,7 @@ test('automation readiness has its own cache and renders dynamic checks without 
   assert.match(automation, /function renderReadiness\(settingsReady = false\)/);
   assert.match(
     automation,
-    /async function loadReadiness\(settingsReady = false, \{force = false\} = \{\}\)/
+    /async function loadReadiness\(settingsReady = false, \{force = false, render = true\} = \{\}\)/
   );
   assert.match(
     automation,

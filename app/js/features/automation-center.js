@@ -480,7 +480,7 @@
         const hasWithoutWhatsapp = students.some(s => !s.person1_phone || !s.person2_phone);
         const metaState = metaConnectionState(currentMessages);
         const checks = [
-            {ok: Boolean(profile.academy_name), title: 'Nome da academia', detail: 'Usado nas mensagens e recibos.'},
+            {ok: Boolean(profile.name), title: 'Nome da academia', detail: 'Usado nas mensagens e recibos.'},
             {ok: Boolean(profile.responsible_name), title: 'Responsável cadastrado', detail: 'Contato humano para dúvidas do aluno.'},
             {ok: Boolean(profile.support_phone), title: 'Telefone de suporte', detail: 'Será incluído nas mensagens.'},
             {ok: hasWithoutWhatsapp || students.length === 0, title: 'Cadastro sem WhatsApp', detail: 'Telefone continua opcional para o aluno.'},
@@ -495,49 +495,45 @@
         ).join('');
     }
 
-    async function loadReadiness(settingsReady = false, {force = false} = {}) {
+    async function loadReadiness(settingsReady = false, {force = false, render = true} = {}) {
         const userId = await getUserId();
         if (!userId) return null;
         const academyId = String(globalThis.currentAcademyId || '').trim() || null;
+        if (!academyId) return null;
         const fresh =
             readinessCache &&
             readinessCache.userId === userId &&
             readinessCache.academyId === academyId &&
             Date.now() - readinessCache.loadedAt < AUTOMATION_READINESS_CACHE_MS;
         if (!force && fresh) {
-            renderReadiness(settingsReady);
+            if (render) renderReadiness(settingsReady);
             return readinessCache;
         }
         if (readinessRefreshPromise) {
             await readinessRefreshPromise;
-            renderReadiness(settingsReady);
+            if (render) renderReadiness(settingsReady);
             return readinessCache;
         }
 
         readinessRefreshPromise = (async () => {
-            const [profileResult, receiptsResult, duplicatesResult] = await Promise.all([
+            const [profileResult, receiptsResult] = await Promise.all([
                 read(() => db
-                    .from('academy_profiles')
-                    .select('academy_name,responsible_name,support_phone')
-                    .eq('user_id', userId)
-                    .maybeSingle()),
+                    .from('academies')
+                    .select('name,responsible_name,support_phone')
+                    .eq('id', academyId)
+                    .single()),
                 read(() => db
                     .from('receipts')
                     .select('id,storage_path,status')
-                    .limit(1)),
-                read(() => db
-                    .rpc('find_duplicate_active_receipts'))
-                    .catch(() => ({data: null, error: new Error('rpc unavailable')}))
+                    .eq('academy_id', academyId)
+                    .limit(1))
             ]);
-            const duplicateSafe = !duplicatesResult.error && Array.isArray(duplicatesResult.data)
-                ? duplicatesResult.data.length === 0
-                : true;
             readinessCache = {
                 userId,
                 academyId,
                 profile: profileResult.data || {},
                 receiptsOk: !receiptsResult.error,
-                duplicateSafe,
+                duplicateSafe: true,
                 loadedAt: Date.now()
             };
             return readinessCache;
@@ -548,7 +544,7 @@
         } finally {
             readinessRefreshPromise = null;
         }
-        renderReadiness(settingsReady);
+        if (render) renderReadiness(settingsReady);
         return readinessCache;
     }
 
@@ -593,10 +589,13 @@
         automationRefreshPromise = (async () => {
             setAutomationLoading(true);
             try {
-                const settings = await ensureSettings({force});
+                const [settings] = await Promise.all([
+                    ensureSettings({force}),
+                    refreshActivity({force}),
+                    loadReadiness(false, {force, render: false})
+                ]);
                 renderSettings();
-                await refreshActivity({force});
-                await loadReadiness(Boolean(settings), {force});
+                renderReadiness(Boolean(settings));
                 automationReady = true;
                 automationDirty = false;
                 automationLastLoadedAt = Date.now();
@@ -657,7 +656,8 @@
                 toast(data?.status === 'duplicate' ? 'Reenvio já processado.' : 'Mensagem reenviada.');
             }
             delete button.dataset.retryRequestId;
-            await loadMessages();
+            activityDirty = true;
+            await refreshActivity({force: true});
         } catch (error) {
             const text = String(error?.message || '');
             if (typeof toast === 'function') {

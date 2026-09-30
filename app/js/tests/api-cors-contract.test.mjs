@@ -18,7 +18,6 @@ const { ALLOWED_BROWSER_ORIGINS, corsHeadersFor, isAllowedCorsRequest } = corsMo
 const approvedBrowserOrigins = [
   'https://alunos.dassaevylabs.com.br',
   'https://students-registration-multi-academy.vercel.app',
-  'https://students-registration-git-e153bc-jdassaevy12345-6044s-projects.vercel.app',
 ];
 
 test('CORS allowlist contains only approved app origins plus local Live Server origins', () => {
@@ -57,6 +56,14 @@ test('allowed browser origin is echoed exactly with required Supabase headers', 
       assert.match(headers['Access-Control-Allow-Headers'], new RegExp(`(^|, )${header}(,|$)`));
     }
   }
+});
+
+test('retired preview origins are rejected and never receive an allow-origin header', () => {
+  const retiredPreview = new Request('https://functions.example.test', {
+    headers: { origin: 'https://students-registration-git-e153bc-jdassaevy12345-6044s-projects.vercel.app' },
+  });
+  assert.equal(isAllowedCorsRequest(retiredPreview), false);
+  assert.equal(corsHeadersFor(retiredPreview)['Access-Control-Allow-Origin'], undefined);
 });
 
 test('unknown browser origins are rejected and never receive an allow-origin header', () => {

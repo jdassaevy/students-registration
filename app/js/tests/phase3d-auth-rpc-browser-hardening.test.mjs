@@ -7,7 +7,7 @@ const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const script = read('../core/script.js');
 const index = read('../../index.html');
 const themeBoot = read('../core/theme-boot.js');
-const vercel = JSON.parse(read('../../../vercel.json'));
+const vercel = JSON.parse(read('../../vercel.json'));
 const migration = read('../../../supabase/migrations/20260922_phase3d_auth_rpc_browser_hardening.sql').toLowerCase();
 
 test('new passwords use an 8 character client minimum without blocking legacy login', () => {

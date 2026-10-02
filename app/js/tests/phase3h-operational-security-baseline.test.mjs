@@ -6,7 +6,7 @@ const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const deploy = read('../../../.github/workflows/deploy-pages.yml');
 const ci = read('../../../.github/workflows/test-dashboard-redesign.yml');
 const index = read('../../index.html');
-const vercel = JSON.parse(read('../../../vercel.json'));
+const vercel = JSON.parse(read('../../vercel.json'));
 const clientLogging = read('../core/client-logging.js');
 
 const runtimePaths = [

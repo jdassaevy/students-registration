@@ -8,7 +8,7 @@ const students = read('../features/students-ui.js');
 const reports = read('../features/reports.js');
 const automation = read('../features/automation-center.js');
 const index = read('../../index.html');
-const vercel = JSON.parse(read('../../../vercel.json'));
+const vercel = JSON.parse(read('../../vercel.json'));
 
 const CHART_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
 

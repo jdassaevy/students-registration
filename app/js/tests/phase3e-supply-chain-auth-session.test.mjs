@@ -6,7 +6,7 @@ const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const index = read('../../index.html');
 const script = read('../core/script.js');
 const reports = read('../features/reports.js');
-const vercel = JSON.parse(read('../../../vercel.json'));
+const vercel = JSON.parse(read('../../vercel.json'));
 
 const SUPABASE_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0';
 const DOCX_CDN = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js';

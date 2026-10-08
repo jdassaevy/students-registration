@@ -2,20 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const core = fs.readFileSync(
-  new URL('../core/script.js', import.meta.url),
+const studentsUi = fs.readFileSync(
+  new URL('../features/students-ui.js', import.meta.url),
   'utf8'
 );
 
-test('student search and class filter resolve the current render at event time', () => {
-  assert.match(
-    core,
-    /\$\(['"]search['"]\)\.oninput\s*=\s*\(\)\s*=>\s*render\(\)/,
-    'search must call the current render so the mobile cards wrapper also runs'
+test('mobile students rebind search and class filter after wrapping render', () => {
+  const wrapperIndex = studentsUi.indexOf('render = function ()');
+  const searchBindingIndex = studentsUi.indexOf("$('search').oninput = render");
+  const classBindingIndex = studentsUi.indexOf("$('classFilter').onchange = render");
+
+  assert.ok(wrapperIndex >= 0, 'students UI must wrap the core render');
+  assert.ok(
+    searchBindingIndex > wrapperIndex,
+    'search must be rebound after the mobile render wrapper is installed'
   );
-  assert.match(
-    core,
-    /\$\(['"]classFilter['"]\)\.onchange\s*=\s*\(\)\s*=>\s*render\(\)/,
-    'class filter must call the current render so the mobile cards wrapper also runs'
+  assert.ok(
+    classBindingIndex > wrapperIndex,
+    'class filter must be rebound after the mobile render wrapper is installed'
   );
 });

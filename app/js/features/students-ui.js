@@ -162,6 +162,9 @@
         renderStudentCards();
     };
 
+    $('search').oninput = render;
+    $('classFilter').onchange = render;
+
     if (list.querySelector('.loading-state')) {
         renderStudentsLoading();
     } else if (list.children.length) {
